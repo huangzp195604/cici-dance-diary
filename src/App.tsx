@@ -14,6 +14,9 @@ import { MediaModal } from './components/MediaModal';
 import { DancePost, DanceBuddy, WallMessage, ForumThread, RealFriend } from './types';
 import { storage } from './utils/storage';
 import { metronomeInstance } from './utils/audio';
+import { useAuth, displayName } from './hooks/useAuth';
+import { LoginModal } from './components/LoginModal';
+import * as forumApi from './services/forumApi';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<'timeline' | 'upload' | 'buddies' | 'about'>('timeline');
@@ -23,6 +26,13 @@ export default function App() {
   const [threads, setThreads] = useState<ForumThread[]>([]);
   const [realFriends, setRealFriends] = useState<RealFriend[]>([]);
   const [selectedPost, setSelectedPost] = useState<DancePost | null>(null);
+  const [forumError, setForumError] = useState('');
+  const [forumLoading, setForumLoading] = useState(true);
+  const [isLoginOpen, setIsLoginOpen] = useState(false);
+  const [toast, setToast] = useState('');
+
+  // 云端登录状态（会话自动恢复）
+  const { user, ready, sendCode, verifyCode, signOut } = useAuth();
   const [userAvatar, setUserAvatar] = useState<string | null>(() => {
     return localStorage.getItem('cici_user_avatar') || '/assets/aistudio/image_f83d6670.png';
   });
@@ -39,12 +49,10 @@ export default function App() {
       const loadedPosts = await storage.getPosts();
       const loadedBuddies = await storage.getBuddies();
       const loadedMessages = await storage.getMessages();
-      const loadedThreads = await storage.getThreads();
       const loadedFriends = await storage.getRealFriends();
       setPosts(loadedPosts);
       setBuddies(loadedBuddies);
       setMessages(loadedMessages);
-      setThreads(loadedThreads);
       setRealFriends(loadedFriends);
     }
     loadData();
@@ -67,6 +75,56 @@ export default function App() {
       window.removeEventListener('storage', handleStorageChange);
     };
   }, []);
+
+  // ---- 论坛：数据源在云端，登录状态变化后重拉（点赞/报名状态与本人绑定）----
+  useEffect(() => {
+    if (!ready) return;
+    let cancelled = false;
+
+    async function loadForum() {
+      setForumLoading(true);
+      try {
+        const cloudThreads = await forumApi.fetchForum(user ?? null);
+        if (!cancelled) {
+          setThreads(cloudThreads);
+          setForumError('');
+        }
+      } catch (err: any) {
+        if (!cancelled) setForumError(err.message || '论坛加载失败');
+      } finally {
+        if (!cancelled) setForumLoading(false);
+      }
+    }
+    loadForum();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [ready, user]);
+
+  // 轻提示（自动消失）
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(''), 2600);
+    return () => clearTimeout(t);
+  }, [toast]);
+
+  /** 论坛写操作统一走这道门：未登录先弹登录框 */
+  const requireLogin = (): boolean => {
+    if (user) return true;
+    setIsLoginOpen(true);
+    return false;
+  };
+
+  const refreshForum = async () => {
+    try {
+      const cloudThreads = await forumApi.fetchForum(user ?? null);
+      setThreads(cloudThreads);
+      setForumError('');
+    } catch (err: any) {
+      setForumError(err.message || '论坛刷新失败');
+    }
+  };
 
   const handleToggleMetronome = () => {
     const nextState = metronomeInstance.toggle();
@@ -207,82 +265,81 @@ export default function App() {
     setMessages((prev) => prev.filter((m) => m.id !== msgId));
   };
 
-  // --- Forum Thread Operations ---
+  // --- Forum Thread Operations（云端版：公开读，写入需登录，安全由 RLS 保障）---
   const handleCreateThread = async (thread: ForumThread) => {
-    await storage.saveThread(thread);
-    setThreads((prev) => [thread, ...prev]);
+    if (!requireLogin()) return;
+    try {
+      await forumApi.createThread(thread, user!);
+      await refreshForum();
+      setToast('🎉 发帖成功，全站舞友都能看到啦');
+    } catch (err: any) {
+      setToast(err.message || '发帖失败，请重试');
+      throw err;
+    }
   };
 
   const handleUpdateThread = async (thread: ForumThread) => {
-    await storage.saveThread(thread);
-    setThreads((prev) => prev.map((t) => (t.id === thread.id ? thread : t)));
+    try {
+      await forumApi.updateThread(thread);
+      await refreshForum();
+    } catch (err: any) {
+      setToast(err.message || '修改失败');
+      throw err;
+    }
   };
 
   const handleDeleteThread = async (threadId: string) => {
-    await storage.deleteThread(threadId);
-    setThreads((prev) => prev.filter((t) => t.id !== threadId));
+    try {
+      await forumApi.deleteThread(threadId);
+      setThreads((prev) => prev.filter((t) => t.id !== threadId));
+      setToast('帖子已删除');
+    } catch (err: any) {
+      setToast(err.message || '删除失败');
+      throw err;
+    }
   };
 
   const handleToggleThreadLike = async (threadId: string) => {
-    const thread = threads.find((t) => t.id === threadId);
-    if (!thread) return;
-
-    const isLiked = !thread.isLiked;
-    const likes = isLiked ? thread.likes + 1 : Math.max(0, thread.likes - 1);
-    const updated: ForumThread = { ...thread, isLiked, likes };
-
-    await storage.saveThread(updated);
-    setThreads((prev) => prev.map((t) => (t.id === threadId ? updated : t)));
+    if (!requireLogin()) return;
+    const target = threads.find((t) => t.id === threadId);
+    if (target) {
+      // 乐观更新：先翻本地状态，失败再回滚刷新
+      setThreads((prev) =>
+        prev.map((t) =>
+          t.id === threadId
+            ? { ...t, isLiked: !t.isLiked, likes: t.isLiked ? Math.max(0, t.likes - 1) : t.likes + 1 }
+            : t
+        )
+      );
+    }
+    try {
+      await forumApi.toggleLike(threadId, user!);
+    } catch (err: any) {
+      setToast(err.message || '操作失败');
+      await refreshForum();
+    }
   };
 
   const handleAddThreadReply = async (threadId: string, replyText: string) => {
-    const thread = threads.find((t) => t.id === threadId);
-    if (!thread) return;
-
-    const newReply = {
-      id: `rep-${Date.now()}`,
-      author: 'Cici',
-      authorRole: 'Cici',
-      avatarBg: 'bg-orange-100 text-orange-700',
-      content: replyText,
-      createdAt: '刚刚',
-      likes: 1,
-      isLiked: true,
-      isOwner: true,
-    };
-
-    const updated: ForumThread = {
-      ...thread,
-      replies: [...thread.replies, newReply],
-    };
-
-    await storage.saveThread(updated);
-    setThreads((prev) => prev.map((t) => (t.id === threadId ? updated : t)));
+    if (!requireLogin()) return;
+    try {
+      await forumApi.addReply(threadId, replyText, user!);
+      await refreshForum();
+    } catch (err: any) {
+      setToast(err.message || '回帖失败，请重试');
+      throw err;
+    }
   };
 
   const handleToggleJoinMeetup = async (threadId: string) => {
-    const thread = threads.find((t) => t.id === threadId);
-    if (!thread || !thread.meetup) return;
-
-    const alreadyJoined = thread.meetup.joinedBuddies.includes('Cici');
-    let newJoined: string[];
-    if (alreadyJoined) {
-      newJoined = thread.meetup.joinedBuddies.filter((n) => n !== 'Cici');
-    } else {
-      newJoined = [...thread.meetup.joinedBuddies, 'Cici'];
+    if (!requireLogin()) return;
+    try {
+      await forumApi.toggleJoin(threadId, user!);
+      await refreshForum();
+    } catch (err: any) {
+      setToast(err.message || '操作失败');
+      await refreshForum();
     }
-
-    const updated: ForumThread = {
-      ...thread,
-      meetup: {
-        ...thread.meetup,
-        joinedBuddies: newJoined,
-        isJoined: !alreadyJoined,
-      },
-    };
-
-    await storage.saveThread(updated);
-    setThreads((prev) => prev.map((t) => (t.id === threadId ? updated : t)));
   };
 
   // --- Real Friend Operations ---
@@ -292,38 +349,15 @@ export default function App() {
   };
 
   const handleUpdateRealFriend = async (friend: RealFriend) => {
-    const previous = realFriends.find((f) => f.id === friend.id);
     await storage.saveRealFriend(friend);
     setRealFriends((prev) => prev.map((f) => (f.id === friend.id ? friend : f)));
-
-    // 姓名变更时同步更新论坛约练名单中的引用，避免出现孤儿数据
-    if (previous && previous.name !== friend.name) {
-      let changed = false;
-      const nextThreads = threads.map((t) => {
-        if (!t.meetup || !t.meetup.joinedBuddies.includes(previous.name)) return t;
-        changed = true;
-        return {
-          ...t,
-          meetup: {
-            ...t.meetup,
-            joinedBuddies: t.meetup.joinedBuddies.map((name) => (name === previous.name ? friend.name : name)),
-          },
-        };
-      });
-      if (changed) {
-        const changedThreads = nextThreads.filter((t, idx) => t !== threads[idx]);
-        await Promise.all(changedThreads.map((t) => storage.saveThread(t)));
-        setThreads(nextThreads);
-      }
-    }
+    // 注：论坛已迁移到云端，约练报名名单以云数据库为准，不再做本地姓名联动
   };
 
   const handleDeleteRealFriend = async (friendId: string) => {
-    const { cleanedThreads } = await storage.permanentlyDeleteRealFriend(friendId);
+    await storage.permanentlyDeleteRealFriend(friendId);
     setRealFriends((prev) => prev.filter((f) => f.id !== friendId));
-    if (cleanedThreads && cleanedThreads.length > 0) {
-      setThreads(cleanedThreads);
-    }
+    // 注：论坛已迁移到云端，本地清理结果不再回写 threads，避免覆盖云端数据
   };
 
   return (
@@ -337,6 +371,12 @@ export default function App() {
         toggleMetronome={handleToggleMetronome}
         metronomeBeat={metronomeBeat}
         userAvatar={userAvatar}
+        userName={ready ? (user ? displayName(user) : null) : undefined}
+        onLogin={() => setIsLoginOpen(true)}
+        onLogout={async () => {
+          await signOut();
+          setToast('已退出登录');
+        }}
       />
 
       {/* 2. Interactive Jazz Metronome & Groove Bar (Collapsible) */}
@@ -375,7 +415,25 @@ export default function App() {
         )}
 
         {activeTab === 'buddies' && (
-          <DanceBuddies
+          <>
+            {forumLoading && (
+              <div className="max-w-4xl mx-auto mt-4 px-4">
+                <div className="rounded-2xl border border-[#F1E5D8] bg-[#FFF8F1] px-4 py-3 text-sm text-[#8C7A6B] text-center">
+                  正在从云端加载舞友论坛…
+                </div>
+              </div>
+            )}
+            {forumError && (
+              <div className="max-w-4xl mx-auto mt-4 px-4">
+                <div className="rounded-2xl border border-[#FFD5C8] bg-[#FFF1EC] px-4 py-3 text-sm text-[#D94834] text-center">
+                  论坛加载失败：{forumError}
+                  <button onClick={refreshForum} className="ml-2 underline font-semibold hover:text-[#B93A28]">
+                    点击重试
+                  </button>
+                </div>
+              </div>
+            )}
+            <DanceBuddies
             buddies={buddies}
             messages={messages}
             threads={threads}
@@ -396,7 +454,8 @@ export default function App() {
             onAddRealFriend={handleAddRealFriend}
             onUpdateRealFriend={handleUpdateRealFriend}
             onDeleteRealFriend={handleDeleteRealFriend}
-          />
+            />
+          </>
         )}
 
         {activeTab === 'about' && (
@@ -427,12 +486,28 @@ export default function App() {
             <span>· 献给所有在业余时间里热爱律动的人</span>
           </div>
           <div className="flex items-center gap-4 text-[#A8988A]">
-            <span>无需注册 · 本地轻量存储</span>
+            <span>论坛云端同步 · 数据跟账号走</span>
             <span>·</span>
             <span>Keep Dancing & Groove On 💃</span>
           </div>
         </div>
       </footer>
+
+      {/* 6. 云端登录弹窗 */}
+      <LoginModal
+        isOpen={isLoginOpen}
+        onClose={() => setIsLoginOpen(false)}
+        onSuccess={() => setToast('✨ 登录成功，欢迎加入舞友论坛！')}
+        sendCode={sendCode}
+        verifyCode={verifyCode}
+      />
+
+      {/* 7. 轻提示 */}
+      {toast && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[70] px-5 py-3 rounded-2xl bg-[#292524]/90 text-white text-sm font-medium shadow-2xl backdrop-blur-sm animate-[fadeIn_.2s_ease-out]">
+          {toast}
+        </div>
+      )}
 
     </div>
   );

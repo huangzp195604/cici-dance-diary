@@ -1,5 +1,5 @@
 import React from 'react';
-import { Calendar, UploadCloud, Users, Sparkles, Volume2, VolumeX, Download } from 'lucide-react';
+import { Calendar, UploadCloud, Users, Sparkles, Volume2, VolumeX, Download, LogIn, LogOut, UserCircle2 } from 'lucide-react';
 
 interface NavbarProps {
   activeTab: 'timeline' | 'upload' | 'buddies' | 'about';
@@ -8,6 +8,10 @@ interface NavbarProps {
   toggleMetronome: () => void;
   metronomeBeat: number;
   userAvatar?: string | null;
+  /** undefined=会话恢复中；null=未登录；有值=已登录昵称 */
+  userName?: string | null;
+  onLogin: () => void;
+  onLogout: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -17,6 +21,9 @@ export const Navbar: React.FC<NavbarProps> = ({
   toggleMetronome,
   metronomeBeat,
   userAvatar,
+  userName,
+  onLogin,
+  onLogout,
 }) => {
   return (
     <header className="sticky top-0 z-40 bg-[#FFFDF9]/90 backdrop-blur-md border-b border-[#F1E5D8] transition-all">
@@ -100,8 +107,35 @@ export const Navbar: React.FC<NavbarProps> = ({
           </button>
         </nav>
 
-        {/* Zone 3: Metronome + Download Package Button */}
+        {/* Zone 3: Login + Metronome + Download Package Button */}
         <div className="flex items-center gap-2 shrink-0">
+          {userName === undefined ? null : userName ? (
+            <div className="flex items-center gap-1">
+              <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-[#EDE9FE] text-[#5B21B6] border border-[#DDD0FA] whitespace-nowrap">
+                <UserCircle2 className="w-3.5 h-3.5" />
+                {userName}
+              </span>
+              <button
+                onClick={onLogout}
+                title="退出登录"
+                className="flex items-center gap-1 px-2.5 py-1.5 rounded-full text-xs font-semibold text-[#8C7A6B] hover:bg-[#F7EFE7] transition-colors whitespace-nowrap"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                <span className="hidden md:inline">退出</span>
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={onLogin}
+              title="登录后可发帖、点赞、约练"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all shadow-sm border bg-[#EDE9FE] hover:bg-[#E2DBFA] text-[#5B21B6] border-[#DDD0FA] whitespace-nowrap cursor-pointer"
+            >
+              <LogIn className="w-3.5 h-3.5" />
+              <span className="hidden md:inline">登录论坛</span>
+              <span className="md:hidden">登录</span>
+            </button>
+          )}
+
           <a
             href="/cici-dance-diary-project.zip"
             download="cici-dance-diary-project.zip"
