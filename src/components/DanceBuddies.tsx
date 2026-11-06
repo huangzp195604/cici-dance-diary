@@ -1,0 +1,1863 @@
+import React, { useState } from 'react';
+import { 
+  Users, 
+  UserCheck, 
+  UserPlus, 
+  MapPin, 
+  MessageSquare, 
+  Heart, 
+  Send, 
+  Sparkles, 
+  Calendar,
+  Flame,
+  Plus,
+  Pin,
+  CheckCircle2,
+  Copy,
+  Check,
+  Search,
+  MessageCircle,
+  HelpCircle,
+  Music,
+  Coffee,
+  UserCheck2,
+  Trash2,
+  Share2,
+  AlertTriangle,
+  ShieldCheck,
+  Database,
+  X,
+  AlertCircle,
+  Pencil
+} from 'lucide-react';
+import { DanceBuddy, WallMessage, ForumThread, RealFriend, ForumCategory, ForumReply, DanceStage } from '../types';
+
+interface DanceBuddiesProps {
+  buddies: DanceBuddy[];
+  messages: WallMessage[];
+  threads?: ForumThread[];
+  realFriends?: RealFriend[];
+  onToggleFollow: (buddyId: string) => void;
+  onAddBuddy?: (buddy: DanceBuddy) => void;
+  onUpdateBuddy?: (buddy: DanceBuddy) => void;
+  onDeleteBuddy?: (buddyId: string) => void;
+  onAddMessage: (message: WallMessage) => void;
+  onToggleMessageLike: (msgId: string) => void;
+  onAddReply: (msgId: string, replyText: string) => void;
+  onCreateThread?: (thread: ForumThread) => void;
+  onUpdateThread?: (thread: ForumThread) => void;
+  onDeleteThread?: (threadId: string) => void;
+  onToggleThreadLike?: (threadId: string) => void;
+  onAddThreadReply?: (threadId: string, content: string) => void;
+  onToggleJoinMeetup?: (threadId: string) => void;
+  onAddRealFriend?: (friend: RealFriend) => void;
+  onUpdateRealFriend?: (friend: RealFriend) => void;
+  onDeleteRealFriend?: (friendId: string) => void;
+}
+
+export const DanceBuddies: React.FC<DanceBuddiesProps> = ({
+  buddies,
+  messages,
+  threads = [],
+  realFriends = [],
+  onToggleFollow,
+  onAddBuddy,
+  onUpdateBuddy,
+  onDeleteBuddy,
+  onAddMessage,
+  onToggleMessageLike,
+  onAddReply,
+  onCreateThread,
+  onUpdateThread,
+  onDeleteThread,
+  onToggleThreadLike,
+  onAddThreadReply,
+  onToggleJoinMeetup,
+  onAddRealFriend,
+  onUpdateRealFriend,
+  onDeleteRealFriend,
+}) => {
+  const [activeTab, setActiveTab] = useState<'forum' | 'friends' | 'buddies' | 'wall'>('forum');
+  const [selectedCategory, setSelectedCategory] = useState<ForumCategory>('全部');
+  const [searchQuery, setSearchQuery] = useState('');
+  
+  // Thread Expansion & Reply State
+  const [expandedThreadId, setExpandedThreadId] = useState<string | null>(null);
+  const [threadReplyText, setThreadReplyText] = useState<Record<string, string>>({});
+
+  // New Thread Modal
+  const [isNewThreadOpen, setIsNewThreadOpen] = useState(false);
+  const [newThreadTitle, setNewThreadTitle] = useState('');
+  const [newThreadCategory, setNewThreadCategory] = useState<'舞室约练' | '动作拆解' | '扒舞音乐' | '舞友随笔'>('舞室约练');
+  const [newThreadContent, setNewThreadContent] = useState('');
+  const [newThreadStudio, setNewThreadStudio] = useState('星光舞蹈工作室 (静安店)');
+  const [newThreadDate, setNewThreadDate] = useState('本周六 14:00-16:00');
+  const [newThreadTargetCount, setNewThreadTargetCount] = useState(4);
+  const [newThreadCost, setNewThreadCost] = useState('场地费平摊，人均约 35 元');
+
+  // Add Real Friend Modal
+  const [isAddFriendOpen, setIsAddFriendOpen] = useState(false);
+  const [newFriendName, setNewFriendName] = useState('');
+  const [newFriendContact, setNewFriendContact] = useState('');
+  const [newFriendStudio, setNewFriendStudio] = useState('星光舞蹈工作室 (静安)');
+  const [newFriendStyle, setNewFriendStyle] = useState('Jazz Funk · 基础班');
+  const [newFriendNotes, setNewFriendNotes] = useState('');
+  const [copiedFriendId, setCopiedFriendId] = useState<string | null>(null);
+
+  // Permanent Delete Modal & Confirmation State
+  const [friendToDelete, setFriendToDelete] = useState<RealFriend | null>(null);
+  const [isDeletingFriend, setIsDeletingFriend] = useState(false);
+  const [deletePermissionConfirmed, setDeletePermissionConfirmed] = useState(false);
+  const [deleteFeedbackToast, setDeleteFeedbackToast] = useState<string | null>(null);
+
+  // Buddy Invite Modal (for directory tab)
+  const [invitedBuddy, setInvitedBuddy] = useState<DanceBuddy | null>(null);
+  const [inviteSent, setInviteSent] = useState(false);
+
+  // Message Wall (Legacy Tab Support)
+  const [wallFilter, setWallFilter] = useState<string>('全部');
+  const [newMessageText, setNewMessageText] = useState('');
+  const [newMessageType, setNewMessageType] = useState<WallMessage['type']>('约练');
+  const [newMessageStudio, setNewMessageStudio] = useState('');
+  const [activeReplyId, setActiveReplyId] = useState<string | null>(null);
+  const [replyInput, setReplyInput] = useState('');
+
+  // 帖子编辑状态（为空表示新建）
+  const [editingThreadId, setEditingThreadId] = useState<string | null>(null);
+
+  // 真实舞友编辑状态（为空表示新增）
+  const [editingFriendId, setEditingFriendId] = useState<string | null>(null);
+
+  // 舞伴名册编辑器状态
+  const [isBuddyEditorOpen, setIsBuddyEditorOpen] = useState(false);
+  const [editingBuddyId, setEditingBuddyId] = useState<string | null>(null);
+  const [buddyForm, setBuddyForm] = useState<{
+    name: string;
+    style: string;
+    stage: DanceStage;
+    studio: string;
+    frequency: string;
+    bio: string;
+    currentPractice: string;
+    recentTrack: string;
+  }>({
+    name: '',
+    style: 'Jazz 基础 · 律动',
+    stage: '入门',
+    studio: '',
+    frequency: '每周 1 次',
+    bio: '',
+    currentPractice: '',
+    recentTrack: '',
+  });
+
+  const followedBuddies = buddies.filter((b) => b.isFollowed);
+
+  /** 生成真实的记录时间，例如 "2026-11-06 15:30" */
+  const formatNow = () => {
+    const d = new Date();
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  };
+
+  /** 显示系统自动记录的新增日期 */
+  const formatRecordDate = (iso?: string) => {
+    if (!iso) return '';
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return '';
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  };
+
+  const realFriendNames = realFriends.slice(0, 3).map((f) => f.name).join('、') + (realFriends.length > 3 ? ' 等' : '');
+
+  // Filter Threads
+  const filteredThreads = threads.filter((t) => {
+    if (selectedCategory !== '全部' && t.category !== selectedCategory) return false;
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      const matchTitle = t.title.toLowerCase().includes(q);
+      const matchContent = t.content.toLowerCase().includes(q);
+      const matchAuthor = t.author.toLowerCase().includes(q);
+      const matchStudio = t.meetup?.studio.toLowerCase().includes(q);
+      const matchTag = t.tags?.some((tag) => tag.toLowerCase().includes(q));
+      if (!matchTitle && !matchContent && !matchAuthor && !matchStudio && !matchTag) return false;
+    }
+    return true;
+  });
+
+  // 打开新建帖子弹窗（清空上一次编辑残留）
+  const openNewThreadModal = () => {
+    setEditingThreadId(null);
+    setNewThreadTitle('');
+    setNewThreadCategory('舞室约练');
+    setNewThreadContent('');
+    setNewThreadStudio('星光舞蹈工作室 (静安店)');
+    setNewThreadDate('本周六 14:00-16:00');
+    setNewThreadTargetCount(4);
+    setNewThreadCost('场地费平摊，人均约 35 元');
+    setIsNewThreadOpen(true);
+  };
+
+  // 打开帖子编辑弹窗
+  const openEditThread = (thread: ForumThread) => {
+    setEditingThreadId(thread.id);
+    setNewThreadTitle(thread.title);
+    setNewThreadCategory(thread.category);
+    setNewThreadContent(thread.content);
+    setNewThreadStudio(thread.meetup?.studio ?? '星光舞蹈工作室 (静安店)');
+    setNewThreadDate(thread.meetup?.date ?? '本周末');
+    setNewThreadTargetCount(thread.meetup?.targetCount ?? 4);
+    setNewThreadCost(thread.meetup?.costNote ?? '');
+    setIsNewThreadOpen(true);
+  };
+
+  const closeThreadModal = () => {
+    setIsNewThreadOpen(false);
+    setEditingThreadId(null);
+  };
+
+  // Handle Thread Submission (新建或编辑)
+  const handlePublishThread = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newThreadTitle.trim() || !newThreadContent.trim()) return;
+
+    const meetup = newThreadCategory === '舞室约练' ? {
+      studio: newThreadStudio.trim(),
+      date: newThreadDate.trim(),
+      targetCount: newThreadTargetCount,
+      joinedBuddies: ['Cici'],
+      isJoined: true,
+      costNote: newThreadCost.trim() || undefined,
+    } : undefined;
+
+    if (editingThreadId) {
+      const original = threads.find((t) => t.id === editingThreadId);
+      if (original) {
+        const updated: ForumThread = {
+          ...original,
+          title: newThreadTitle.trim(),
+          category: newThreadCategory,
+          content: newThreadContent.trim(),
+          tags: original.tags?.length ? [newThreadCategory, ...original.tags.slice(1)] : [newThreadCategory, 'Cici发帖'],
+          meetup: meetup
+            ? { ...meetup, joinedBuddies: original.meetup?.joinedBuddies ?? ['Cici'], isJoined: original.meetup?.isJoined ?? true }
+            : undefined,
+        };
+        onUpdateThread?.(updated);
+      }
+      closeThreadModal();
+      return;
+    }
+
+    const newThread: ForumThread = {
+      id: `thread-${Date.now()}`,
+      title: newThreadTitle.trim(),
+      category: newThreadCategory,
+      content: newThreadContent.trim(),
+      author: 'Cici',
+      authorRole: '发起人 (Cici)',
+      avatarBg: 'bg-orange-100 text-orange-700',
+      createdAt: formatNow(),
+      likes: 1,
+      isLiked: true,
+      views: 1,
+      replies: [],
+      tags: [newThreadCategory, 'Cici发帖'],
+      meetup,
+    };
+
+    onCreateThread?.(newThread);
+    closeThreadModal();
+  };
+
+  // 删除帖子（真实物理删除，二次确认）
+  const handleDeleteThread = (thread: ForumThread) => {
+    if (!window.confirm(`确定删除帖子「${thread.title}」吗？删除后不可恢复。`)) return;
+    onDeleteThread?.(thread.id);
+    if (expandedThreadId === thread.id) {
+      setExpandedThreadId(null);
+    }
+  };
+
+  // Handle Thread Reply
+  const handleSubmitThreadReply = (threadId: string, e: React.FormEvent) => {
+    e.preventDefault();
+    const text = threadReplyText[threadId]?.trim();
+    if (!text) return;
+
+    if (onAddThreadReply) {
+      onAddThreadReply(threadId, text);
+    }
+    setThreadReplyText((prev) => ({ ...prev, [threadId]: '' }));
+  };
+
+  // Handle Add / Edit Real Friend
+  const handleSaveRealFriend = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newFriendName.trim() || !newFriendContact.trim()) return;
+
+    const base = editingFriendId ? realFriends.find((f) => f.id === editingFriendId) : undefined;
+    const friend: RealFriend = {
+      id: base?.id ?? `friend-${Date.now()}`,
+      name: newFriendName.trim(),
+      contact: newFriendContact.trim(),
+      studio: newFriendStudio.trim(),
+      danceStyle: newFriendStyle.trim(),
+      notes: newFriendNotes.trim() || base?.notes || '常在一起练舞的伙伴',
+      avatarBg: base?.avatarBg ?? 'bg-rose-100 text-rose-700',
+      status: base?.status ?? '空闲',
+      recentTopic: base?.recentTopic ?? '刚刚添加为真实舞友',
+      createdAt: base?.createdAt ?? new Date().toISOString(),
+    };
+
+    if (base) {
+      onUpdateRealFriend?.(friend);
+    } else {
+      onAddRealFriend?.(friend);
+    }
+
+    setEditingFriendId(null);
+    setNewFriendName('');
+    setNewFriendContact('');
+    setNewFriendNotes('');
+    setIsAddFriendOpen(false);
+  };
+
+  const openNewFriendModal = () => {
+    setEditingFriendId(null);
+    setNewFriendName('');
+    setNewFriendContact('');
+    setNewFriendStudio('星光舞蹈工作室 (静安)');
+    setNewFriendStyle('Jazz Funk · 基础班');
+    setNewFriendNotes('');
+    setIsAddFriendOpen(true);
+  };
+
+  const openEditFriend = (friend: RealFriend) => {
+    setEditingFriendId(friend.id);
+    setNewFriendName(friend.name);
+    setNewFriendContact(friend.contact);
+    setNewFriendStudio(friend.studio);
+    setNewFriendStyle(friend.danceStyle);
+    setNewFriendNotes(friend.notes);
+    setIsAddFriendOpen(true);
+  };
+
+  const handleCopyContact = (id: string, text: string) => {
+    navigator.clipboard?.writeText(text);
+    setCopiedFriendId(id);
+    setTimeout(() => setCopiedFriendId(null), 2000);
+  };
+
+  const openComposerWithFriend = (friendName: string, studio: string) => {
+    setActiveTab('forum');
+    setEditingThreadId(null);
+    setNewThreadCategory('舞室约练');
+    setNewThreadTitle(`【${studio}】约 @${friendName} 一起拼教室练舞～`);
+    setNewThreadContent(`Hi @${friendName}，这周末有空一起在 ${studio} 拼大教室练 Jazz 基础和扒舞吗？互相纠动作拍视频！`);
+    setNewThreadStudio(studio);
+    setIsNewThreadOpen(true);
+  };
+
+  const handleConfirmPermanentDelete = async () => {
+    if (!friendToDelete || !deletePermissionConfirmed || isDeletingFriend) return;
+    setIsDeletingFriend(true);
+    try {
+      const targetFriendName = friendToDelete.name;
+      if (onDeleteRealFriend) {
+        await onDeleteRealFriend(friendToDelete.id);
+      }
+      setDeleteFeedbackToast(`已永久彻底删除舞伴「${targetFriendName}」，并级联清理其在所有活动名单中的关联引用！`);
+      setTimeout(() => setDeleteFeedbackToast(null), 4500);
+      setFriendToDelete(null);
+      setDeletePermissionConfirmed(false);
+    } catch (e) {
+      console.error('Permanent delete failed:', e);
+      setDeleteFeedbackToast('删除过程中发生错误，请重试');
+      setTimeout(() => setDeleteFeedbackToast(null), 3500);
+    } finally {
+      setIsDeletingFriend(false);
+    }
+  };
+
+  // --- 舞伴名册：新增 / 编辑 / 删除 ---
+  const emptyBuddyForm = () => ({
+    name: '',
+    style: 'Jazz 基础 · 律动',
+    stage: '入门' as DanceStage,
+    studio: '',
+    frequency: '每周 1 次',
+    bio: '',
+    currentPractice: '',
+    recentTrack: '',
+  });
+
+  const openNewBuddyModal = () => {
+    setEditingBuddyId(null);
+    setBuddyForm(emptyBuddyForm());
+    setIsBuddyEditorOpen(true);
+  };
+
+  const openEditBuddy = (buddy: DanceBuddy) => {
+    setEditingBuddyId(buddy.id);
+    setBuddyForm({
+      name: buddy.name,
+      style: buddy.style,
+      stage: buddy.stage,
+      studio: buddy.studio,
+      frequency: buddy.frequency,
+      bio: buddy.bio,
+      currentPractice: buddy.currentPractice,
+      recentTrack: buddy.recentTrack ?? '',
+    });
+    setIsBuddyEditorOpen(true);
+  };
+
+  const handleSaveBuddy = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!buddyForm.name.trim() || !buddyForm.studio.trim()) return;
+
+    const base = editingBuddyId ? buddies.find((b) => b.id === editingBuddyId) : undefined;
+    const name = buddyForm.name.trim();
+    const buddy: DanceBuddy = {
+      id: base?.id ?? `buddy-${Date.now()}`,
+      name,
+      initials: base?.initials ?? name.slice(0, 1),
+      avatarBg: base?.avatarBg ?? 'bg-indigo-100 text-indigo-700',
+      style: buddyForm.style.trim() || 'Jazz 基础 · 律动',
+      stage: buddyForm.stage,
+      bio: buddyForm.bio.trim() || '刚刚加入舞伴名册，正在寻找一起练舞的搭子。',
+      studio: buddyForm.studio.trim(),
+      frequency: buddyForm.frequency.trim() || '每周 1 次',
+      followersCount: base?.followersCount ?? 0,
+      isFollowed: base?.isFollowed ?? false,
+      currentPractice: buddyForm.currentPractice.trim() || '正在规划本阶段的练习重点',
+      recentTrack: buddyForm.recentTrack.trim() || undefined,
+      createdAt: base?.createdAt ?? new Date().toISOString(),
+    };
+
+    if (base) {
+      onUpdateBuddy?.(buddy);
+    } else {
+      onAddBuddy?.(buddy);
+    }
+
+    setBuddyForm(emptyBuddyForm());
+    setEditingBuddyId(null);
+    setIsBuddyEditorOpen(false);
+  };
+
+  const handleDeleteBuddy = (buddy: DanceBuddy) => {
+    if (!window.confirm(`确定从舞伴名册中删除「${buddy.name}」吗？删除后不可恢复。`)) return;
+    onDeleteBuddy?.(buddy.id);
+  };
+
+  return (
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 space-y-6 animate-fadeIn">
+      
+      {/* 1. Community Forum Header Banner */}
+      <section className="bg-gradient-to-r from-[#F3EEFF] via-[#F8EEFF] to-[#FFF0EC] border border-[#E3D7FE] rounded-3xl p-5 sm:p-6 shadow-2xs">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3.5">
+            <div className="w-12 h-12 rounded-2xl bg-[#E6D9FF] text-[#7C3AED] flex items-center justify-center shrink-0 shadow-inner">
+              <Users className="w-6 h-6" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-xl sm:text-2xl font-display font-extrabold text-[#292524] tracking-tight">
+                  舞友论坛 & 真实舞友圈
+                </h2>
+                <span className="text-[11px] bg-[#EDE9FE] text-[#6D28D9] px-2.5 py-0.5 rounded-full font-bold border border-[#DDD0FA]">
+                  Jazz Community
+                </span>
+              </div>
+              <p className="text-xs sm:text-sm text-[#6D28D9] mt-0.5">
+                连接现实练舞好友、舞室组队拼房约练、Jazz 动作避坑答疑与音乐交流。
+              </p>
+            </div>
+          </div>
+
+          {/* Tab Switcher */}
+          <div className="flex items-center gap-1 p-1 bg-white/85 backdrop-blur-xs rounded-2xl border border-[#DDD0FA] self-start sm:self-auto shadow-2xs">
+            <button
+              onClick={() => setActiveTab('forum')}
+              className={`flex items-center gap-1.5 px-3 sm:px-3.5 py-1.5 text-xs font-bold rounded-xl transition-all cursor-pointer ${
+                activeTab === 'forum'
+                  ? 'bg-[#7C3AED] text-white shadow-2xs'
+                  : 'text-[#6D28D9] hover:bg-[#EFEBFF]'
+              }`}
+            >
+              <MessageSquare className="w-3.5 h-3.5" />
+              <span>舞友论坛 ({threads.length})</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('friends')}
+              className={`flex items-center gap-1.5 px-3 sm:px-3.5 py-1.5 text-xs font-bold rounded-xl transition-all cursor-pointer ${
+                activeTab === 'friends'
+                  ? 'bg-[#7C3AED] text-white shadow-2xs'
+                  : 'text-[#6D28D9] hover:bg-[#EFEBFF]'
+              }`}
+            >
+              <UserCheck2 className="w-3.5 h-3.5" />
+              <span>真实舞友 ({realFriends.length})</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('buddies')}
+              className={`flex items-center gap-1.5 px-3 sm:px-3.5 py-1.5 text-xs font-bold rounded-xl transition-all cursor-pointer ${
+                activeTab === 'buddies'
+                  ? 'bg-[#7C3AED] text-white shadow-2xs'
+                  : 'text-[#6D28D9] hover:bg-[#EFEBFF]'
+              }`}
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>舞伴名册 ({buddies.length})</span>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      {/* ======================================================== */}
+      {/* VIEW A: 舞友论坛 (FORUM BOARDS & DISCUSSIONS)           */}
+      {/* ======================================================== */}
+      {activeTab === 'forum' && (
+        <div className="space-y-5">
+          
+          {/* Sub-bar: Category Filter & New Post Trigger */}
+          <div className="bg-white border border-[#EFE3D5] rounded-2xl p-4 shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-3">
+            
+            {/* Board category chips */}
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0 scrollbar-none">
+              {(['全部', '舞室约练', '动作拆解', '扒舞音乐', '舞友随笔'] as ForumCategory[]).map((cat) => (
+                <button
+                  key={cat}
+                  onClick={() => setSelectedCategory(cat)}
+                  className={`px-3 py-1 text-xs font-semibold rounded-full transition-all whitespace-nowrap cursor-pointer ${
+                    selectedCategory === cat
+                      ? 'bg-[#7C3AED] text-white shadow-2xs ring-2 ring-[#7C3AED]/20'
+                      : 'bg-[#FAF2EB] text-[#736357] hover:bg-[#F3E5D7]'
+                  }`}
+                >
+                  {cat === '舞室约练' && '👯 '}
+                  {cat === '动作拆解' && '💡 '}
+                  {cat === '扒舞音乐' && '🎵 '}
+                  {cat === '舞友随笔' && '☕ '}
+                  {cat}
+                </button>
+              ))}
+            </div>
+
+            {/* Search & New Post Button */}
+            <div className="flex items-center gap-2 self-end md:self-auto w-full md:w-auto">
+              <div className="relative flex-1 md:w-48">
+                <Search className="w-3.5 h-3.5 text-[#A8988A] absolute left-3 top-2.5" />
+                <input
+                  type="text"
+                  placeholder="搜索话题/舞室/动作..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full text-xs pl-8 pr-3 py-1.5 rounded-xl border border-[#E8DACB] bg-[#FFFDF9] focus:outline-none focus:ring-1 focus:ring-[#7C3AED]"
+                />
+              </div>
+
+              <button
+                onClick={openNewThreadModal}
+                className="px-4 py-2 bg-[#FF7E67] hover:bg-[#E65B47] text-white rounded-xl text-xs font-bold shadow-2xs hover:shadow-xs flex items-center gap-1.5 shrink-0 transition-all cursor-pointer"
+              >
+                <Plus className="w-3.5 h-3.5 stroke-[3]" />
+                <span>发布新帖 / 发起约练</span>
+              </button>
+            </div>
+
+          </div>
+
+          {/* Quick Notice about Real Friends connection */}
+          <div className="bg-[#FFFDF9] border border-[#F0E3D6] p-3.5 rounded-2xl text-xs text-[#6B5A4D] flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-[#FF7E67] shrink-0" />
+              <span>
+                {realFriends.length > 0 ? (
+                  <>你已关联 <strong>{realFriends.length}</strong> 位现实舞友{realFriendNames ? `（${realFriendNames}）` : ''}。发布约练帖会即时记录到你的舞友圈。</>
+                ) : (
+                  <>暂无现实舞友档案。添加第一位线下舞伴后，即可在这里一键发帖约练。</>
+                )}
+              </span>
+            </div>
+            <button
+              onClick={() => setActiveTab('friends')}
+              className="text-xs font-bold text-[#7C3AED] hover:underline shrink-0"
+            >
+              管理真实舞友 →
+            </button>
+          </div>
+
+          {/* Threads Stream */}
+          <div className="space-y-4">
+            {filteredThreads.length === 0 ? (
+              <div className="bg-white border border-[#EFE3D5] rounded-3xl p-10 text-center">
+                <MessageSquare className="w-10 h-10 mx-auto text-[#C4B5FD] mb-2" />
+                <p className="text-sm font-bold text-[#4A3E36]">暂无符合条件的话题帖子</p>
+                <p className="text-xs text-[#8C7A6B] mt-1">发个帖子求助动作细节，或者发起一场周末舞室约练吧！</p>
+                <button
+                  onClick={openNewThreadModal}
+                  className="mt-4 px-4 py-1.5 bg-[#7C3AED] text-white rounded-full text-xs font-semibold"
+                >
+                  去发第一帖
+                </button>
+              </div>
+            ) : (
+              filteredThreads.map((thread) => {
+                const isExpanded = expandedThreadId === thread.id;
+                const isMeetup = thread.category === '舞室约练' && thread.meetup;
+                const hasJoined = thread.meetup?.joinedBuddies.includes('Cici');
+
+                return (
+                  <article
+                    key={thread.id}
+                    className="bg-white border border-[#EFE3D5] rounded-3xl p-5 sm:p-6 shadow-2xs hover:shadow-sm transition-all"
+                  >
+                    {/* Header */}
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-center gap-3">
+                        <div className={`w-10 h-10 rounded-full ${thread.avatarBg} font-display font-bold text-sm flex items-center justify-center shrink-0 border border-black/5`}>
+                          {thread.author.slice(0, 1)}
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-bold text-sm text-[#292524]">{thread.author}</span>
+                            {thread.authorRole && (
+                              <span className="text-[10px] bg-[#FAF2EB] text-[#736357] px-2 py-0.5 rounded-full font-medium">
+                                {thread.authorRole}
+                              </span>
+                            )}
+                            {thread.isPinned && (
+                              <span className="text-[10px] bg-[#FEE2E2] text-[#DC2626] px-2 py-0.5 rounded-full font-bold flex items-center gap-0.5">
+                                <Pin className="w-2.5 h-2.5" />
+                                置顶
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2 text-[11px] text-[#A8988A] mt-0.5">
+                            <span className="text-[#7C3AED] font-semibold">{thread.category}</span>
+                            <span aria-hidden="true">·</span>
+                            <span>{thread.createdAt}</span>
+                            <span aria-hidden="true">·</span>
+                            <span>{thread.views} 次浏览</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Tag pill & 帖子操作 */}
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <span className="text-xs bg-[#F5EDE4] text-[#6E5D50] px-2.5 py-1 rounded-xl font-medium hidden sm:inline">
+                          {thread.tags?.[0] || thread.category}
+                        </span>
+                        <button
+                          onClick={() => openEditThread(thread)}
+                          className="w-7 h-7 flex items-center justify-center rounded-lg text-[#A8988A] hover:text-[#7C3AED] hover:bg-[#F3EEFF] border border-transparent hover:border-[#DDD0FA] transition-all cursor-pointer"
+                          title="编辑帖子"
+                          aria-label={`编辑帖子 ${thread.title}`}
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteThread(thread)}
+                          className="w-7 h-7 flex items-center justify-center rounded-lg text-[#B8A89A] hover:text-rose-600 hover:bg-rose-50 border border-transparent hover:border-rose-200 transition-all cursor-pointer"
+                          title="删除帖子"
+                          aria-label={`删除帖子 ${thread.title}`}
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Title */}
+                    <h3
+                      onClick={() => setExpandedThreadId(isExpanded ? null : thread.id)}
+                      className="text-base sm:text-lg font-bold text-[#292524] mt-3 hover:text-[#7C3AED] cursor-pointer transition-colors leading-snug"
+                    >
+                      {thread.title}
+                    </h3>
+
+                    {/* Content snippet */}
+                    <p className="text-xs sm:text-sm text-[#574B40] mt-2 leading-relaxed whitespace-pre-wrap">
+                      {thread.content}
+                    </p>
+
+                    {/* MEETUP CARD (If category is 舞室约练) */}
+                    {isMeetup && thread.meetup && (
+                      <div className="mt-3.5 bg-gradient-to-br from-[#FFF8F3] to-[#FFF1EC] border border-[#FAD6C5] rounded-2xl p-4 space-y-3">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-1.5 text-xs font-bold text-[#A63C29]">
+                              <MapPin className="w-3.5 h-3.5 text-[#E65B47]" />
+                              <span>{thread.meetup.studio}</span>
+                            </div>
+                            <div className="flex items-center gap-2 text-xs text-[#78695C]">
+                              <Calendar className="w-3.5 h-3.5 text-[#7C3AED]" />
+                              <span>时间: <strong>{thread.meetup.date}</strong></span>
+                              {thread.meetup.costNote && (
+                                <>
+                                  <span aria-hidden="true">·</span>
+                                  <span>{thread.meetup.costNote}</span>
+                                </>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Join / Leave Meetup Button */}
+                          <button
+                            onClick={() => onToggleJoinMeetup?.(thread.id)}
+                            className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-2xs cursor-pointer ${
+                              hasJoined
+                                ? 'bg-emerald-100 hover:bg-emerald-200 text-emerald-800 border border-emerald-300'
+                                : 'bg-[#FF7E67] hover:bg-[#E65B47] text-white'
+                            }`}
+                          >
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                            <span>{hasJoined ? '已报名参加 (点击可退出)' : '我要参加约练'}</span>
+                          </button>
+                        </div>
+
+                        {/* Joined buddies display */}
+                        <div className="pt-2 border-t border-[#F5DEC7] flex items-center justify-between text-xs">
+                          <div className="flex items-center gap-2">
+                            <span className="text-[#8C7A6B]">
+                              已报名 ({thread.meetup.joinedBuddies.length}/{thread.meetup.targetCount}人):
+                            </span>
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              {thread.meetup.joinedBuddies.map((buddyName, bIdx) => (
+                                <span
+                                  key={bIdx}
+                                  className={`px-2 py-0.5 rounded-lg text-[11px] font-semibold ${
+                                    buddyName === 'Cici'
+                                      ? 'bg-[#FFE8DE] text-[#D94834]'
+                                      : 'bg-white text-[#574B40] border border-[#E8DACB]'
+                                  }`}
+                                >
+                                  {buddyName}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+
+                          <span className="text-[11px] font-mono text-[#D94834] font-bold">
+                            {thread.meetup.targetCount - thread.meetup.joinedBuddies.length > 0
+                              ? `还差 ${thread.meetup.targetCount - thread.meetup.joinedBuddies.length} 人成行`
+                              : '🎉 已满员'}
+                          </span>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Bottom Action Bar */}
+                    <div className="flex items-center justify-between pt-3 mt-3 border-t border-[#F5ECE1]">
+                      <div className="flex items-center gap-3">
+                        <button
+                          onClick={() => onToggleThreadLike?.(thread.id)}
+                          className={`flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full transition-all cursor-pointer ${
+                            thread.isLiked
+                              ? 'bg-[#FFE8E8] text-[#E02424]'
+                              : 'bg-[#FAF2EB] text-[#736357] hover:bg-[#F3E5D7]'
+                          }`}
+                        >
+                          <Heart className={`w-3.5 h-3.5 ${thread.isLiked ? 'fill-current text-[#E02424]' : ''}`} />
+                          <span>{thread.likes} 赞</span>
+                        </button>
+
+                        <button
+                          onClick={() => setExpandedThreadId(isExpanded ? null : thread.id)}
+                          className="flex items-center gap-1.5 text-xs font-medium text-[#736357] hover:text-[#292524] px-2 py-1 rounded-lg hover:bg-[#FAF2EB] transition-all cursor-pointer"
+                        >
+                          <MessageCircle className="w-3.5 h-3.5 text-[#8B5CF6]" />
+                          <span>{thread.replies.length} 条回复讨论</span>
+                        </button>
+                      </div>
+
+                      <button
+                        onClick={() => setExpandedThreadId(isExpanded ? null : thread.id)}
+                        className="text-xs font-bold text-[#7C3AED] hover:underline cursor-pointer"
+                      >
+                        {isExpanded ? '收起讨论' : '展开回复 & 参与交流 →'}
+                      </button>
+                    </div>
+
+                    {/* EXPANDED REPLIES STREAM */}
+                    {isExpanded && (
+                      <div className="mt-4 pt-4 border-t border-[#F1E5D8] bg-[#FFFBF8] rounded-2xl p-4 space-y-3">
+                        <h4 className="text-xs font-bold text-[#4A3E36] mb-2 flex items-center gap-1.5">
+                          <MessageSquare className="w-3.5 h-3.5 text-[#7C3AED]" />
+                          <span>舞友交流回复 ({thread.replies.length})</span>
+                        </h4>
+
+                        {thread.replies.length === 0 ? (
+                          <p className="text-xs text-[#A8988A] text-center py-3">
+                            暂无回复，发表你的第一句心得或报名互动吧～
+                          </p>
+                        ) : (
+                          thread.replies.map((reply) => (
+                            <div key={reply.id} className="bg-white p-3 rounded-2xl border border-[#F0E4D8] text-xs space-y-1">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-1.5">
+                                  <span className="font-bold text-[#292524]">{reply.author}</span>
+                                  {reply.authorRole && (
+                                    <span className="text-[10px] bg-[#FAF2EB] text-[#78695C] px-1.5 py-0.2 rounded font-normal">
+                                      {reply.authorRole}
+                                    </span>
+                                  )}
+                                  {reply.isOwner && (
+                                    <span className="text-[10px] bg-[#FFE0D1] text-[#E65B47] px-1.5 py-0.2 rounded font-semibold">
+                                      楼主
+                                    </span>
+                                  )}
+                                </div>
+                                <span className="text-[10px] text-[#A8988A]">{reply.createdAt}</span>
+                              </div>
+                              <p className="text-[#574B40] leading-relaxed">{reply.content}</p>
+                            </div>
+                          ))
+                        )}
+
+                        {/* Inline Reply Form */}
+                        <form onSubmit={(e) => handleSubmitThreadReply(thread.id, e)} className="mt-3 flex gap-2">
+                          <input
+                            type="text"
+                            placeholder="写下你的交流想法、约练留言或求教..."
+                            value={threadReplyText[thread.id] || ''}
+                            onChange={(e) => setThreadReplyText({ ...threadReplyText, [thread.id]: e.target.value })}
+                            className="flex-1 text-xs px-3.5 py-2 rounded-xl border border-[#E8DACB] bg-white focus:outline-none focus:ring-2 focus:ring-[#7C3AED]/40"
+                          />
+                          <button
+                            type="submit"
+                            disabled={!threadReplyText[thread.id]?.trim()}
+                            className="px-4 py-2 bg-[#7C3AED] hover:bg-[#6D28D9] disabled:opacity-40 text-white rounded-xl text-xs font-bold flex items-center gap-1 transition-all cursor-pointer"
+                          >
+                            <Send className="w-3 h-3" />
+                            <span>回复</span>
+                          </button>
+                        </form>
+                      </div>
+                    )}
+
+                  </article>
+                );
+              })
+            )}
+          </div>
+
+        </div>
+      )}
+
+      {/* ======================================================== */}
+      {/* VIEW B: 我的真实舞友圈 (REAL DANCE FRIENDS)             */}
+      {/* ======================================================== */}
+      {activeTab === 'friends' && (
+        <div className="space-y-5">
+          
+          {/* Top Info + Add Friend Button */}
+          <div className="bg-white border border-[#EFE3D5] rounded-3xl p-5 sm:p-6 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-base sm:text-lg font-bold text-[#292524] flex items-center gap-2">
+                  <UserCheck2 className="w-5 h-5 text-[#E65B47]" />
+                  <span>我的现实舞友名录</span>
+                </h3>
+                <span className="text-xs bg-[#FFEFE8] text-[#D94834] px-2 py-0.5 rounded-full font-bold">
+                  {realFriends.length} 位常聚伙伴
+                </span>
+              </div>
+              <p className="text-xs text-[#78695C] mt-1">
+                记录线下舞室一起上课、互相录视频复盘的真实朋友。支持一键复制微信与直接在论坛发帖约练！
+              </p>
+            </div>
+
+            <button
+              onClick={openNewFriendModal}
+              className="px-4 py-2.5 bg-[#FF7E67] hover:bg-[#E65B47] text-white rounded-xl text-xs font-bold shadow-2xs flex items-center gap-1.5 self-start sm:self-auto transition-all cursor-pointer"
+            >
+              <Plus className="w-4 h-4 stroke-[2.5]" />
+              <span>+ 添加现实中的舞伴</span>
+            </button>
+          </div>
+
+          {/* Real Friends Cards Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 transition-all duration-300">
+            {realFriends.length === 0 ? (
+              <div className="col-span-full py-12 px-4 text-center bg-white border border-dashed border-[#E8DACB] rounded-3xl">
+                <div className="w-12 h-12 mx-auto rounded-2xl bg-[#FFF2EA] text-[#E65B47] flex items-center justify-center mb-3">
+                  <UserCheck2 className="w-6 h-6" />
+                </div>
+                <h4 className="text-sm font-bold text-[#292524]">暂无真实舞友档案</h4>
+                <p className="text-xs text-[#8C7A6B] mt-1 max-w-sm mx-auto">
+                  这里会实时记录你新增的真实舞友，支持编辑、删除与在论坛一键约练。
+                </p>
+                <button
+                  onClick={openNewFriendModal}
+                  className="mt-4 px-4 py-2 bg-[#FF7E67] hover:bg-[#E65B47] text-white rounded-xl text-xs font-bold shadow-2xs transition-all cursor-pointer"
+                >
+                  + 添加现实中的舞伴
+                </button>
+              </div>
+            ) : (
+              realFriends.map((friend) => (
+                <div
+                  key={friend.id}
+                  className="bg-white border border-[#EFE3D5] rounded-3xl p-5 shadow-2xs hover:shadow-md transition-all flex flex-col justify-between"
+                >
+                  <div>
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-center gap-3">
+                        <div className={`w-12 h-12 rounded-2xl ${friend.avatarBg} font-display font-bold text-lg flex items-center justify-center shrink-0 border border-black/5`}>
+                          {friend.name.slice(0, 1)}
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <h4 className="text-sm font-bold text-[#292524]">{friend.name}</h4>
+                            <span className={`inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full font-medium ${
+                              friend.status === '在线'
+                                ? 'bg-emerald-50 text-emerald-700'
+                                : friend.status === '练舞中'
+                                ? 'bg-amber-50 text-amber-700'
+                                : 'bg-slate-100 text-slate-600'
+                            }`}>
+                              <span className={`w-1.5 h-1.5 rounded-full ${
+                                friend.status === '在线' ? 'bg-emerald-500' : friend.status === '练舞中' ? 'bg-amber-500' : 'bg-slate-400'
+                              }`} />
+                              {friend.status}
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-[#8C7A6B] mt-0.5">{friend.danceStyle}</p>
+                          {friend.createdAt && (
+                            <p className="text-[10px] text-[#B0A090] mt-0.5">记录于 {formatRecordDate(friend.createdAt)}</p>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button
+                          onClick={() => openEditFriend(friend)}
+                          className="w-7 h-7 flex items-center justify-center rounded-xl text-[#A8988A] hover:text-[#7C3AED] hover:bg-[#F3EEFF] border border-transparent hover:border-[#DDD0FA] transition-all duration-200 cursor-pointer"
+                          title="编辑舞友档案"
+                          aria-label={`编辑舞伴 ${friend.name}`}
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={() => {
+                            setFriendToDelete(friend);
+                            setDeletePermissionConfirmed(false);
+                          }}
+                          className="w-7 h-7 flex items-center justify-center rounded-xl text-[#B8A89A] hover:text-rose-600 hover:bg-rose-50 border border-transparent hover:border-rose-200 transition-all duration-200 cursor-pointer group/del shrink-0"
+                          title="永久彻底删除舞友记录 (不可恢复)"
+                          aria-label={`永久彻底删除舞伴 ${friend.name}`}
+                        >
+                          <Trash2 className="w-3.5 h-3.5 text-stone-400 group-hover/del:text-rose-600 transition-transform duration-200 group-hover/del:scale-110 shrink-0" />
+                        </button>
+                      </div>
+                    </div>
+
+                  {/* Studio & Contact */}
+                  <div className="mt-3.5 space-y-2">
+                    <div className="flex items-center gap-1.5 text-xs text-[#5C4D42] bg-[#FAF2EB] p-2.5 rounded-xl">
+                      <MapPin className="w-3.5 h-3.5 text-[#FF7E67] shrink-0" />
+                      <span className="truncate">常去舞室: <strong>{friend.studio}</strong></span>
+                    </div>
+
+                    {/* WeChat Contact Box with One-Click Copy */}
+                    <div className="flex items-center justify-between text-xs bg-[#FFF8F3] border border-[#F6DCBE] px-3 py-2 rounded-xl">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[#8C7A6B]">微信号:</span>
+                        <code className="font-mono font-bold text-[#292524]">{friend.contact}</code>
+                      </div>
+                      <button
+                        onClick={() => handleCopyContact(friend.id, friend.contact)}
+                        className={`flex items-center gap-1 text-[11px] font-semibold px-2 py-1 rounded-lg transition-all ${
+                          copiedFriendId === friend.id
+                            ? 'bg-emerald-600 text-white'
+                            : 'bg-white text-[#7C3AED] border border-[#E2D5FE] hover:bg-[#F3EEFF]'
+                        }`}
+                      >
+                        {copiedFriendId === friend.id ? (
+                          <>
+                            <Check className="w-3 h-3" />
+                            <span>已复制!</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="w-3 h-3" />
+                            <span>复制</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+
+                    {/* Notes */}
+                    {friend.notes && (
+                      <p className="text-xs text-[#78695C] bg-[#FFFDF9] border border-[#F2E5D8] p-2.5 rounded-xl leading-relaxed">
+                        📝 <strong>舞伴备忘:</strong> {friend.notes}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Bottom Action: Invite / Post to forum */}
+                <div className="mt-4 pt-3 border-t border-[#F5ECE1] flex items-center justify-between">
+                  <span className="text-[11px] text-[#A8988A] truncate max-w-[180px]">
+                    {friend.recentTopic || '近期有练舞动态'}
+                  </span>
+                  <button
+                    onClick={() => openComposerWithFriend(friend.name, friend.studio)}
+                    className="px-3 py-1.5 bg-[#EDE9FE] hover:bg-[#DDD0FA] text-[#6D28D9] rounded-xl text-xs font-bold flex items-center gap-1 transition-all cursor-pointer"
+                  >
+                    <MessageSquare className="w-3 h-3" />
+                    <span>在论坛发帖约Ta</span>
+                  </button>
+                </div>
+
+              </div>
+            )))}
+          </div>
+
+        </div>
+      )}
+
+      {/* ======================================================== */}
+      {/* VIEW C: 舞伴名册（真实数据，可随时增删改）              */}
+      {/* ======================================================== */}
+      {activeTab === 'buddies' && (
+        <div className="space-y-4">
+          <div className="bg-white border border-[#EFE3D5] rounded-3xl p-5 sm:p-6 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-base sm:text-lg font-bold text-[#292524] flex items-center gap-2">
+                  <Sparkles className="w-5 h-5 text-[#E65B47]" />
+                  <span>我的舞伴名册</span>
+                </h3>
+                <span className="text-xs bg-[#FFEFE8] text-[#D94834] px-2 py-0.5 rounded-full font-bold">
+                  {buddies.length} 位舞伴
+                </span>
+              </div>
+              <p className="text-xs text-[#78695C] mt-1">
+                这里只展示你真实添加的舞伴。新增时会自动记录时间并持久化，支持随时编辑、关注与删除。
+              </p>
+            </div>
+            <button
+              onClick={openNewBuddyModal}
+              className="px-4 py-2.5 bg-[#FF7E67] hover:bg-[#E65B47] text-white rounded-xl text-xs font-bold shadow-2xs flex items-center gap-1.5 self-start sm:self-auto transition-all cursor-pointer"
+            >
+              <Plus className="w-4 h-4 stroke-[2.5]" />
+              <span>+ 新增舞伴</span>
+            </button>
+          </div>
+
+          {buddies.length === 0 ? (
+            <div className="py-12 px-4 text-center bg-white border border-dashed border-[#E8DACB] rounded-3xl">
+              <div className="w-12 h-12 mx-auto rounded-2xl bg-[#FFF2EA] text-[#E65B47] flex items-center justify-center mb-3">
+                <Users className="w-6 h-6" />
+              </div>
+              <h4 className="text-sm font-bold text-[#292524]">舞伴名册还是空的</h4>
+              <p className="text-xs text-[#8C7A6B] mt-1 max-w-sm mx-auto">
+                新增第一位舞伴后，系统会自动记录并保存，刷新页面也不会丢失。
+              </p>
+              <button
+                onClick={openNewBuddyModal}
+                className="mt-4 px-4 py-2 bg-[#FF7E67] hover:bg-[#E65B47] text-white rounded-xl text-xs font-bold shadow-2xs transition-all cursor-pointer"
+              >
+                + 新增舞伴
+              </button>
+            </div>
+          ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {buddies.map((buddy) => (
+              <div
+                key={buddy.id}
+                className="bg-white border border-[#EFE3D5] rounded-3xl p-5 shadow-2xs hover:shadow-md transition-all flex flex-col justify-between"
+              >
+                <div>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <div className={`w-11 h-11 rounded-full ${buddy.avatarBg} font-display font-bold text-base flex items-center justify-center shrink-0 border border-black/5`}>
+                        {buddy.initials}
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-bold text-[#292524]">{buddy.name}</h4>
+                        <div className="flex items-center gap-1.5 text-[11px] text-[#8C7A6B] mt-0.5">
+                          <span className="font-semibold text-[#E65B47]">{buddy.style}</span>
+                          <span aria-hidden="true">·</span>
+                          <span>{buddy.stage}</span>
+                          <span aria-hidden="true">·</span>
+                          <span>{buddy.followersCount} 人关注</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <button
+                        onClick={() => openEditBuddy(buddy)}
+                        className="w-7 h-7 flex items-center justify-center rounded-lg text-[#A8988A] hover:text-[#7C3AED] hover:bg-[#F3EEFF] border border-transparent hover:border-[#DDD0FA] transition-all cursor-pointer"
+                        title="编辑舞伴资料"
+                        aria-label={`编辑舞伴 ${buddy.name}`}
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteBuddy(buddy)}
+                        className="w-7 h-7 flex items-center justify-center rounded-lg text-[#B8A89A] hover:text-rose-600 hover:bg-rose-50 border border-transparent hover:border-rose-200 transition-all cursor-pointer"
+                        title="从名册中删除舞伴"
+                        aria-label={`删除舞伴 ${buddy.name}`}
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={() => onToggleFollow(buddy.id)}
+                        className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer shrink-0 ${
+                          buddy.isFollowed
+                            ? 'bg-[#EFE9FE] text-[#6D28D9] border border-[#DDD0FA] hover:bg-[#E3D7FE]'
+                            : 'bg-[#FF7E67] text-white hover:bg-[#E65B47] shadow-2xs'
+                        }`}
+                      >
+                        {buddy.isFollowed ? (
+                          <>
+                            <UserCheck className="w-3.5 h-3.5" />
+                            <span>已关注</span>
+                          </>
+                        ) : (
+                          <>
+                            <UserPlus className="w-3.5 h-3.5" />
+                            <span>+ 关注</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+
+                  <p className="text-xs text-[#5C4D42] mt-3 leading-relaxed">
+                    {buddy.bio}
+                  </p>
+
+                  <div className="mt-3 flex flex-wrap gap-2 text-[11px] text-[#78695C]">
+                    <div className="flex items-center gap-1 bg-[#FAF2EB] px-2.5 py-1 rounded-lg">
+                      <MapPin className="w-3 h-3 text-[#FF7E67]" />
+                      <span>{buddy.studio}</span>
+                    </div>
+                    <div className="flex items-center gap-1 bg-[#FAF2EB] px-2.5 py-1 rounded-lg">
+                      <Calendar className="w-3 h-3 text-[#8B5CF6]" />
+                      <span>{buddy.frequency}</span>
+                    </div>
+                  </div>
+
+                  <div className="mt-2.5 bg-[#FFF9F3] border border-[#F6E5D7] p-2.5 rounded-xl text-xs text-[#8C5D39] flex items-center gap-1.5">
+                    <Flame className="w-3.5 h-3.5 text-[#FF7E67] shrink-0" />
+                    <span className="truncate">{buddy.currentPractice}</span>
+                  </div>
+                </div>
+
+                <div className="mt-4 pt-3 border-t border-[#F5ECE1] flex items-center justify-between">
+                  <div className="text-[11px] text-[#A8988A]">
+                    <span>常听: {buddy.recentTrack || 'Jazz Rhythm'}</span>
+                    {buddy.createdAt && (
+                      <span className="block mt-0.5">记录于 {formatRecordDate(buddy.createdAt)}</span>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => {
+                      setInvitedBuddy(buddy);
+                      setInviteSent(false);
+                    }}
+                    className="text-xs font-semibold text-[#8B5CF6] hover:text-[#6D28D9] flex items-center gap-1 hover:underline cursor-pointer"
+                  >
+                    <MessageSquare className="w-3.5 h-3.5" />
+                    <span>找Ta约练</span>
+                  </button>
+                </div>
+
+              </div>
+            ))}
+          </div>
+          )}
+        </div>
+      )}
+
+      {/* ======================================================== */}
+      {/* MODAL 0: 新增 / 编辑舞伴                                */}
+      {/* ======================================================== */}
+      {isBuddyEditorOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
+          <div className="bg-white rounded-3xl p-6 sm:p-7 max-w-md w-full shadow-2xl border border-[#EADCCE] space-y-4 max-h-[92vh] overflow-y-auto">
+            <div className="flex items-center justify-between pb-3 border-b border-[#F1E5D8]">
+              <h3 className="text-base font-bold text-[#292524] flex items-center gap-2">
+                {editingBuddyId ? <Pencil className="w-5 h-5 text-[#7C3AED]" /> : <UserPlus className="w-5 h-5 text-[#7C3AED]" />}
+                <span>{editingBuddyId ? '编辑舞伴资料' : '新增舞伴'}</span>
+              </h3>
+              <button
+                onClick={() => {
+                  setIsBuddyEditorOpen(false);
+                  setEditingBuddyId(null);
+                }}
+                className="text-sm text-[#8C7A6B] hover:text-[#292524] p-1"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveBuddy} className="space-y-3.5">
+              <div>
+                <label className="block text-xs font-bold text-[#574B40] uppercase tracking-wider mb-1">
+                  舞伴昵称 / 姓名 *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="如：小桃、阿澈"
+                  value={buddyForm.name}
+                  onChange={(e) => setBuddyForm({ ...buddyForm, name: e.target.value })}
+                  className="w-full text-xs sm:text-sm p-2.5 rounded-xl border border-[#E8DACB] bg-[#FFFDF9]"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-[#574B40] uppercase tracking-wider mb-1">
+                    常跳风格
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="如：抒情 Jazz · 编舞"
+                    value={buddyForm.style}
+                    onChange={(e) => setBuddyForm({ ...buddyForm, style: e.target.value })}
+                    className="w-full text-xs p-2.5 rounded-xl border border-[#E8DACB] bg-[#FFFDF9]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-[#574B40] uppercase tracking-wider mb-1">
+                    当前阶段
+                  </label>
+                  <select
+                    value={buddyForm.stage}
+                    onChange={(e) => setBuddyForm({ ...buddyForm, stage: e.target.value as DanceStage })}
+                    className="w-full text-xs p-2.5 rounded-xl border border-[#E8DACB] bg-[#FFFDF9]"
+                  >
+                    {(['入门', '进阶', '挑战'] as DanceStage[]).map((stage) => (
+                      <option key={stage} value={stage}>{stage}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-[#574B40] uppercase tracking-wider mb-1">
+                    常去舞室 *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="如：星光静安店"
+                    value={buddyForm.studio}
+                    onChange={(e) => setBuddyForm({ ...buddyForm, studio: e.target.value })}
+                    className="w-full text-xs p-2.5 rounded-xl border border-[#E8DACB] bg-[#FFFDF9]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-[#574B40] uppercase tracking-wider mb-1">
+                    练习频率
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="如：每周 2 次"
+                    value={buddyForm.frequency}
+                    onChange={(e) => setBuddyForm({ ...buddyForm, frequency: e.target.value })}
+                    className="w-full text-xs p-2.5 rounded-xl border border-[#E8DACB] bg-[#FFFDF9]"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-[#574B40] uppercase tracking-wider mb-1">
+                  个人简介
+                </label>
+                <textarea
+                  rows={3}
+                  placeholder="记录你与这位舞伴的相识方式、擅长的风格等"
+                  value={buddyForm.bio}
+                  onChange={(e) => setBuddyForm({ ...buddyForm, bio: e.target.value })}
+                  className="w-full text-xs p-2.5 rounded-xl border border-[#E8DACB] bg-[#FFFDF9]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-[#574B40] uppercase tracking-wider mb-1">
+                  近期练习重点
+                </label>
+                <input
+                  type="text"
+                  placeholder="如：胸部 Roll 与慢速扒舞"
+                  value={buddyForm.currentPractice}
+                  onChange={(e) => setBuddyForm({ ...buddyForm, currentPractice: e.target.value })}
+                  className="w-full text-xs p-2.5 rounded-xl border border-[#E8DACB] bg-[#FFFDF9]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-[#574B40] uppercase tracking-wider mb-1">
+                  常听音乐 (选填)
+                </label>
+                <input
+                  type="text"
+                  placeholder="如：Feeling Good"
+                  value={buddyForm.recentTrack}
+                  onChange={(e) => setBuddyForm({ ...buddyForm, recentTrack: e.target.value })}
+                  className="w-full text-xs p-2.5 rounded-xl border border-[#E8DACB] bg-[#FFFDF9]"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#F1E5D8]">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsBuddyEditorOpen(false);
+                    setEditingBuddyId(null);
+                  }}
+                  className="px-4 py-2 text-xs font-semibold text-[#78695C] hover:bg-[#FAF2EB] rounded-xl"
+                >
+                  取消
+                </button>
+                <button
+                  type="submit"
+                  disabled={!buddyForm.name.trim() || !buddyForm.studio.trim()}
+                  className="px-5 py-2 bg-[#7C3AED] hover:bg-[#6D28D9] disabled:opacity-40 text-white rounded-xl text-xs font-bold shadow-2xs"
+                >
+                  {editingBuddyId ? '保存修改' : '保存舞伴'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ======================================================== */}
+      {/* MODAL 1: 发布论坛新帖 / 发起约练                      */}
+      {/* ======================================================== */}
+      {isNewThreadOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
+          <div className="bg-white rounded-3xl p-6 sm:p-7 max-w-lg w-full shadow-2xl border border-[#EADCCE] max-h-[92vh] overflow-y-auto space-y-4">
+            
+            <div className="flex items-center justify-between pb-3 border-b border-[#F1E5D8]">
+              <h3 className="text-base sm:text-lg font-bold text-[#292524] flex items-center gap-2">
+                {editingThreadId ? <Pencil className="w-5 h-5 text-[#7C3AED]" /> : <MessageSquare className="w-5 h-5 text-[#7C3AED]" />}
+                <span>{editingThreadId ? '编辑论坛帖子' : '发布论坛帖子 / 舞室约练'}</span>
+              </h3>
+              <button
+                onClick={closeThreadModal}
+                className="text-sm text-[#8C7A6B] hover:text-[#292524] p-1"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handlePublishThread} className="space-y-4">
+              
+              {/* Category selector */}
+              <div>
+                <label className="block text-xs font-bold text-[#574B40] uppercase tracking-wider mb-1.5">
+                  1. 选择论坛板块 *
+                </label>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {(['舞室约练', '动作拆解', '扒舞音乐', '舞友随笔'] as const).map((cat) => (
+                    <button
+                      key={cat}
+                      type="button"
+                      onClick={() => setNewThreadCategory(cat)}
+                      className={`py-2 px-2 text-xs font-bold rounded-xl border transition-all cursor-pointer text-center ${
+                        newThreadCategory === cat
+                          ? 'bg-[#7C3AED] text-white border-[#6D28D9] shadow-2xs'
+                          : 'bg-[#FAF2EB] text-[#736357] border-[#E8DACB] hover:bg-[#F3E5D7]'
+                      }`}
+                    >
+                      {cat}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Title */}
+              <div>
+                <label className="block text-xs font-bold text-[#574B40] uppercase tracking-wider mb-1.5">
+                  2. 帖子标题 *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="例如：【静安星光】周六下午拼大教室练胸部Roll与扒舞..."
+                  value={newThreadTitle}
+                  onChange={(e) => setNewThreadTitle(e.target.value)}
+                  className="w-full text-xs sm:text-sm p-3 rounded-xl border border-[#E8DACB] bg-[#FFFDF9] focus:outline-none focus:ring-2 focus:ring-[#7C3AED]/40"
+                />
+              </div>
+
+              {/* If Category is 舞室约练: Additional details */}
+              {newThreadCategory === '舞室约练' && (
+                <div className="bg-[#FFF8F3] border border-[#F6DCBE] p-3.5 rounded-2xl space-y-3">
+                  <span className="text-xs font-bold text-[#A63C29] flex items-center gap-1">
+                    <MapPin className="w-3.5 h-3.5 text-[#E65B47]" />
+                    <span>约练场地与时间信息</span>
+                  </span>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <span className="text-[11px] text-[#78695C] block mb-1">舞室地点</span>
+                      <input
+                        type="text"
+                        value={newThreadStudio}
+                        onChange={(e) => setNewThreadStudio(e.target.value)}
+                        placeholder="如：星光舞蹈工作室 (静安店)"
+                        className="w-full text-xs p-2 rounded-lg border border-[#E8DACB] bg-white"
+                      />
+                    </div>
+                    <div>
+                      <span className="text-[11px] text-[#78695C] block mb-1">约练时间段</span>
+                      <input
+                        type="text"
+                        value={newThreadDate}
+                        onChange={(e) => setNewThreadDate(e.target.value)}
+                        placeholder="如：本周六 14:00-16:00"
+                        className="w-full text-xs p-2 rounded-lg border border-[#E8DACB] bg-white"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <span className="text-[11px] text-[#78695C] block mb-1">期望成行人数</span>
+                      <input
+                        type="number"
+                        min="2"
+                        max="10"
+                        value={newThreadTargetCount}
+                        onChange={(e) => setNewThreadTargetCount(parseInt(e.target.value, 10) || 4)}
+                        className="w-full text-xs p-2 rounded-lg border border-[#E8DACB] bg-white"
+                      />
+                    </div>
+                    <div>
+                      <span className="text-[11px] text-[#78695C] block mb-1">费用平摊说明 (选填)</span>
+                      <input
+                        type="text"
+                        value={newThreadCost}
+                        onChange={(e) => setNewThreadCost(e.target.value)}
+                        placeholder="如：场地费人均约 35 元"
+                        className="w-full text-xs p-2 rounded-lg border border-[#E8DACB] bg-white"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Content */}
+              <div>
+                <label className="block text-xs font-bold text-[#574B40] uppercase tracking-wider mb-1.5">
+                  3. 讨论内容 / 约练说明 *
+                </label>
+                <textarea
+                  rows={4}
+                  required
+                  placeholder="写下你想和舞友交流的内容、约练的练习重点（如前半段练隔离，后半段录成片），或者请教某个 Jazz 卡点细节..."
+                  value={newThreadContent}
+                  onChange={(e) => setNewThreadContent(e.target.value)}
+                  className="w-full text-xs sm:text-sm p-3 rounded-2xl border border-[#E8DACB] bg-[#FFFDF9] focus:outline-none focus:ring-2 focus:ring-[#7C3AED]/40"
+                />
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-[#F1E5D8]">
+                <button
+                  type="button"
+                  onClick={closeThreadModal}
+                  className="px-4 py-2 text-xs font-semibold text-[#78695C] hover:bg-[#FAF2EB] rounded-xl"
+                >
+                  取消
+                </button>
+                <button
+                  type="submit"
+                  disabled={!newThreadTitle.trim() || !newThreadContent.trim()}
+                  className="px-5 py-2 bg-[#7C3AED] hover:bg-[#6D28D9] disabled:opacity-40 text-white rounded-xl text-xs font-bold shadow-2xs transition-all cursor-pointer"
+                >
+                  {editingThreadId ? '保存修改' : '确认发布'}
+                </button>
+              </div>
+
+            </form>
+
+          </div>
+        </div>
+      )}
+
+      {/* ======================================================== */}
+      {/* MODAL 2: 添加现实中的舞伴 (ADD REAL FRIEND)            */}
+      {/* ======================================================== */}
+      {isAddFriendOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
+          <div className="bg-white rounded-3xl p-6 sm:p-7 max-w-md w-full shadow-2xl border border-[#EADCCE] space-y-4">
+            
+            <div className="flex items-center justify-between pb-3 border-b border-[#F1E5D8]">
+              <h3 className="text-base font-bold text-[#292524] flex items-center gap-2">
+                {editingFriendId ? <Pencil className="w-5 h-5 text-[#E65B47]" /> : <UserPlus className="w-5 h-5 text-[#E65B47]" />}
+                <span>{editingFriendId ? '编辑真实舞友档案' : '添加现实中的舞友'}</span>
+              </h3>
+              <button
+                onClick={() => {
+                  setIsAddFriendOpen(false);
+                  setEditingFriendId(null);
+                }}
+                className="text-sm text-[#8C7A6B] hover:text-[#292524] p-1"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveRealFriend} className="space-y-3.5">
+              <div>
+                <label className="block text-xs font-bold text-[#574B40] uppercase tracking-wider mb-1">
+                  舞友昵称/姓名 *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="如：婷婷、小敏 (舞室同桌)"
+                  value={newFriendName}
+                  onChange={(e) => setNewFriendName(e.target.value)}
+                  className="w-full text-xs sm:text-sm p-2.5 rounded-xl border border-[#E8DACB] bg-[#FFFDF9]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-[#574B40] uppercase tracking-wider mb-1">
+                  微信号 / 联络方式 *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="如：tingting_dance、138xxxx..."
+                  value={newFriendContact}
+                  onChange={(e) => setNewFriendContact(e.target.value)}
+                  className="w-full text-xs sm:text-sm p-2.5 rounded-xl border border-[#E8DACB] bg-[#FFFDF9]"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-[#574B40] uppercase tracking-wider mb-1">
+                    常去舞室
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="如：星光静安店"
+                    value={newFriendStudio}
+                    onChange={(e) => setNewFriendStudio(e.target.value)}
+                    className="w-full text-xs p-2.5 rounded-xl border border-[#E8DACB] bg-[#FFFDF9]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-[#574B40] uppercase tracking-wider mb-1">
+                    常跳风格
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="如：抒情Jazz、基础课"
+                    value={newFriendStyle}
+                    onChange={(e) => setNewFriendStyle(e.target.value)}
+                    className="w-full text-xs p-2.5 rounded-xl border border-[#E8DACB] bg-[#FFFDF9]"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-[#574B40] uppercase tracking-wider mb-1">
+                  舞友备忘 (选填)
+                </label>
+                <input
+                  type="text"
+                  placeholder="如：周二同班上课，约好一起练习胸部Roll"
+                  value={newFriendNotes}
+                  onChange={(e) => setNewFriendNotes(e.target.value)}
+                  className="w-full text-xs p-2.5 rounded-xl border border-[#E8DACB] bg-[#FFFDF9]"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#F1E5D8]">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsAddFriendOpen(false);
+                    setEditingFriendId(null);
+                  }}
+                  className="px-4 py-2 text-xs font-semibold text-[#78695C] hover:bg-[#FAF2EB] rounded-xl"
+                >
+                  取消
+                </button>
+                <button
+                  type="submit"
+                  disabled={!newFriendName.trim() || !newFriendContact.trim()}
+                  className="px-5 py-2 bg-[#FF7E67] hover:bg-[#E65B47] disabled:opacity-40 text-white rounded-xl text-xs font-bold shadow-2xs"
+                >
+                  {editingFriendId ? '保存修改' : '保存舞友'}
+                </button>
+              </div>
+            </form>
+
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 3: Buddy Direct Invite Modal (Legacy Directory Support) */}
+      {invitedBuddy && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-fadeIn">
+          <div className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl border border-[#EADCCE] space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-base font-bold text-[#292524] flex items-center gap-2">
+                <span>💬 发送约练邀请</span>
+              </h3>
+              <button
+                onClick={() => setInvitedBuddy(null)}
+                className="text-xs text-[#8C7A6B] hover:text-[#292524] p-1"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="bg-[#FAF2EB] p-3 rounded-2xl flex items-center gap-3">
+              <div className={`w-10 h-10 rounded-full ${invitedBuddy.avatarBg} font-bold flex items-center justify-center`}>
+                {invitedBuddy.initials}
+              </div>
+              <div>
+                <span className="font-bold text-xs text-[#292524]">{invitedBuddy.name}</span>
+                <p className="text-[11px] text-[#78695C]">{invitedBuddy.studio} · {invitedBuddy.style}</p>
+              </div>
+            </div>
+
+            {inviteSent ? (
+              <div className="text-center py-4 bg-emerald-50 rounded-2xl border border-emerald-200">
+                <span className="text-sm font-bold text-emerald-800">🎉 约练邀请已同步发至论坛！</span>
+                <p className="text-xs text-emerald-700 mt-1">
+                  舞友与同伴都将在论坛约练板块中看到你的组队信息～
+                </p>
+                <button
+                  onClick={() => setInvitedBuddy(null)}
+                  className="mt-3 px-4 py-1.5 bg-emerald-600 text-white rounded-full text-xs font-semibold"
+                >
+                  关闭
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <p className="text-xs text-[#574B40] leading-relaxed">
+                  系统已为你准备了友好的约练招呼语：
+                </p>
+                <div className="bg-[#FFFDF9] border border-[#E8DACB] p-3 rounded-xl text-xs text-[#6B5A4D]">
+                  &quot;嗨 {invitedBuddy.name}！在 Cici 的舞蹈日记里看到你常在 {invitedBuddy.studio} 练舞，我也在练 Jazz，这周末要不要一起拼个教室练基础或者扒个舞？互相拍视频纠动作～&quot;
+                </div>
+                <div className="flex justify-end gap-2 pt-2">
+                  <button
+                    onClick={() => setInvitedBuddy(null)}
+                    className="px-4 py-2 rounded-xl text-xs font-medium text-[#736357] hover:bg-[#F7EFE7]"
+                  >
+                    取消
+                  </button>
+                  <button
+                    onClick={() => {
+                      setInviteSent(true);
+                      const inviteThread: ForumThread = {
+                        id: `thread-inv-${Date.now()}`,
+                        title: `【${invitedBuddy.studio}】向 @${invitedBuddy.name} 发起舞室约练`,
+                        category: '舞室约练',
+                        author: 'Cici',
+                        authorRole: 'Cici',
+                        avatarBg: 'bg-orange-100 text-orange-700',
+                        createdAt: '刚刚',
+                        likes: 1,
+                        isLiked: true,
+                        views: 1,
+                        meetup: {
+                          studio: invitedBuddy.studio,
+                          date: '本周末',
+                          targetCount: 2,
+                          joinedBuddies: ['Cici', invitedBuddy.name],
+                          isJoined: true,
+                        },
+                        content: `向 @${invitedBuddy.name} 发出约练邀请：这周末一起在 ${invitedBuddy.studio} 拼大教室练舞拍视频复盘！`,
+                        replies: [
+                          {
+                            id: `rep-inv-${Date.now()}`,
+                            author: invitedBuddy.name,
+                            authorRole: '舞伴回复',
+                            avatarBg: invitedBuddy.avatarBg,
+                            content: '收到啦 Cici！我周六下午正好有空，到时候在舞室见！👯',
+                            createdAt: '刚刚',
+                            likes: 1,
+                          },
+                        ],
+                      };
+                      onCreateThread?.(inviteThread);
+                    }}
+                    className="px-5 py-2 bg-[#7C3AED] hover:bg-[#6D28D9] text-white rounded-xl text-xs font-bold shadow-2xs"
+                  >
+                    确认发送邀请
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ======================================================== */}
+      {/* PERMANENT DELETE CONFIRMATION & PERMISSION CHECK MODAL   */}
+      {/* ======================================================== */}
+      {friendToDelete && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-fadeIn">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-rose-200/60 flex flex-col gap-5 max-h-[92vh] overflow-y-auto animate-scaleUp">
+            
+            {/* Modal Header */}
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="w-11 h-11 rounded-2xl bg-rose-100 text-rose-600 flex items-center justify-center shrink-0 border border-rose-200">
+                  <AlertTriangle className="w-6 h-6" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-base sm:text-lg font-bold text-stone-900">
+                      永久彻底删除舞友记录
+                    </h3>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-100 text-rose-700 border border-rose-200">
+                      不可逆物理抹除
+                    </span>
+                  </div>
+                  <p className="text-xs text-stone-500 mt-0.5">
+                    从本地数据存储中永久销毁，并级联清理关联引用
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  if (!isDeletingFriend) {
+                    setFriendToDelete(null);
+                    setDeletePermissionConfirmed(false);
+                  }
+                }}
+                disabled={isDeletingFriend}
+                className="text-stone-400 hover:text-stone-600 p-1.5 rounded-xl hover:bg-stone-100 transition-colors cursor-pointer"
+                title="关闭"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Target Friend Summary Card */}
+            <div className="p-3.5 bg-stone-50 border border-stone-200 rounded-2xl flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className={`w-10 h-10 rounded-xl ${friendToDelete.avatarBg} font-display font-bold text-sm flex items-center justify-center shrink-0 border border-black/5`}>
+                  {friendToDelete.name.slice(0, 1)}
+                </div>
+                <div>
+                  <h4 className="text-sm font-bold text-stone-900">{friendToDelete.name}</h4>
+                  <p className="text-[11px] text-stone-500">{friendToDelete.danceStyle} · {friendToDelete.studio}</p>
+                </div>
+              </div>
+              <span className="text-xs font-mono text-stone-600 bg-white px-2.5 py-1 rounded-lg border border-stone-200">
+                微信号: {friendToDelete.contact}
+              </span>
+            </div>
+
+            {/* Permanent Destruction & Cascade Cleanup Details */}
+            <div className="space-y-2 text-xs bg-rose-50/70 border border-rose-200/80 rounded-2xl p-4 text-rose-950">
+              <div className="flex items-center gap-2 font-bold text-rose-800">
+                <Database className="w-4 h-4 text-rose-600 shrink-0" />
+                <span>永久销毁与级联清理说明：</span>
+              </div>
+              <ul className="list-disc list-inside space-y-1.5 text-[11px] text-rose-900/90 pl-1">
+                <li>
+                  <strong>物理抹除</strong>：该舞友数据将从本地 IndexedDB 与永久数据仓库中<strong>永久物理删除</strong>，并非软删除或状态标记，删除后无法找回或恢复。
+                </li>
+                <li>
+                  <strong>关联引用清理</strong>：系统将全面排查所有论坛约练活动（如已报名的拼舞室名单），自动移除该舞伴的姓名引用，<strong>彻底防止产生孤儿脏数据</strong>。
+                </li>
+              </ul>
+            </div>
+
+            {/* Permission Check & Authorization Guard */}
+            <div className="p-3.5 bg-amber-50/80 border border-amber-200 rounded-2xl space-y-2.5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-amber-900">
+                  <ShieldCheck className="w-4 h-4 text-amber-600 shrink-0" />
+                  <span>操作权限校验 (Permission Check)</span>
+                </div>
+                <span className="text-[10px] bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full font-semibold border border-amber-200">
+                  Cici (空间主人)
+                </span>
+              </div>
+              <p className="text-[11px] text-amber-800/90">
+                当前用户已通过空间所有者权限校验。为防止误触，请勾选确认声明以激活永久销毁指令：
+              </p>
+              <label className="flex items-start gap-2.5 p-2.5 rounded-xl bg-white border border-amber-200/80 cursor-pointer hover:border-amber-300 transition-colors">
+                <input
+                  type="checkbox"
+                  checked={deletePermissionConfirmed}
+                  onChange={(e) => setDeletePermissionConfirmed(e.target.checked)}
+                  disabled={isDeletingFriend}
+                  className="mt-0.5 w-4 h-4 rounded text-rose-600 focus:ring-rose-500 border-stone-300 cursor-pointer"
+                />
+                <span className="text-xs text-stone-800 font-medium leading-relaxed">
+                  我已确认拥有管理权限，并明确知晓本操作将<strong>永久抹除该档案及全部活动引用</strong>，数据不可挽回。
+                </span>
+              </label>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex items-center justify-end gap-3 pt-2 border-t border-stone-100">
+              <button
+                type="button"
+                onClick={() => {
+                  setFriendToDelete(null);
+                  setDeletePermissionConfirmed(false);
+                }}
+                disabled={isDeletingFriend}
+                className="px-4 py-2.5 text-xs font-semibold text-stone-600 hover:text-stone-900 hover:bg-stone-100 rounded-xl transition-colors cursor-pointer"
+              >
+                取消保留
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmPermanentDelete}
+                disabled={!deletePermissionConfirmed || isDeletingFriend}
+                className="px-5 py-2.5 bg-rose-600 hover:bg-rose-700 disabled:bg-rose-300 disabled:cursor-not-allowed text-white text-xs font-bold rounded-xl shadow-sm flex items-center gap-2 transition-all cursor-pointer"
+              >
+                {isDeletingFriend ? (
+                  <>
+                    <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    <span>正在执行物理抹除...</span>
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>确认永久彻底删除</span>
+                  </>
+                )}
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* Floating toast notification for permanent deletion feedback */}
+      {deleteFeedbackToast && (
+        <div className="fixed bottom-6 right-6 z-50 max-w-md bg-stone-900/95 text-white text-xs px-4 py-3 rounded-2xl shadow-xl flex items-center gap-2.5 border border-stone-700 animate-slideUp backdrop-blur-md">
+          <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+          <span>{deleteFeedbackToast}</span>
+        </div>
+      )}
+
+    </div>
+  );
+};

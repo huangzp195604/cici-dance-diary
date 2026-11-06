@@ -1,0 +1,6 @@
+{
+  "name": "Cici's Jazz Diary",
+  "description": "普通Jazz舞蹈爱好者Cici的舞蹈成长日记与轻社区，按时间线记录练舞历程、支持作品分类上传与舞友轻量互动交流。",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
