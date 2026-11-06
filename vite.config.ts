@@ -5,7 +5,9 @@ import {defineConfig} from 'vite';
 
 export default defineConfig(() => {
   return {
-    base: '/cici-dance-diary/',
+    // 双部署目标：GitHub Pages 走子路径，WorkBuddy 云端域名走根路径
+    // 云端构建：DEPLOY_TARGET=cloud vite build
+    base: process.env.DEPLOY_TARGET === 'cloud' ? '/' : '/cici-dance-diary/',
     plugins: [react(), tailwindcss()],
     resolve: {
       alias: {
@@ -18,6 +20,13 @@ export default defineConfig(() => {
       hmr: process.env.DISABLE_HMR !== 'true',
       // Disable file watching when DISABLE_HMR is true to save CPU during agent edits.
       watch: process.env.DISABLE_HMR === 'true' ? null : {},
+      // 云端沙箱反代需要允许任意 host 访问
+      host: '0.0.0.0',
+      allowedHosts: true,
+    },
+    preview: {
+      host: '0.0.0.0',
+      allowedHosts: true,
     },
   };
 });
