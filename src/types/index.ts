@@ -29,7 +29,8 @@ export interface DancePost {
   mediaUrl: string;
   thumbnailUrl?: string;
   stage: DanceStage;
-  categories: DanceCategory[];
+  /** 作品标签：兼容内置舞种（DanceCategory），也支持用户自定义文本标签 */
+  categories: string[];
   notes: string;
   likes: number;
   isLiked?: boolean;

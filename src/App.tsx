@@ -367,6 +367,19 @@ export default function App() {
     }
   };
 
+  /** 保存作品标签：先持久化（IndexedDB / localStorage 快照），成功后再更新界面状态；
+   *  posts 变化会自动触发云端同步，保证列表、筛选、统计与云数据一致 */
+  const handleUpdatePostTags = async (postId: string, categories: string[]) => {
+    const post = posts.find((p) => p.id === postId);
+    if (!post) throw new Error('作品不存在或已被删除');
+    const updated: DancePost = { ...post, categories };
+    await storage.savePost(updated);
+    setPosts((prev) => prev.map((p) => (p.id === postId ? updated : p)));
+    if (selectedPost?.id === postId) {
+      setSelectedPost(updated);
+    }
+  };
+
   const handleToggleLike = async (postId: string) => {
     const post = posts.find((p) => p.id === postId);
     if (!post) return;
@@ -623,6 +636,7 @@ export default function App() {
             onToggleLike={handleToggleLike}
             onAddComment={handleAddComment}
             onDeletePost={handleDeletePost}
+            onUpdatePostTags={handleUpdatePostTags}
           />
         )}
 

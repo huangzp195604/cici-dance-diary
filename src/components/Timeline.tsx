@@ -41,6 +41,7 @@ import {
   usePracticeDays,
 } from '../utils/practice';
 import { ConfirmDialog } from './ConfirmDialog';
+import { PostTagEditor } from './PostTagEditor';
 
 export interface DanceStyleItem {
   id: string;
@@ -117,6 +118,8 @@ interface TimelineProps {
   onToggleLike: (postId: string) => void;
   onAddComment: (postId: string, commentText: string) => void;
   onDeletePost: (postId: string) => void;
+  /** 保存作品标签；失败时抛错，由弹窗展示错误且不关闭 */
+  onUpdatePostTags: (postId: string, categories: string[]) => Promise<void>;
 }
 
 export const Timeline: React.FC<TimelineProps> = ({
@@ -130,6 +133,7 @@ export const Timeline: React.FC<TimelineProps> = ({
   onToggleLike,
   onAddComment,
   onDeletePost,
+  onUpdatePostTags,
 }) => {
   const [selectedCategory, setSelectedCategory] = useState<string>('全部');
   const [selectedStage, setSelectedStage] = useState<string>('全部');
@@ -149,8 +153,16 @@ export const Timeline: React.FC<TimelineProps> = ({
     setIsDeletingPost(true);
     setDeletePostError(null);
     try {
-      await onDeletePost(postToDelete.id);
+      const deletedId = postToDelete.id;
       const title = postToDelete.title;
+      await onDeletePost(deletedId);
+      // 清理该作品残留的展开态，避免已删除记录仍留在评论区/笔记展开状态里
+      if (activeCommentPostId === deletedId) setActiveCommentPostId(null);
+      setExpandedNotes((prev) => {
+        const next = { ...prev };
+        delete next[deletedId];
+        return next;
+      });
       setPostToDelete(null);
       setDeletePostSuccessToast(`作品《${title}》已永久物理删除，列表与分类统计已即时更新！`);
       setTimeout(() => setDeletePostSuccessToast(null), 3500);
@@ -160,6 +172,17 @@ export const Timeline: React.FC<TimelineProps> = ({
     } finally {
       setIsDeletingPost(false);
     }
+  };
+
+  // Post tag editor states
+  const [postToEditTags, setPostToEditTags] = useState<DancePost | null>(null);
+  const [tagActionToast, setTagActionToast] = useState<string | null>(null);
+
+  /** 交给 App 持久化；成功后统一给结果反馈，失败时抛错由弹窗显示 */
+  const handleSavePostTags = async (postId: string, categories: string[]) => {
+    await onUpdatePostTags(postId, categories);
+    setTagActionToast(`标签已更新为 ${categories.join(' / ')}，列表与分类统计已同步`);
+    setTimeout(() => setTagActionToast(null), 3500);
   };
 
   // Avatar state and error/success feedback
@@ -432,6 +455,16 @@ export const Timeline: React.FC<TimelineProps> = ({
     }
     return DEFAULT_DANCE_STYLES;
   });
+
+  /** 标签编辑器的推荐项：内置舞种 + 自定义舞种库 + 现有作品里出现过的标签 */
+  const suggestedTags = useMemo(() => {
+    const all = [
+      'Jazz', '韩舞', '编舞', '基础练习', '其他',
+      ...danceStyles.map((s) => s.name),
+      ...posts.flatMap((p) => p.categories),
+    ];
+    return Array.from(new Set(all.map((s) => String(s).trim()).filter(Boolean)));
+  }, [danceStyles, posts]);
 
   // Dance Style Manager Modal State
   const [isStyleManagerOpen, setIsStyleManagerOpen] = useState(false);
@@ -1416,18 +1449,33 @@ export const Timeline: React.FC<TimelineProps> = ({
                         </button>
                       </div>
 
-                      {/* Delete option for user's uploaded diaries */}
-                      <button
-                        onClick={() => {
-                          setPostToDelete(post);
-                          setDeletePostError(null);
-                        }}
-                        className="w-7 h-7 flex items-center justify-center rounded-xl text-[#BCAFA3] hover:text-[#DC2626] hover:bg-[#FEE2E2]/70 border border-transparent hover:border-[#FECACA] transition-all duration-200 cursor-pointer group/del shrink-0"
-                        title="永久删除此篇作品 (不可恢复)"
-                        aria-label={`永久删除舞蹈作品《${post.title}》`}
-                      >
-                        <Trash2 className="w-3.5 h-3.5 text-[#B5A597] group-hover/del:text-[#DC2626] transition-transform duration-200 group-hover/del:scale-110 shrink-0" />
-                      </button>
+                      {/* 作品管理入口：标签编辑 + 删除，在每个作品卡片上常驻可见 */}
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => setPostToEditTags(post)}
+                          className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-full bg-[#F7EFE7] text-[#736357] hover:text-[#292524] hover:bg-[#EFE3D5] transition-all duration-200 cursor-pointer"
+                          title="查看并编辑这条作品的标签"
+                          aria-label={`编辑作品《${post.title}》的标签`}
+                        >
+                          <Tag className="w-3.5 h-3.5 text-[#D35400] shrink-0" />
+                          <span className="sm:hidden">标签</span>
+                          <span className="hidden sm:inline">编辑标签</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setPostToDelete(post);
+                            setDeletePostError(null);
+                          }}
+                          className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-full bg-[#F7EFE7] text-[#736357] hover:text-[#DC2626] hover:bg-[#FEE2E2] border border-transparent hover:border-[#FECACA] transition-all duration-200 cursor-pointer"
+                          title="永久删除此篇作品（需二次确认，不可恢复）"
+                          aria-label={`删除舞蹈作品《${post.title}》`}
+                        >
+                          <Trash2 className="w-3.5 h-3.5 shrink-0" />
+                          <span>删除</span>
+                        </button>
+                      </div>
                     </div>
 
                   </div>
@@ -1997,6 +2045,22 @@ export const Timeline: React.FC<TimelineProps> = ({
           <span className="font-medium">{deletePostSuccessToast}</span>
         </div>
       )}
+
+      {/* Floating Success Toast for Tag Updates */}
+      {tagActionToast && (
+        <div className="fixed bottom-6 right-6 z-50 max-w-md bg-stone-900/95 text-white text-xs px-4 py-3 rounded-2xl shadow-xl flex items-center gap-2.5 border border-stone-700 animate-slideUp backdrop-blur-md">
+          <Check className="w-4 h-4 text-emerald-400 shrink-0" />
+          <span className="font-medium">{tagActionToast}</span>
+        </div>
+      )}
+
+      {/* Post Tag Editor: 展示当前标签，支持修改 / 新增 / 移除，含空值、重复与保存失败处理 */}
+      <PostTagEditor
+        post={postToEditTags ? (posts.find((p) => p.id === postToEditTags.id) ?? postToEditTags) : null}
+        suggestions={suggestedTags}
+        onClose={() => setPostToEditTags(null)}
+        onSave={handleSavePostTags}
+      />
 
       {/* Dance Style Management Modal (Add & Delete Styles with Difficulty Levels & Consolidated Counts) */}
       {isStyleManagerOpen && (
