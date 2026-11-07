@@ -1,3 +1,4 @@
+import { syncRemoveItem, syncSetItem } from '../utils/sync';
 import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { 
   Play, 
@@ -219,7 +220,7 @@ export const Timeline: React.FC<TimelineProps> = ({
       const result = event.target?.result as string;
       if (result) {
         setAvatar(result);
-        localStorage.setItem('cici_user_avatar', result);
+        syncSetItem('cici_user_avatar', result);
         onUpdateAvatar?.(result);
         setAvatarFeedback({
           type: 'success',
@@ -466,7 +467,7 @@ export const Timeline: React.FC<TimelineProps> = ({
     };
     const updated = [...danceStyles, newStyle];
     setDanceStyles(updated);
-    localStorage.setItem('cici_dance_styles_v2', JSON.stringify(updated));
+    syncSetItem('cici_dance_styles_v2', JSON.stringify(updated));
     setNewStyleName('');
     setStyleActionToast(`新舞种「${trimmed}」(${newStyleDifficulty}) 已即时添加成功！`);
     setTimeout(() => setStyleActionToast(null), 3500);
@@ -476,7 +477,7 @@ export const Timeline: React.FC<TimelineProps> = ({
   const handleConfirmDeleteDanceStyle = (style: DanceStyleItem) => {
     const updated = danceStyles.filter((s) => s.id !== style.id);
     setDanceStyles(updated);
-    localStorage.setItem('cici_dance_styles_v2', JSON.stringify(updated));
+    syncSetItem('cici_dance_styles_v2', JSON.stringify(updated));
     if (selectedCategory === style.name) {
       setSelectedCategory('全部');
     }
@@ -540,7 +541,7 @@ export const Timeline: React.FC<TimelineProps> = ({
     };
     const updated = [...personalityTags, newTag];
     setPersonalityTags(updated);
-    localStorage.setItem('cici_personality_tags', JSON.stringify(updated));
+    syncSetItem('cici_personality_tags', JSON.stringify(updated));
     setNewTagText('');
     setTagToast(`个性标签「${newTag.emoji} ${trimmed}」添加成功！`);
     setTimeout(() => setTagToast(null), 3000);
@@ -563,7 +564,7 @@ export const Timeline: React.FC<TimelineProps> = ({
     };
     const updated = [...personalityTags, newTag];
     setPersonalityTags(updated);
-    localStorage.setItem('cici_personality_tags', JSON.stringify(updated));
+    syncSetItem('cici_personality_tags', JSON.stringify(updated));
     setTagToast(`已添加「${preset.emoji} ${preset.text}」`);
     setTimeout(() => setTagToast(null), 2500);
   };
@@ -571,7 +572,7 @@ export const Timeline: React.FC<TimelineProps> = ({
   const handleDeletePersonalityTag = (tagId: string) => {
     const updated = personalityTags.filter((t) => t.id !== tagId);
     setPersonalityTags(updated);
-    localStorage.setItem('cici_personality_tags', JSON.stringify(updated));
+    syncSetItem('cici_personality_tags', JSON.stringify(updated));
     setTagToast('标签已移除');
     setTimeout(() => setTagToast(null), 2500);
   };
@@ -580,16 +581,16 @@ export const Timeline: React.FC<TimelineProps> = ({
     const trimmed = tempSignature.trim();
     if (!trimmed) return;
     setPersonalitySignature(trimmed);
-    localStorage.setItem('cici_personality_signature', trimmed);
+    syncSetItem('cici_personality_signature', trimmed);
     setTagToast('个性态度签名已保存！');
     setTimeout(() => setTagToast(null), 3000);
   };
 
   const handleResetDefaultTags = () => {
     setPersonalityTags(DEFAULT_PERSONALITY_TAGS);
-    localStorage.setItem('cici_personality_tags', JSON.stringify(DEFAULT_PERSONALITY_TAGS));
+    syncSetItem('cici_personality_tags', JSON.stringify(DEFAULT_PERSONALITY_TAGS));
     setPersonalitySignature('不追求聚光灯，只想在每一个 8-Count 里放飞自我～');
-    localStorage.setItem('cici_personality_signature', '不追求聚光灯，只想在每一个 8-Count 里放飞自我～');
+    syncSetItem('cici_personality_signature', '不追求聚光灯，只想在每一个 8-Count 里放飞自我～');
     setTempSignature('不追求聚光灯，只想在每一个 8-Count 里放飞自我～');
     setTagToast('已恢复默认个性标签与态度签名');
     setTimeout(() => setTagToast(null), 3000);
@@ -2527,7 +2528,7 @@ export const Timeline: React.FC<TimelineProps> = ({
                         onClick={() => {
                           setTempSignature(phrase);
                           setPersonalitySignature(phrase);
-                          localStorage.setItem('cici_personality_signature', phrase);
+                          syncSetItem('cici_personality_signature', phrase);
                           setTagToast('已快速套用灵感签名！');
                           setTimeout(() => setTagToast(null), 2500);
                         }}

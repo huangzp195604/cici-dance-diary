@@ -267,6 +267,40 @@ class StorageManager {
     return this.readCollection<RealFriend>(STORE_REAL_FRIENDS, LS_REAL_FRIENDS, LEGACY_REAL_FRIEND_IDS);
   }
 
+  /**
+   * 用云端数据整表覆盖本地集合（登录同步时使用）。
+   * 先清空再写入，避免云端已删除的记录在本地残留。
+   */
+  async replaceAll(
+    domain: 'posts' | 'buddies' | 'messages' | 'realFriends',
+    items: { id: string }[]
+  ): Promise<void> {
+    const map = {
+      posts: [STORE_POSTS, LS_POSTS, LEGACY_POST_IDS] as const,
+      buddies: [STORE_BUDDIES, LS_BUDDIES, LEGACY_BUDDY_IDS] as const,
+      messages: [STORE_MESSAGES, LS_MESSAGES, LEGACY_MESSAGE_IDS] as const,
+      realFriends: [STORE_REAL_FRIENDS, LS_REAL_FRIENDS, LEGACY_REAL_FRIEND_IDS] as const,
+    };
+    const [storeName, lsKey, legacyIds] = map[domain];
+
+    try {
+      const db = await this.getDB();
+      await new Promise<void>((resolve, reject) => {
+        const tx = db.transaction(storeName, 'readwrite');
+        const store = tx.objectStore(storeName);
+        store.clear();
+        items.forEach((item) => store.put(item));
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+      });
+      localStorage.setItem(lsKey, JSON.stringify(items));
+      return;
+    } catch (e) {
+      console.warn(`IndexedDB bulk replace fallback for ${storeName}:`, e);
+    }
+    localStorage.setItem(lsKey, JSON.stringify(items));
+  }
+
   async saveRealFriend(friend: RealFriend): Promise<void> {
     await this.writeItem(STORE_REAL_FRIENDS, LS_REAL_FRIENDS, LEGACY_REAL_FRIEND_IDS, friend, true);
   }

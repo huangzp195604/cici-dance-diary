@@ -33,7 +33,7 @@ import {
   BadgeCheck,
   Link2
 } from 'lucide-react';
-import { DanceBuddy, WallMessage, ForumThread, RealFriend, ForumCategory, ForumReply, DanceStage } from '../types';
+import { DanceBuddy, WallMessage, ForumThread, RealFriend, ForumCategory, ForumReply, DanceStage, Gender } from '../types';
 
 /**
  * 站外收款 / 私下拉群检测：命中则折叠正文，引导走官方报名。
@@ -137,6 +137,8 @@ export const DanceBuddies: React.FC<DanceBuddiesProps> = ({
   const [newFriendStudio, setNewFriendStudio] = useState('星光舞蹈工作室 (静安)');
   const [newFriendStyle, setNewFriendStyle] = useState('Jazz Funk · 基础班');
   const [newFriendNotes, setNewFriendNotes] = useState('');
+  const [newFriendGender, setNewFriendGender] = useState<Gender | null>(null);
+  const [newFriendAge, setNewFriendAge] = useState('');
   const [copiedFriendId, setCopiedFriendId] = useState<string | null>(null);
 
   // Permanent Delete Modal & Confirmation State
@@ -360,6 +362,8 @@ export const DanceBuddies: React.FC<DanceBuddiesProps> = ({
       studio: newFriendStudio.trim(),
       danceStyle: newFriendStyle.trim(),
       notes: newFriendNotes.trim() || base?.notes || '常在一起练舞的伙伴',
+      gender: newFriendGender ?? base?.gender,
+      age: newFriendAge.trim() ? Number(newFriendAge) : base?.age,
       avatarBg: base?.avatarBg ?? 'bg-rose-100 text-rose-700',
       status: base?.status ?? '空闲',
       recentTopic: base?.recentTopic ?? '刚刚添加为真实舞友',
@@ -376,6 +380,8 @@ export const DanceBuddies: React.FC<DanceBuddiesProps> = ({
     setNewFriendName('');
     setNewFriendContact('');
     setNewFriendNotes('');
+    setNewFriendGender(null);
+    setNewFriendAge('');
     setIsAddFriendOpen(false);
   };
 
@@ -386,6 +392,8 @@ export const DanceBuddies: React.FC<DanceBuddiesProps> = ({
     setNewFriendStudio('星光舞蹈工作室 (静安)');
     setNewFriendStyle('Jazz Funk · 基础班');
     setNewFriendNotes('');
+    setNewFriendGender(null);
+    setNewFriendAge('');
     setIsAddFriendOpen(true);
   };
 
@@ -396,6 +404,8 @@ export const DanceBuddies: React.FC<DanceBuddiesProps> = ({
     setNewFriendStudio(friend.studio);
     setNewFriendStyle(friend.danceStyle);
     setNewFriendNotes(friend.notes);
+    setNewFriendGender(friend.gender ?? null);
+    setNewFriendAge(friend.age ? String(friend.age) : '');
     setIsAddFriendOpen(true);
   };
 
@@ -693,6 +703,13 @@ export const DanceBuddies: React.FC<DanceBuddiesProps> = ({
                         <div>
                           <div className="flex items-center gap-2 flex-wrap">
                             <span className="font-bold text-sm text-[#292524]">{thread.author}</span>
+                            {(thread.authorGender || thread.authorAge) && (
+                              <span className="text-[10px] bg-[#F2F7FF] text-[#4B6B8A] px-2 py-0.5 rounded-full font-medium">
+                                {[thread.authorGender, thread.authorAge ? `${thread.authorAge}岁` : '']
+                                  .filter(Boolean)
+                                  .join(' · ')}
+                              </span>
+                            )}
                             {thread.authorRole && (
                               <span className="text-[10px] bg-[#FAF2EB] text-[#736357] px-2 py-0.5 rounded-full font-medium">
                                 {thread.authorRole}
@@ -722,7 +739,9 @@ export const DanceBuddies: React.FC<DanceBuddiesProps> = ({
                           <div className="flex items-center gap-2 text-[11px] text-[#A8988A] mt-0.5">
                             <span className="text-[#7C3AED] font-semibold">{thread.category}</span>
                             <span aria-hidden="true">·</span>
-                            <span>{thread.createdAt}</span>
+                            <span title={thread.createdAtExact ? `发布于 ${thread.createdAtExact}` : undefined}>
+                              {thread.createdAt}
+                            </span>
                             <span aria-hidden="true">·</span>
                             <span>{thread.views} 次浏览</span>
                           </div>
@@ -1009,8 +1028,20 @@ export const DanceBuddies: React.FC<DanceBuddiesProps> = ({
                                       楼主
                                     </span>
                                   )}
+                                  {(reply.authorGender || reply.authorAge) && (
+                                    <span className="text-[10px] bg-[#F7EFE7] text-[#8C7A6B] px-1.5 py-0.2 rounded font-normal">
+                                      {[reply.authorGender, reply.authorAge ? `${reply.authorAge}岁` : '']
+                                        .filter(Boolean)
+                                        .join(' · ')}
+                                    </span>
+                                  )}
                                 </div>
-                                <span className="text-[10px] text-[#A8988A]">{reply.createdAt}</span>
+                                <span
+                                  className="text-[10px] text-[#A8988A] font-mono"
+                                  title={reply.createdAtExact ? `发布于 ${reply.createdAtExact}` : undefined}
+                                >
+                                  {reply.createdAtExact || reply.createdAt}
+                                </span>
                               </div>
                               <p className="text-[#574B40] leading-relaxed">{reply.content}</p>
                             </div>
@@ -1810,6 +1841,44 @@ export const DanceBuddies: React.FC<DanceBuddiesProps> = ({
                     placeholder="如：抒情Jazz、基础课"
                     value={newFriendStyle}
                     onChange={(e) => setNewFriendStyle(e.target.value)}
+                    className="w-full text-xs p-2.5 rounded-xl border border-[#E8DACB] bg-[#FFFDF9]"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-[#574B40] uppercase tracking-wider mb-1">
+                    性别 (选填)
+                  </label>
+                  <div className="flex gap-2">
+                    {(['女', '男'] as Gender[]).map((g) => (
+                      <button
+                        key={g}
+                        type="button"
+                        onClick={() => setNewFriendGender(newFriendGender === g ? null : g)}
+                        className={`flex-1 py-2.5 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
+                          newFriendGender === g
+                            ? 'bg-[#7C3AED] text-white border-[#6D28D9]'
+                            : 'bg-[#FAF2EB] text-[#736357] border-[#E8DACB] hover:bg-[#F3E5D7]'
+                        }`}
+                      >
+                        {g}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-[#574B40] uppercase tracking-wider mb-1">
+                    年龄 (选填)
+                  </label>
+                  <input
+                    type="number"
+                    min={10}
+                    max={80}
+                    placeholder="如：24"
+                    value={newFriendAge}
+                    onChange={(e) => setNewFriendAge(e.target.value.replace(/[^\d]/g, '').slice(0, 2))}
                     className="w-full text-xs p-2.5 rounded-xl border border-[#E8DACB] bg-[#FFFDF9]"
                   />
                 </div>

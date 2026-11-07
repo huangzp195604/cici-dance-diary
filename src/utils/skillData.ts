@@ -17,6 +17,7 @@ import type {
   SkillWithState,
 } from '../types/skill';
 import { computePracticeDays } from './practice';
+import { syncSetItem } from './sync';
 
 export const SKILLS_STORAGE_KEY = 'cici_jazz_skills_v1';
 export const CHECKINS_STORAGE_KEY = 'cici_jazz_skill_checkins_v1';
@@ -138,7 +139,7 @@ export const loadCheckIns = (): SkillCheckIn[] => {
 
 export const saveSkills = (skills: JazzSkill[]): void => {
   try {
-    localStorage.setItem(SKILLS_STORAGE_KEY, JSON.stringify(skills));
+    syncSetItem(SKILLS_STORAGE_KEY, JSON.stringify(skills));
   } catch {
     // 配额或隐私模式下静默失败，页面仍可用当前会话状态
   }
@@ -147,7 +148,7 @@ export const saveSkills = (skills: JazzSkill[]): void => {
 
 export const saveCheckIns = (checkIns: SkillCheckIn[]): void => {
   try {
-    localStorage.setItem(CHECKINS_STORAGE_KEY, JSON.stringify(checkIns));
+    syncSetItem(CHECKINS_STORAGE_KEY, JSON.stringify(checkIns));
   } catch {
     // 同上
   }

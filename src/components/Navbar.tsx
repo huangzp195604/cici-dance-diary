@@ -12,6 +12,8 @@ interface NavbarProps {
   userName?: string | null;
   onLogin: () => void;
   onLogout: () => void;
+  /** 打开个人资料弹窗（昵称 / 性别 / 年龄） */
+  onOpenProfile?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -24,6 +26,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   userName,
   onLogin,
   onLogout,
+  onOpenProfile,
 }) => {
   return (
     <header className="sticky top-0 z-40 bg-[#FFFDF9]/90 backdrop-blur-md border-b border-[#F1E5D8] transition-all">
@@ -126,10 +129,15 @@ export const Navbar: React.FC<NavbarProps> = ({
         <div className="flex items-center gap-2 shrink-0">
           {userName === undefined ? null : userName ? (
             <div className="flex items-center gap-1">
-              <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-[#EDE9FE] text-[#5B21B6] border border-[#DDD0FA] whitespace-nowrap">
+              <button
+                type="button"
+                onClick={onOpenProfile}
+                title="编辑我的资料（昵称 / 性别 / 年龄）"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-[#EDE9FE] text-[#5B21B6] border border-[#DDD0FA] hover:bg-[#E2DBFA] transition-colors whitespace-nowrap cursor-pointer"
+              >
                 <UserCircle2 className="w-3.5 h-3.5" />
                 {userName}
-              </span>
+              </button>
               <button
                 onClick={onLogout}
                 title="退出登录"

@@ -2,6 +2,16 @@ export type DanceCategory = 'Jazz' | '韩舞' | '编舞' | '基础练习' | '其
 
 export type DanceStage = '入门' | '进阶' | '挑战';
 
+export type Gender = '男' | '女';
+
+/** 用户云端资料：昵称公开（论坛展示），性别年龄可选 */
+export interface UserProfile {
+  user_id: string;
+  nickname: string | null;
+  gender: Gender | null;
+  age: number | null;
+}
+
 export interface Comment {
   id: string;
   author: string;
@@ -79,9 +89,13 @@ export interface ForumReply {
   id: string;
   author: string;
   authorRole?: string;
+  authorGender?: Gender;
+  authorAge?: number;
   avatarBg: string;
   content: string;
   createdAt: string;
+  /** 绝对时间戳（YYYY-MM-DD HH:mm），评论展示用 */
+  createdAtExact?: string;
   likes: number;
   isLiked?: boolean;
   isOwner?: boolean;
@@ -115,8 +129,13 @@ export interface ForumThread {
   category: '舞室约练' | '动作拆解' | '扒舞音乐' | '舞友随笔';
   author: string;
   authorRole?: string;
+  /** 作者资料（来自 profiles，用于展示性别/年龄） */
+  authorGender?: Gender;
+  authorAge?: number;
   avatarBg: string;
   createdAt: string;
+  /** 绝对时间（YYYY-MM-DD HH:mm），与相对时间并存 */
+  createdAtExact?: string;
   likes: number;
   isLiked?: boolean;
   views: number;
@@ -139,6 +158,10 @@ export interface RealFriend {
   notes: string;
   avatarBg: string;
   status: '在线' | '练舞中' | '空闲';
+  /** 性别（选填） */
+  gender?: Gender;
+  /** 年龄（选填） */
+  age?: number;
   recentTopic?: string;
   createdAt?: string; // 系统自动记录的新增时间 (ISO)
 }

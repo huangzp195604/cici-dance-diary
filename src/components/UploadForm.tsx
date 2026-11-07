@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { compressImageFile } from '../utils/imageCompress';
 import { 
   UploadCloud, 
   Film, 
@@ -80,7 +81,7 @@ export const UploadForm: React.FC<UploadFormProps> = ({ onAddPost, onCancel }) =
   };
 
   // Local file picker handler
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -88,11 +89,25 @@ export const UploadForm: React.FC<UploadFormProps> = ({ onAddPost, onCancel }) =
     const isVid = file.type.startsWith('video');
     setMediaType(isVid ? 'video' : 'image');
 
-    // Create object URL or read file
-    const url = URL.createObjectURL(file);
-    setMediaUrl(url);
     if (!title) {
       setTitle(file.name.replace(/\.[^/.]+$/, ''));
+    }
+
+    if (isVid) {
+      // 视频体积过大，无法可靠地存进数据库：保留本次会话可用的 blob
+      setMediaUrl(URL.createObjectURL(file));
+      setErrorMsg('视频仅在本设备本次浏览有效；换设备后建议重新上传或改传封面图');
+      return;
+    }
+
+    // 图片压缩后转 base64，才能持久保存并跨设备同步
+    try {
+      setErrorMsg('');
+      const dataUrl = await compressImageFile(file);
+      setMediaUrl(dataUrl);
+    } catch (err) {
+      console.warn('图片压缩失败，回退原图', err);
+      setMediaUrl(URL.createObjectURL(file));
     }
   };
 

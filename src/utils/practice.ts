@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { syncRemoveItem, syncSetItem } from './sync';
 
 /** 用户设定的学舞起步日（即开始记录的日期），未设置时练习天数为 0 */
 export const PRACTICE_START_DATE_KEY = 'cici_dance_start_date';
@@ -18,9 +19,9 @@ export function getPracticeStartDate(): string | null {
 export function setPracticeStartDate(date: string | null): void {
   try {
     if (date) {
-      localStorage.setItem(PRACTICE_START_DATE_KEY, date);
+      syncSetItem(PRACTICE_START_DATE_KEY, date);
     } else {
-      localStorage.removeItem(PRACTICE_START_DATE_KEY);
+      syncRemoveItem(PRACTICE_START_DATE_KEY);
     }
   } catch {
     // 存储不可用时仍保持当前会话内状态可用

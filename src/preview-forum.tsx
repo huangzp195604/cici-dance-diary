@@ -26,6 +26,35 @@ const threads: ForumThread[] = [
     id: '1',
     title: '【静安】周六下午拼大教室练 Roll 与扒舞',
     content: '本期重点：胸部 Roll 的发力顺序 + 结尾四拍卡点。新手也能跟上，练完一起录一段成片。',
+    author: '小鹿',
+    authorGender: '女',
+    authorAge: 24,
+    createdAtExact: '2026-11-07 14:32',
+    replies: [
+      {
+        id: 'r1',
+        author: '阿棠',
+        authorGender: '女',
+        authorAge: 27,
+        avatarBg: 'bg-emerald-100 text-emerald-700',
+        content: '报名！我正好在练这段，Roll 总是衔接不上，求带。',
+        createdAt: '2 小时前',
+        createdAtExact: '2026-11-07 15:08',
+        likes: 0,
+      },
+      {
+        id: 'r2',
+        author: '大熊',
+        authorGender: '男',
+        authorAge: 31,
+        avatarBg: 'bg-sky-100 text-sky-700',
+        content: '新手能跟吗？只跳过半年基础。',
+        createdAt: '40 分钟前',
+        createdAtExact: '2026-11-07 16:20',
+        likes: 0,
+        isOwner: true,
+      },
+    ],
     meetup: {
       studio: '星光舞蹈工作室（静安店）',
       date: '本周六 14:00-16:00',
@@ -119,3 +148,9 @@ createRoot(document.getElementById('root')!).render(
     onToggleJoinMeetup={noop}
   />
 );
+
+// 预览用：自动展开第一条帖子，方便截图检查回复的时间戳与作者资料
+setTimeout(() => {
+  const title = document.querySelector('article h3') as HTMLElement | null;
+  title?.click();
+}, 900);

@@ -1,3 +1,4 @@
+import { syncRemoveItem, syncSetItem } from '../utils/sync';
 import React, { useState, useMemo } from 'react';
 import { 
   Heart, 
@@ -181,7 +182,7 @@ export const AboutMe: React.FC<AboutMeProps> = ({
       habitTags: editHabitTags.length > 0 ? editHabitTags : DEFAULT_ABOUT_PROFILE.habitTags,
     };
     setProfile(updated);
-    localStorage.setItem('cici_about_profile', JSON.stringify(updated));
+    syncSetItem('cici_about_profile', JSON.stringify(updated));
     setIsEditModalOpen(false);
     setProfileToast('个人资料已成功保存并即时更新！');
     setTimeout(() => setProfileToast(null), 3500);
@@ -189,7 +190,7 @@ export const AboutMe: React.FC<AboutMeProps> = ({
 
   const handleResetProfile = () => {
     setProfile(DEFAULT_ABOUT_PROFILE);
-    localStorage.removeItem('cici_about_profile');
+    syncRemoveItem('cici_about_profile');
     setEditNickname(DEFAULT_ABOUT_PROFILE.nickname);
     setEditRoleStage(DEFAULT_ABOUT_PROFILE.roleStage);
     setEditBioText(DEFAULT_ABOUT_PROFILE.bioText);
@@ -253,7 +254,7 @@ export const AboutMe: React.FC<AboutMeProps> = ({
     reader.onload = (event) => {
       const result = event.target?.result as string;
       if (result) {
-        localStorage.setItem('cici_user_avatar', result);
+        syncSetItem('cici_user_avatar', result);
         onUpdateAvatar?.(result);
         setAvatarFeedback({
           type: 'success',

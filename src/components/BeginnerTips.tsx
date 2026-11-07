@@ -1,3 +1,4 @@
+import { syncRemoveItem, syncSetItem } from '../utils/sync';
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   ShoppingBag,
@@ -91,7 +92,7 @@ export const BeginnerTips: React.FC = () => {
   // 任何新增 / 置顶 / 删除都会立即写入本地存储，保证界面与后台数据一致
   useEffect(() => {
     try {
-      localStorage.setItem(TIPS_STORAGE_KEY, JSON.stringify(tips));
+      syncSetItem(TIPS_STORAGE_KEY, JSON.stringify(tips));
     } catch {
       setToast({ type: 'error', message: '保存失败：本地存储空间不足，请清理后重试' });
     }

@@ -17,7 +17,11 @@ import { storage } from './utils/storage';
 import { metronomeInstance } from './utils/audio';
 import { useAuth, displayName } from './hooks/useAuth';
 import { LoginModal } from './components/LoginModal';
+import { ProfileModal } from './components/ProfileModal';
 import * as forumApi from './services/forumApi';
+import * as userDataApi from './services/userDataApi';
+import { setSyncUser, prepareForUser, pullAllToLocal, queuePush, flush } from './utils/sync';
+import type { UserProfile } from './types';
 
 const TAB_KEYS = ['timeline', 'upload', 'buddies', 'growth', 'about'] as const;
 type TabKey = (typeof TAB_KEYS)[number];
@@ -62,6 +66,13 @@ export default function App() {
     return localStorage.getItem('cici_user_avatar') || '/assets/aistudio/image_f83d6670.png';
   });
 
+  // 个人资料（昵称/性别/年龄）与同步状态
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [profileRequired, setProfileRequired] = useState(false);
+  /** 云端数据拉取完成前不允许反向推送，否则会用旧本地数据覆盖云端 */
+  const [cloudHydrated, setCloudHydrated] = useState(false);
+
   // Metronome states
   const [metronomeActive, setMetronomeActive] = useState<boolean>(false);
   const [metronomeBeat, setMetronomeBeat] = useState<number>(0);
@@ -101,6 +112,112 @@ export default function App() {
     };
   }, []);
 
+  // ---- 全站数据同步：登录后拉云端覆盖本地；未登录继续用本地 ----
+  useEffect(() => {
+    if (!ready) return;
+
+    if (!user) {
+      setSyncUser(null);
+      setCloudHydrated(false);
+      setProfile(null);
+      sessionStorage.removeItem('cici_sync_reloaded');
+      return;
+    }
+
+    let cancelled = false;
+    setSyncUser(user.id);
+
+    (async () => {
+      // 换账号：先清空本地集合数据，避免把上一个账号的数据推到新账号
+      const switched = prepareForUser(user.id);
+      if (switched) {
+        await storage.resetToDefaults();
+        if (cancelled) return;
+        setPosts([]);
+        setBuddies([]);
+        setMessages([]);
+        setRealFriends([]);
+      }
+
+      try {
+        const { changedDomains, data } = await pullAllToLocal();
+        if (cancelled) return;
+
+        const cloudPosts = data['posts'];
+        if (Array.isArray(cloudPosts)) {
+          await storage.replaceAll('posts', cloudPosts as DancePost[]);
+          if (!cancelled) setPosts(cloudPosts as DancePost[]);
+        }
+        const cloudBuddies = data['buddies'];
+        if (Array.isArray(cloudBuddies)) {
+          await storage.replaceAll('buddies', cloudBuddies as DanceBuddy[]);
+          if (!cancelled) setBuddies(cloudBuddies as DanceBuddy[]);
+        }
+        const cloudMessages = data['messages'];
+        if (Array.isArray(cloudMessages)) {
+          await storage.replaceAll('messages', cloudMessages as WallMessage[]);
+          if (!cancelled) setMessages(cloudMessages as WallMessage[]);
+        }
+        const cloudFriends = data['realFriends'];
+        if (Array.isArray(cloudFriends)) {
+          await storage.replaceAll('realFriends', cloudFriends as RealFriend[]);
+          if (!cancelled) setRealFriends(cloudFriends as RealFriend[]);
+        }
+
+        // 资料：昵称为空时强制补填，否则论坛里只能显示「舞友」
+        const loadedProfile = await userDataApi.fetchProfile(user.id);
+        if (cancelled) return;
+        setProfile(loadedProfile);
+        if (!loadedProfile?.nickname) {
+          setProfileRequired(true);
+          setIsProfileOpen(true);
+        }
+
+        // 技能打卡 / 关于我 / 头像等从 localStorage 初始化 state，
+        // 云端数据写回本地后需要重载一次才能生效（每个会话只做一次）
+        if (changedDomains.length > 0 && !sessionStorage.getItem('cici_sync_reloaded')) {
+          sessionStorage.setItem('cici_sync_reloaded', '1');
+          window.location.reload();
+          return;
+        }
+
+        setUserAvatar(localStorage.getItem('cici_user_avatar') || '/assets/aistudio/image_f83d6670.png');
+        setCloudHydrated(true);
+      } catch (err) {
+        console.warn('云端数据同步失败，继续使用本地数据', err);
+        if (!cancelled) {
+          setCloudHydrated(true);
+          setToast('云端数据同步失败，当前显示本地数据');
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [ready, user]);
+
+  // ---- 集合型数据变更 → 防抖推送云端（必须在拉取完成之后）----
+  useEffect(() => {
+    if (!cloudHydrated || !user) return;
+    queuePush('posts', posts);
+  }, [posts, cloudHydrated, user]);
+
+  useEffect(() => {
+    if (!cloudHydrated || !user) return;
+    queuePush('buddies', buddies);
+  }, [buddies, cloudHydrated, user]);
+
+  useEffect(() => {
+    if (!cloudHydrated || !user) return;
+    queuePush('messages', messages);
+  }, [messages, cloudHydrated, user]);
+
+  useEffect(() => {
+    if (!cloudHydrated || !user) return;
+    queuePush('realFriends', realFriends);
+  }, [realFriends, cloudHydrated, user]);
+
   // ---- 论坛：数据源在云端，登录状态变化后重拉（点赞/报名状态与本人绑定）----
   useEffect(() => {
     if (!ready) return;
@@ -133,6 +250,10 @@ export default function App() {
     const t = setTimeout(() => setToast(''), 2600);
     return () => clearTimeout(t);
   }, [toast]);
+
+  /** 论坛写入统一带上当前昵称：owner_name 为空会让所有人显示成「舞友」 */
+  const withAuthorName = (u: { id: string; name: string }) =>
+    profile?.nickname ? { ...u, name: profile.nickname } : u;
 
   /** 论坛写操作统一走这道门：未登录先弹登录框 */
   const requireLogin = (): boolean => {
@@ -294,7 +415,7 @@ export default function App() {
   const handleCreateThread = async (thread: ForumThread) => {
     if (!requireLogin()) return;
     try {
-      await forumApi.createThread(thread, user!);
+      await forumApi.createThread(thread, withAuthorName(user!));
       await refreshForum();
       setToast('🎉 发帖成功，全站舞友都能看到啦');
     } catch (err: any) {
@@ -338,7 +459,7 @@ export default function App() {
       );
     }
     try {
-      await forumApi.toggleLike(threadId, user!);
+      await forumApi.toggleLike(threadId, withAuthorName(user!));
     } catch (err: any) {
       setToast(err.message || '操作失败');
       await refreshForum();
@@ -348,7 +469,7 @@ export default function App() {
   const handleAddThreadReply = async (threadId: string, replyText: string) => {
     if (!requireLogin()) return;
     try {
-      await forumApi.addReply(threadId, replyText, user!);
+      await forumApi.addReply(threadId, replyText, withAuthorName(user!));
       await refreshForum();
     } catch (err: any) {
       setToast(err.message || '回帖失败，请重试');
@@ -359,7 +480,7 @@ export default function App() {
   const handleToggleJoinMeetup = async (threadId: string) => {
     if (!requireLogin()) return;
     try {
-      await forumApi.toggleJoin(threadId, user!);
+      await forumApi.toggleJoin(threadId, withAuthorName(user!));
       await refreshForum();
     } catch (err: any) {
       setToast(err.message || '操作失败');
@@ -396,11 +517,17 @@ export default function App() {
         toggleMetronome={handleToggleMetronome}
         metronomeBeat={metronomeBeat}
         userAvatar={userAvatar}
-        userName={ready ? (user ? displayName(user) : null) : undefined}
+        userName={ready ? (user ? profile?.nickname || displayName(user) : null) : undefined}
         onLogin={() => setIsLoginOpen(true)}
         onLogout={async () => {
+          await flush();
+          sessionStorage.removeItem('cici_sync_reloaded');
           await signOut();
-          setToast('已退出登录');
+          setToast('已退出登录，本地数据已保留');
+        }}
+        onOpenProfile={() => {
+          setProfileRequired(false);
+          setIsProfileOpen(true);
         }}
       />
 
@@ -479,7 +606,7 @@ export default function App() {
             onAddRealFriend={handleAddRealFriend}
             onUpdateRealFriend={handleUpdateRealFriend}
             onDeleteRealFriend={handleDeleteRealFriend}
-            currentUserName={user?.name}
+            currentUserName={profile?.nickname || user?.name}
             />
           </>
         )}
@@ -531,6 +658,23 @@ export default function App() {
         sendCode={sendCode}
         verifyCode={verifyCode}
       />
+
+      {/* 6.5 个人资料：昵称 / 性别 / 年龄 */}
+      {user && (
+        <ProfileModal
+          isOpen={isProfileOpen}
+          onClose={() => setIsProfileOpen(false)}
+          userId={user.id}
+          initial={profile}
+          required={profileRequired}
+          onSaved={async (saved) => {
+            setProfile(saved);
+            setProfileRequired(false);
+            setToast(`资料已保存，舞友们会看到「${saved.nickname}」`);
+            await refreshForum();
+          }}
+        />
+      )}
 
       {/* 7. 轻提示 */}
       {toast && (

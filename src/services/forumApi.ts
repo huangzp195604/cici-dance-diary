@@ -5,6 +5,7 @@
  */
 import { cloud, CloudUser } from './cloud';
 import { ForumThread, ForumReply, ForumMeetup, OrganizerStats } from '../types';
+import { fetchProfiles } from './userDataApi';
 
 const AVATAR_STYLES = [
   'bg-orange-100 text-orange-700',
@@ -34,6 +35,18 @@ export function timeAgo(iso: string): string {
   const day = Math.floor(hour / 24);
   if (day < 30) return `${day} 天前`;
   return new Date(iso).toLocaleDateString('zh-CN');
+}
+
+/** ISO 时间 → 绝对时间戳（同年省略年份），评论展示用 */
+export function formatDateTime(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const sameYear = d.getFullYear() === new Date().getFullYear();
+  const date = sameYear
+    ? `${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+    : `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  return `${date} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
 interface ThreadRow {
@@ -143,6 +156,19 @@ export async function fetchForum(currentUser: CloudUser | null): Promise<ForumTh
   const accessByThread = new Map<number, AccessRow>();
   accessRows.forEach((a) => accessByThread.set(a.thread_id, a));
 
+  // 昵称统一以 profiles 为准：owner_name 是发帖当时的快照，
+  // 用户改名后必须显示新昵称，否则会出现「同一个人两个名字」
+  const ownerIds = Array.from(
+    new Set([
+      ...threads.map((t) => t.owner_id),
+      ...replies.map((r) => r.owner_id),
+      ...interactions.map((i) => i.owner_id),
+    ])
+  ).filter(Boolean);
+  const profileMap = await fetchProfiles(ownerIds);
+  const authorOf = (ownerId: string, fallback: string | null): string =>
+    profileMap.get(ownerId)?.nickname || fallback || '舞友';
+
   // 组织者履历：按作者聚合其历史约练帖与累计报名人次（实时派生，不落库）
   const statsByOwner = new Map<string, OrganizerStats>();
   threads.forEach((t) => {
@@ -154,7 +180,8 @@ export async function fetchForum(currentUser: CloudUser | null): Promise<ForumTh
   });
 
   return threads.map((t) => {
-    const author = t.owner_name || '舞友';
+    const author = authorOf(t.owner_id, t.owner_name);
+    const authorProfile = profileMap.get(t.owner_id);
     const likes = likesByThread.get(t.id) || [];
     const joins = joinsByThread.get(t.id) || [];
     const isLiked = !!currentUser && likes.some((i) => i.owner_id === currentUser.id);
@@ -170,22 +197,28 @@ export async function fetchForum(currentUser: CloudUser | null): Promise<ForumTh
             targetCount: t.meetup.targetCount || 4,
             costNote: t.meetup.costNote,
             organizerNote: t.meetup.organizerNote,
-            joinedBuddies: joins.map((j) => j.owner_name || '舞友'),
+            joinedBuddies: joins.map((j) => authorOf(j.owner_id, j.owner_name)),
             isJoined,
             groupEntry: access?.group_entry,
             groupNote: access?.group_note ?? undefined,
           }
         : undefined;
 
-    const threadReplies: ForumReply[] = (repliesByThread.get(t.id) || []).map((r) => ({
-      id: String(r.id),
-      author: r.owner_name || '舞友',
-      avatarBg: avatarFor(r.owner_name || '舞友'),
-      content: r.content,
-      createdAt: timeAgo(r.created_at),
-      likes: 0,
-      isOwner: !!currentUser && r.owner_id === currentUser.id,
-    }));
+    const threadReplies: ForumReply[] = (repliesByThread.get(t.id) || []).map((r) => {
+      const replyProfile = profileMap.get(r.owner_id);
+      return {
+        id: String(r.id),
+        author: authorOf(r.owner_id, r.owner_name),
+        authorGender: replyProfile?.gender ?? undefined,
+        authorAge: replyProfile?.age ?? undefined,
+        avatarBg: avatarFor(authorOf(r.owner_id, r.owner_name)),
+        content: r.content,
+        createdAt: timeAgo(r.created_at),
+        createdAtExact: formatDateTime(r.created_at),
+        likes: 0,
+        isOwner: !!currentUser && r.owner_id === currentUser.id,
+      };
+    });
 
     return {
       id: String(t.id),
@@ -193,8 +226,11 @@ export async function fetchForum(currentUser: CloudUser | null): Promise<ForumTh
       content: t.content || '',
       category: (t.category as ForumThread['category']) || '舞友随笔',
       author,
+      authorGender: authorProfile?.gender ?? undefined,
+      authorAge: authorProfile?.age ?? undefined,
       avatarBg: t.avatar_bg || avatarFor(author),
       createdAt: timeAgo(t.created_at),
+      createdAtExact: formatDateTime(t.created_at),
       likes: likes.length,
       isLiked,
       views: t.views || 0,
