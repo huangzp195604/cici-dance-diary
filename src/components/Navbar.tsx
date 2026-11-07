@@ -1,9 +1,9 @@
 import React from 'react';
-import { Calendar, UploadCloud, Users, Sparkles, Volume2, VolumeX, Download, LogIn, LogOut, UserCircle2 } from 'lucide-react';
+import { Calendar, UploadCloud, Users, Sparkles, Volume2, VolumeX, Download, LogIn, LogOut, UserCircle2, LineChart } from 'lucide-react';
 
 interface NavbarProps {
-  activeTab: 'timeline' | 'upload' | 'buddies' | 'about';
-  setActiveTab: (tab: 'timeline' | 'upload' | 'buddies' | 'about') => void;
+  activeTab: 'timeline' | 'upload' | 'buddies' | 'growth' | 'about';
+  setActiveTab: (tab: 'timeline' | 'upload' | 'buddies' | 'growth' | 'about') => void;
   metronomeActive: boolean;
   toggleMetronome: () => void;
   metronomeBeat: number;
@@ -91,6 +91,21 @@ export const Navbar: React.FC<NavbarProps> = ({
               <span className="inline-flex items-center justify-center px-1.5 py-0.2 text-[10px] font-extrabold text-[#7C3AED] bg-[#EDE9FE] rounded-full border border-[#DDD0FA]">
                 活跃
               </span>
+            </span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('growth')}
+            className={`flex items-center gap-1.5 px-3 sm:px-4 py-1.5 text-xs sm:text-sm font-semibold rounded-full transition-all whitespace-nowrap cursor-pointer ${
+              activeTab === 'growth'
+                ? 'bg-white text-[#292524] shadow-sm'
+                : 'text-[#78695C] hover:text-[#292524] hover:bg-white/50'
+            }`}
+          >
+            <LineChart className="w-3.5 h-3.5 text-[#0EA5E9]" />
+            <span>成长报告</span>
+            <span className="hidden sm:inline-flex items-center justify-center px-1.5 text-[10px] font-extrabold text-[#B45309] bg-[#FFF1E0] rounded-full border border-[#F5DFC4]">
+              新
             </span>
           </button>
 

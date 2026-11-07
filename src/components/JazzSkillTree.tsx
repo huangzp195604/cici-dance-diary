@@ -16,123 +16,37 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { ConfirmDialog } from './ConfirmDialog';
+import type {
+  CheckInStatus,
+  JazzSkill,
+  SkillCategory,
+  SkillCheckIn,
+  SkillLevel,
+  SkillStateStatus,
+  SkillWithState,
+} from '../types/skill';
+import {
+  SKILL_CATEGORIES,
+  DEFAULT_JAZZ_SKILLS,
+  computeSkillStates,
+  loadCheckIns,
+  loadSkills,
+  saveCheckIns,
+  saveSkills,
+} from '../utils/skillData';
 
-export type SkillCategory =
-  | '基础律动'
-  | '隔离控制'
-  | '身体开发'
-  | '脚步与重心'
-  | '旋转技巧'
-  | '高跟 Jazz'
-  | '地面技巧'
-  | '音乐性'
-  | '表现力'
-  | '编舞与创作';
-
-export type SkillLevel = 1 | 2 | 3 | 4 | 5;
-
-export interface JazzSkill {
-  id: string;
-  name: string;
-  category: SkillCategory;
-  difficulty: SkillLevel;
-  description: string;
-  isCustom?: boolean;
-}
-
-export type CheckInStatus = 'practicing' | 'mastered';
-
-export interface SkillCheckIn {
-  id: string;
-  skillId: string;
-  date: string; // YYYY-MM-DD
-  status: CheckInStatus;
-}
-
-export type SkillStateStatus = 'locked' | 'available' | 'practicing' | 'mastered';
-
-export interface SkillWithState {
-  skill: JazzSkill;
-  status: SkillStateStatus;
-  locked: boolean;
-  records: SkillCheckIn[];
-}
-
-const SKILLS_STORAGE_KEY = 'cici_jazz_skills_v1';
-const CHECKINS_STORAGE_KEY = 'cici_jazz_skill_checkins_v1';
-
-export const SKILL_CATEGORIES: SkillCategory[] = [
-  '基础律动',
-  '隔离控制',
-  '身体开发',
-  '脚步与重心',
-  '旋转技巧',
-  '高跟 Jazz',
-  '地面技巧',
-  '音乐性',
-  '表现力',
-  '编舞与创作',
-];
-
-/**
- * 默认爵士舞技能库：按真实难度 1-5 星整理，
- * 仅作为动作词典，不含任何模拟打卡记录。
- */
-export const DEFAULT_JAZZ_SKILLS: JazzSkill[] = [
-  // ---------- 1 星：入门基础 ----------
-  { id: 'skill-groove-bounce', name: '基础律动 Bounce（Down/Up Beat）', category: '基础律动', difficulty: 1, description: '跟随 80-100 BPM 稳定完成上下律动，膝盖放松、重心有弹性。' },
-  { id: 'skill-head-isolation', name: '头部前后左右隔离 Head Isolation', category: '隔离控制', difficulty: 1, description: '头部单独完成前后左右出点，肩颈不跟随晃动。' },
-  { id: 'skill-shoulder-isolation', name: '肩部前后左右隔离 Shoulder Isolation', category: '隔离控制', difficulty: 1, description: '左右肩交替前后转动，胸腔与胯部保持稳定。' },
-  { id: 'skill-chest-isolation', name: '胸腔前后左右隔离 Chest Isolation', category: '隔离控制', difficulty: 1, description: '胸腔四方向出点清晰，下半身不代偿。' },
-  { id: 'skill-hip-isolation', name: '胯部左右前后隔离 Hip Isolation', category: '隔离控制', difficulty: 1, description: '胯部单方向出点，上半身尽量保持正对前方。' },
-  { id: 'skill-jazz-hands', name: 'Jazz 手位与手臂延伸', category: '基础律动', difficulty: 1, description: '掌握基础手位，手臂线条有延伸感，发力不耸肩。' },
-  { id: 'skill-weight-shift', name: '重心转移与左右换重心', category: '脚步与重心', difficulty: 1, description: '左右重心干净切换，脚掌与脚踝保持稳定。' },
-  { id: 'skill-step-touch', name: 'Step Touch / Kick Ball Change', category: '脚步与重心', difficulty: 1, description: '基础步伐与踢换步，节奏清楚，落点稳定。' },
-  { id: 'skill-eight-count', name: '8-Count 数拍与基础组合', category: '音乐性', difficulty: 1, description: '能听清 8 拍结构，并把基础动作放进拍子里完成。' },
-  { id: 'skill-posture-line', name: '身体站姿与直线控制 Posture & Line', category: '身体开发', difficulty: 1, description: '脊柱延展、肩胯对齐，静态线条干净。' },
-
-  // ---------- 2 星：基础组合 ----------
-  { id: 'skill-chest-roll', name: '胸部四周滚动 Chest Roll', category: '身体开发', difficulty: 2, description: '胸腔完成前后左右连贯绕环，靠墙练习后能找到分离感。' },
-  { id: 'skill-body-wave', name: '身体波浪 Body Wave', category: '身体开发', difficulty: 2, description: '从头到胯连贯传导波浪，胸腹不塌腰。' },
-  { id: 'skill-side-wave', name: '侧身波浪 Side Wave', category: '身体开发', difficulty: 2, description: '侧向完成身体波浪，肋骨与胯部依次传导。' },
-  { id: 'skill-hip-roll', name: '胯部绕环 Hip Roll', category: '身体开发', difficulty: 2, description: '胯部完成水平绕环，上下身分离稳定。' },
-  { id: 'skill-jazz-walk', name: 'Jazz Walk 与爵士步伐', category: '脚步与重心', difficulty: 2, description: '带延伸和态度的行走步伐，能配合音乐切换方向。' },
-  { id: 'skill-pivot-turn', name: 'Pivot Turn 基础转体', category: '旋转技巧', difficulty: 2, description: '半圈或一圈转体，留头与收势稳定。' },
-  { id: 'skill-pose-hit', name: '定点 Pose 与 Hit', category: '表现力', difficulty: 2, description: '卡点上定点成形，动作干净有停顿感。' },
-  { id: 'skill-on-beat', name: '基础音乐卡点 On Beat Hit', category: '音乐性', difficulty: 2, description: '能在重拍上准确发力，动作与鼓点同步。' },
-  { id: 'skill-freestyle-start', name: '即兴起步 Freestyle Basics', category: '编舞与创作', difficulty: 2, description: '用 3-5 个熟悉动作跟随音乐完成简单即兴。' },
-  { id: 'skill-isolation-combo', name: '多部位隔离组合', category: '隔离控制', difficulty: 2, description: '头、肩、胸、胯按顺序或同时完成隔离组合。' },
-  { id: 'skill-contraction', name: '身体延展与收缩 Contraction & Release', category: '身体开发', difficulty: 2, description: '脊柱的收缩与释放有控制，呼吸配合动作。' },
-
-  // ---------- 3 星：进阶技巧 ----------
-  { id: 'skill-spotting-turn', name: '二位转留头留眼 Spotting Turn', category: '旋转技巧', difficulty: 3, description: '完成一圈以上定点转，视线留头、身体不晃。' },
-  { id: 'skill-pas-de-bourree', name: '三连步 Pas de Bourrée', category: '脚步与重心', difficulty: 3, description: '三步换重心衔接转体或步伐，脚下干净。' },
-  { id: 'skill-hair-whip', name: '甩头与发丝控制 Hair Whip', category: '表现力', difficulty: 3, description: '甩头借助身体发力，颈部安全且线条利落。' },
-  { id: 'skill-floorwork-basic', name: '地面起身与滚地基础 Floorwork', category: '地面技巧', difficulty: 3, description: '安全完成落地、滚地与起身，动作衔接流畅。' },
-  { id: 'skill-core-hit', name: '中段核心爆发 Core Hit', category: '隔离控制', difficulty: 3, description: '核心瞬间收紧带动胸腔出点，力量集中不外散。' },
-  { id: 'skill-syncopation', name: '快歌切分音卡点 Syncopation', category: '音乐性', difficulty: 3, description: '在切分音与弱拍上完成发力，节奏层次清楚。' },
-  { id: 'skill-heels-walk', name: '高跟基础行走与重心', category: '高跟 Jazz', difficulty: 3, description: '穿粗跟稳定行走、转身，脚踝与膝盖保持安全。' },
-  { id: 'skill-choreo-short', name: '短句编舞记忆与复现', category: '编舞与创作', difficulty: 3, description: '快速记住 4 个 8 拍以内的短句并完整复现。' },
-  { id: 'skill-emotion-face', name: '面部情绪与眼神表达', category: '表现力', difficulty: 3, description: '动作中加入情绪变化与眼神方向，表达不空。' },
-  { id: 'skill-layering', name: '身体层次与轻重对比 Layering', category: '身体开发', difficulty: 3, description: '同一动作做出快慢、轻重与大小的层次变化。' },
-
-  // ---------- 4 星：高阶组合 ----------
-  { id: 'skill-double-spin', name: '连续双圈旋转 Double Spotting', category: '旋转技巧', difficulty: 4, description: '稳定完成两圈以上定点转，收势不抢拍。' },
-  { id: 'skill-heels-balance', name: '细跟平衡与 Move', category: '高跟 Jazz', difficulty: 4, description: '细跟状态下完成移动、转体与定点，重心稳定。' },
-  { id: 'skill-floor-drop', name: '地面 Drop / Slide 过渡', category: '地面技巧', difficulty: 4, description: '安全完成下坠、滑步与地面过渡，保护膝盖。' },
-  { id: 'skill-dynamics', name: '爆发力层次 Dynamics Layering', category: '表现力', difficulty: 4, description: '同一组合中实现强弱、快慢、收放的明显对比。' },
-  { id: 'skill-fast-choreo', name: '大段编舞快速学习（8×8）', category: '编舞与创作', difficulty: 4, description: '一节课内掌握 8 个 8 拍以上的编舞并顺完。' },
-  { id: 'skill-group-sync', name: '群舞同步与走位', category: '编舞与创作', difficulty: 4, description: '多人队形中保持动作同步、间距与走位准确。' },
-  { id: 'skill-improv-solo', name: '即兴 Solo 音乐性编排', category: '音乐性', difficulty: 4, description: '根据音乐结构自主组织 30 秒以上即兴 Solo。' },
-  { id: 'skill-heels-combo', name: '高跟爵士组合 Heels Combo', category: '高跟 Jazz', difficulty: 4, description: '完整完成一段高跟爵士组合，兼顾力量与线条。' },
-
-  // ---------- 5 星：舞台与创作 ----------
-  { id: 'skill-performance', name: '舞台表现与镜头感 Performance', category: '表现力', difficulty: 5, description: '面向观众或镜头完成完整作品，表情、视线与能量稳定。' },
-  { id: 'skill-choreo-create', name: '高阶编舞创作与重组', category: '编舞与创作', difficulty: 5, description: '能围绕音乐主题自主创作并重组完整舞段。' },
-  { id: 'skill-fusion', name: '多风格融合 Jazz Funk × Contemporary', category: '编舞与创作', difficulty: 5, description: '融合两种以上风格，动作语汇衔接自然不生硬。' },
-  { id: 'skill-full-stage', name: '完整作品舞台呈现', category: '表现力', difficulty: 5, description: '独立完成 2 分钟以上作品，具备完整起承转合。' },
-  { id: 'skill-master-class', name: '大师课动作复刻与个人风格', category: '编舞与创作', difficulty: 5, description: '高难度大师课组合可复刻，并形成稳定的个人表达。' },
-];
+// 技能类型与技能库已抽到 types/skill.ts 与 utils/skillData.ts，
+// 这里保留同名导出，避免既有引用方改动。
+export type {
+  CheckInStatus,
+  JazzSkill,
+  SkillCategory,
+  SkillCheckIn,
+  SkillLevel,
+  SkillStateStatus,
+  SkillWithState,
+} from '../types/skill';
+export { SKILL_CATEGORIES, DEFAULT_JAZZ_SKILLS } from '../utils/skillData';
 
 const LEVEL_META: Record<SkillLevel, { title: string; chip: string; cardBg: string; cardBorder: string }> = {
   1: { title: '入门基础', chip: 'bg-emerald-100 text-emerald-700', cardBg: 'bg-emerald-50/60', cardBorder: 'border-emerald-200' },
@@ -154,28 +68,6 @@ const todayString = () => {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(
     now.getDate()
   ).padStart(2, '0')}`;
-};
-
-const loadSkills = (): JazzSkill[] => {
-  try {
-    const raw = localStorage.getItem(SKILLS_STORAGE_KEY);
-    if (raw === null) return DEFAULT_JAZZ_SKILLS;
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? (parsed as JazzSkill[]) : DEFAULT_JAZZ_SKILLS;
-  } catch {
-    return DEFAULT_JAZZ_SKILLS;
-  }
-};
-
-const loadCheckIns = (): SkillCheckIn[] => {
-  try {
-    const raw = localStorage.getItem(CHECKINS_STORAGE_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? (parsed as SkillCheckIn[]) : [];
-  } catch {
-    return [];
-  }
 };
 
 const StarRating: React.FC<{ value: number; size?: string }> = ({ value, size = 'w-3 h-3' }) => (
@@ -227,13 +119,13 @@ export const JazzSkillTree: React.FC = () => {
   });
   const [pendingConfirm, setPendingConfirm] = useState<PendingConfirm>(null);
 
-  // 持久化：技能库与打卡记录分别独立存储
+  // 持久化：技能库与打卡记录分别独立存储，写入后广播变更供成长报告刷新
   useEffect(() => {
-    localStorage.setItem(SKILLS_STORAGE_KEY, JSON.stringify(skills));
+    saveSkills(skills);
   }, [skills]);
 
   useEffect(() => {
-    localStorage.setItem(CHECKINS_STORAGE_KEY, JSON.stringify(checkIns));
+    saveCheckIns(checkIns);
   }, [checkIns]);
 
   useEffect(() => {
@@ -254,40 +146,11 @@ export const JazzSkillTree: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isLibraryOpen]);
 
-  // 按技能聚合打卡记录，再根据难度层级推导解锁 / 完成状态
-  const skillStates = useMemo<SkillWithState[]>(() => {
-    const recordsBySkill = new Map<string, SkillCheckIn[]>();
-    checkIns.forEach((record) => {
-      const list = recordsBySkill.get(record.skillId) ?? [];
-      list.push(record);
-      recordsBySkill.set(record.skillId, list);
-    });
-
-    const masteredByLevel: Record<SkillLevel, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
-    skills.forEach((skill) => {
-      const records = recordsBySkill.get(skill.id) ?? [];
-      if (records.some((record) => record.status === 'mastered')) {
-        masteredByLevel[skill.difficulty] += 1;
-      }
-    });
-
-    return skills.map((skill) => {
-      const records = [...(recordsBySkill.get(skill.id) ?? [])].sort((a, b) =>
-        b.date.localeCompare(a.date)
-      );
-      const locked =
-        skill.difficulty > 1 && masteredByLevel[(skill.difficulty - 1) as SkillLevel] < 1;
-      const hasMastered = records.some((record) => record.status === 'mastered');
-      const status: SkillStateStatus = locked
-        ? 'locked'
-        : hasMastered
-        ? 'mastered'
-        : records.length > 0
-        ? 'practicing'
-        : 'available';
-      return { skill, status, locked, records };
-    });
-  }, [skills, checkIns]);
+  // 状态派生交给 utils/skillData —— 与成长报告共用同一套规则，避免两处口径不一致
+  const skillStates = useMemo<SkillWithState[]>(
+    () => computeSkillStates(skills, checkIns),
+    [skills, checkIns]
+  );
 
   const stateById = useMemo(() => {
     const map = new Map<string, SkillWithState>();

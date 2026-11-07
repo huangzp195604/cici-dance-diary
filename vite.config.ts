@@ -20,13 +20,13 @@ export default defineConfig(() => {
       hmr: process.env.DISABLE_HMR !== 'true',
       // Disable file watching when DISABLE_HMR is true to save CPU during agent edits.
       watch: process.env.DISABLE_HMR === 'true' ? null : {},
-      // 云端沙箱反代需要允许任意 host 访问
+      // 云端沙箱反代需要允许任意 host 访问（as const 保持字面量 true，满足 vite 8 的类型约束）
       host: '0.0.0.0',
-      allowedHosts: true,
+      allowedHosts: true as const,
     },
     preview: {
       host: '0.0.0.0',
-      allowedHosts: true,
+      allowedHosts: true as const,
     },
   };
 });

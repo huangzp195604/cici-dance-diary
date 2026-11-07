@@ -3,13 +3,14 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useState, useEffect } from 'react';
 import { Navbar } from './components/Navbar';
 import { GrooveMetronome } from './components/GrooveMetronome';
 import { Timeline } from './components/Timeline';
 import { UploadForm } from './components/UploadForm';
 import { DanceBuddies } from './components/DanceBuddies';
 import { AboutMe } from './components/AboutMe';
+import { GrowthReport } from './components/GrowthReport';
 import { MediaModal } from './components/MediaModal';
 import { DancePost, DanceBuddy, WallMessage, ForumThread, RealFriend } from './types';
 import { storage } from './utils/storage';
@@ -18,8 +19,32 @@ import { useAuth, displayName } from './hooks/useAuth';
 import { LoginModal } from './components/LoginModal';
 import * as forumApi from './services/forumApi';
 
+const TAB_KEYS = ['timeline', 'upload', 'buddies', 'growth', 'about'] as const;
+type TabKey = (typeof TAB_KEYS)[number];
+
+/** 从 URL hash 还原标签页，便于直接分享 /#growth 这类深链 */
+const readTabFromHash = (): TabKey => {
+  if (typeof window === 'undefined') return 'timeline';
+  const raw = window.location.hash.replace(/^#\/?/, '');
+  return (TAB_KEYS as readonly string[]).includes(raw) ? (raw as TabKey) : 'timeline';
+};
+
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'timeline' | 'upload' | 'buddies' | 'about'>('timeline');
+  const [activeTab, setActiveTab] = useState<TabKey>(readTabFromHash);
+
+  // 标签页与 URL hash 双向同步
+  const navigate = useCallback((tab: TabKey) => {
+    setActiveTab(tab);
+    if (window.location.hash !== `#${tab}`) {
+      window.history.replaceState(null, '', `#${tab}`);
+    }
+  }, []);
+
+  useEffect(() => {
+    const handleHashChange = () => setActiveTab(readTabFromHash());
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, []);
   const [posts, setPosts] = useState<DancePost[]>([]);
   const [buddies, setBuddies] = useState<DanceBuddy[]>([]);
   const [messages, setMessages] = useState<WallMessage[]>([]);
@@ -138,7 +163,7 @@ export default function App() {
   const handleAddPost = async (newPost: DancePost) => {
     await storage.savePost(newPost);
     setPosts((prev) => [newPost, ...prev]);
-    setActiveTab('timeline');
+    navigate('timeline');
   };
 
   const handleDeletePost = async (postId: string) => {
@@ -366,7 +391,7 @@ export default function App() {
       {/* 1. Sticky Navigation Bar */}
       <Navbar
         activeTab={activeTab}
-        setActiveTab={setActiveTab}
+        setActiveTab={navigate}
         metronomeActive={metronomeActive}
         toggleMetronome={handleToggleMetronome}
         metronomeBeat={metronomeBeat}
@@ -398,8 +423,8 @@ export default function App() {
             buddies={buddies}
             userAvatar={userAvatar}
             onUpdateAvatar={setUserAvatar}
-            onOpenUpload={() => setActiveTab('upload')}
-            onOpenBuddies={() => setActiveTab('buddies')}
+            onOpenUpload={() => navigate('upload')}
+            onOpenBuddies={() => navigate('buddies')}
             onSelectMedia={(post) => setSelectedPost(post)}
             onToggleLike={handleToggleLike}
             onAddComment={handleAddComment}
@@ -410,7 +435,7 @@ export default function App() {
         {activeTab === 'upload' && (
           <UploadForm
             onAddPost={handleAddPost}
-            onCancel={() => setActiveTab('timeline')}
+            onCancel={() => navigate('timeline')}
           />
         )}
 
@@ -456,6 +481,10 @@ export default function App() {
             onDeleteRealFriend={handleDeleteRealFriend}
             />
           </>
+        )}
+
+        {activeTab === 'growth' && (
+          <GrowthReport onGoCheckIn={() => navigate('about')} />
         )}
 
         {activeTab === 'about' && (
