@@ -5,6 +5,9 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { cloud, CloudUser } from '../services/cloud';
 
+/** 会话恢复最长等待：手机网络被拦截时 SDK 可能长时间不返回，超时后按未登录放行首屏 */
+const SESSION_RESTORE_TIMEOUT_MS = 2500;
+
 interface AuthState {
   /** null = 未登录；undefined = 尚在恢复会话 */
   user: CloudUser | null | undefined;
@@ -31,12 +34,31 @@ export function useAuth(): AuthState {
 
   useEffect(() => {
     let mounted = true;
+    let settled = false;
+
+    // 兜底：getSession 抛错或一直 pending 时，不能让 ready 永远停在 false，
+    // 否则首屏的登录引导弹窗、登录按钮都不会出现（真机上最常见的"没弹窗"原因）
+    const watchdog = setTimeout(() => {
+      if (settled || !mounted) return;
+      settled = true;
+      setUser((current) => (current === undefined ? null : current));
+      setReady(true);
+    }, SESSION_RESTORE_TIMEOUT_MS);
 
     async function restore() {
-      const { data: session } = await cloud.auth.getSession();
-      if (!mounted) return;
-      setUser(session ? (session.user as CloudUser) : null);
-      setReady(true);
+      try {
+        const { data: session } = await cloud.auth.getSession();
+        if (!mounted) return;
+        // 超时兜底已先行判定未登录；若此时会话才恢复成功，仍以真实会话为准
+        setUser(session ? (session.user as CloudUser) : null);
+      } catch (err) {
+        console.warn('会话恢复失败，按未登录处理', err);
+        if (mounted) setUser((current) => (settled ? current : null));
+      } finally {
+        settled = true;
+        clearTimeout(watchdog);
+        if (mounted) setReady(true);
+      }
     }
     restore();
 
@@ -44,10 +66,12 @@ export function useAuth(): AuthState {
     const unsubscribe = cloud.auth.onAuthStateChange((_event, session) => {
       if (!mounted) return;
       setUser(session ? (session.user as CloudUser) : null);
+      setReady(true);
     });
 
     return () => {
       mounted = false;
+      clearTimeout(watchdog);
       unsubscribe?.();
     };
   }, []);

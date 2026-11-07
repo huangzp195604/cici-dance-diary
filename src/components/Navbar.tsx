@@ -99,7 +99,9 @@ export const Navbar: React.FC<NavbarProps> = ({
 
         {/* Zone 3: 登录 / 资料 + 下载 + 节拍器 */}
         <div className="flex items-center gap-1.5 shrink-0 order-2 md:order-3 ml-auto md:ml-0">
-          {userName === undefined ? null : userName ? (
+          {/* 会话恢复中（userName=undefined）也保留登录按钮：自动弹窗万一没出现，
+              用户仍能手动进入登录，手机上不至于完全找不到入口 */}
+          {userName ? (
             <div className="flex items-center gap-1">
               <button
                 type="button"

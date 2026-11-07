@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useCallback, useState, useEffect } from 'react';
+import React, { useCallback, useState, useEffect, useRef } from 'react';
 import { Navbar } from './components/Navbar';
 import { GrooveMetronome } from './components/GrooveMetronome';
 import { Timeline } from './components/Timeline';
@@ -26,6 +26,12 @@ import type { UserProfile } from './types';
 
 const TAB_KEYS = ['timeline', 'upload', 'buddies', 'growth', 'about'] as const;
 type TabKey = (typeof TAB_KEYS)[number];
+
+/** 用户主动跳过登录后，6 小时内不再自动打扰；换 key 让旧的 sessionStorage 标记失效 */
+const LOGIN_SKIP_KEY = 'cici_login_skipped_at_v2';
+const LOGIN_SKIP_WINDOW_MS = 6 * 60 * 60 * 1000;
+/** 会话恢复异常时，最多再等这么久就无条件放行首屏登录引导 */
+const AUTH_FALLBACK_MS = 3000;
 
 /** 从 URL hash 还原标签页，便于直接分享 /#growth 这类深链 */
 const readTabFromHash = (): TabKey => {
@@ -59,6 +65,10 @@ export default function App() {
   const [forumError, setForumError] = useState('');
   const [forumLoading, setForumLoading] = useState(true);
   const [isLoginOpen, setIsLoginOpen] = useState(false);
+  /** 会话恢复兜底定时器到点；为 true 时即使 ready 仍为 false 也要弹登录引导 */
+  const [authWaitDone, setAuthWaitDone] = useState(false);
+  /** 本次弹窗是否由系统自动打开（会话迟到恢复为已登录时需要自动收起） */
+  const autoPromptedRef = useRef(false);
   const [toast, setToast] = useState('');
 
   // 云端登录状态（会话自动恢复）
@@ -253,16 +263,58 @@ export default function App() {
   }, [toast]);
 
   /**
-   * 打开网页时主动引导登录（未登录用户，每个浏览器会话一次）。
-   * 手机上登录入口不显眼，若不主动弹出，用户会一直以匿名身份使用，
-   * 数据只留在本地、换设备就丢。用户点「先逛逛」后本次会话不再打扰。
+   * 打开网页时主动引导登录。
+   *
+   * 真机上"没弹窗"的三个坑，这里逐一规避：
+   * 1. 会话恢复请求被拦截 / 抛错 → ready 迟迟不来：加独立超时兜底，到点就按未登录放行。
+   * 2. 旧实现用 sessionStorage 且"弹窗打开前"就写标记：只要页面加载过一次，
+   *    哪怕弹窗因任何原因没渲染出来，整个会话都不会再弹。改为只有用户明确
+   *    点关闭 /「先逛逛」才记一次跳过，并带 6 小时过期（localStorage，跨标签可查）。
+   * 3. 分享链接加 ?login=1 可强制打开，方便真机验证与手动登录。
    */
   useEffect(() => {
-    if (!ready || user) return;
-    if (sessionStorage.getItem('cici_login_prompted')) return;
-    sessionStorage.setItem('cici_login_prompted', '1');
+    if (ready) return;
+    const timer = setTimeout(() => setAuthWaitDone(true), AUTH_FALLBACK_MS);
+    return () => clearTimeout(timer);
+  }, [ready]);
+
+  const markLoginSkipped = useCallback(() => {
+    autoPromptedRef.current = false;
+    try {
+      localStorage.setItem(LOGIN_SKIP_KEY, String(Date.now()));
+    } catch {
+      // 隐私模式禁用 localStorage 时不阻断本次关闭
+    }
+  }, []);
+
+  useEffect(() => {
+    const forceLogin = new URLSearchParams(window.location.search).has('login');
+    if (forceLogin) {
+      setIsLoginOpen(true);
+      return;
+    }
+    if (user) return;
+    if (!ready && !authWaitDone) return;
+
+    let skippedAt = 0;
+    try {
+      skippedAt = Number(localStorage.getItem(LOGIN_SKIP_KEY) || 0);
+    } catch {
+      // 读不到就当作从未跳过
+    }
+    if (skippedAt && Date.now() - skippedAt < LOGIN_SKIP_WINDOW_MS) return;
+
+    autoPromptedRef.current = true;
     setIsLoginOpen(true);
-  }, [ready, user]);
+  }, [ready, authWaitDone, user]);
+
+  /** 超时兜底先判未登录、会话随后恢复为已登录时，收起自动弹出的登录框 */
+  useEffect(() => {
+    if (user && autoPromptedRef.current) {
+      autoPromptedRef.current = false;
+      setIsLoginOpen(false);
+    }
+  }, [user]);
 
   /** 论坛写入统一带上当前昵称：owner_name 为空会让所有人显示成「舞友」 */
   const withAuthorName = (u: { id: string; name: string }) =>
@@ -669,6 +721,10 @@ export default function App() {
       <LoginModal
         isOpen={isLoginOpen}
         onClose={() => setIsLoginOpen(false)}
+        onDismiss={() => {
+          markLoginSkipped();
+          setIsLoginOpen(false);
+        }}
         onSuccess={() => setToast('✨ 登录成功，欢迎加入舞友论坛！')}
         sendCode={sendCode}
         verifyCode={verifyCode}

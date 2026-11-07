@@ -8,12 +8,14 @@ import { X, Smartphone, ShieldCheck, Loader2 } from 'lucide-react';
 interface LoginModalProps {
   isOpen: boolean;
   onClose: () => void;
+  /** 用户主动关闭 / 跳过登录（与登录成功后的 onClose 区分，用于抑制自动弹出） */
+  onDismiss?: () => void;
   onSuccess?: () => void;
   sendCode: (phone: string) => Promise<{ ok: boolean; message?: string }>;
   verifyCode: (phone: string, code: string) => Promise<{ ok: boolean; message?: string }>;
 }
 
-export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onSuccess, sendCode, verifyCode }) => {
+export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onDismiss, onSuccess, sendCode, verifyCode }) => {
   const [phone, setPhone] = useState('');
   const [code, setCode] = useState('');
   const [codeSent, setCodeSent] = useState(false);
@@ -35,6 +37,12 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onSucce
   }, [countdown]);
 
   if (!isOpen) return null;
+
+  /** 只有用户主动关掉才记"跳过"；登录成功走 onClose，不算跳过 */
+  const handleDismiss = () => {
+    onDismiss?.();
+    onClose();
+  };
 
   const handlePhoneChange = (v: string) => {
     setPhone(v.replace(/\D/g, '').slice(0, 11));
@@ -84,13 +92,13 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onSucce
   };
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-start sm:items-center justify-center p-4 py-8 overflow-y-auto bg-black/40 backdrop-blur-sm" onClick={onClose}>
+    <div className="fixed inset-0 z-[60] flex items-start sm:items-center justify-center p-4 py-8 overflow-y-auto bg-black/40 backdrop-blur-sm" onClick={handleDismiss}>
       <div
         className="w-full max-w-sm my-auto rounded-3xl bg-[#FFFDF9] border border-[#F1E5D8] shadow-2xl p-5 sm:p-6 relative animate-[fadeIn_.2s_ease-out]"
         onClick={(e) => e.stopPropagation()}
       >
         <button
-          onClick={onClose}
+          onClick={handleDismiss}
           className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full text-[#8C7A6B] hover:bg-[#F7EFE7] transition-colors"
           aria-label="关闭"
         >
@@ -183,7 +191,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onSucce
 
         <button
           type="button"
-          onClick={onClose}
+          onClick={handleDismiss}
           className="w-full mt-3 py-2 text-xs font-semibold text-[#8C7A6B] hover:text-[#574B40] hover:bg-[#F7EFE7] rounded-xl transition-colors cursor-pointer"
         >
           先逛逛，暂不登录
