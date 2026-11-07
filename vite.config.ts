@@ -20,7 +20,9 @@ export default defineConfig(() => {
       hmr: process.env.DISABLE_HMR !== 'true',
       // Disable file watching when DISABLE_HMR is true to save CPU during agent edits.
       watch: process.env.DISABLE_HMR === 'true' ? null : {},
-      // 云端沙箱反代需要允许任意 host 访问（as const 保持字面量 true，满足 vite 8 的类型约束）
+      // 端口/host 统一在这里管：dev 脚本不再写死，预览面板注入 PORT 时能自动跟随
+      // （as const 保持字面量 true，满足 vite 8 的类型约束）
+      port: Number(process.env.PORT) || 3000,
       host: '0.0.0.0',
       allowedHosts: true as const,
     },
