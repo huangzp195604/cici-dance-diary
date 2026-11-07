@@ -479,6 +479,7 @@ export default function App() {
             onAddRealFriend={handleAddRealFriend}
             onUpdateRealFriend={handleUpdateRealFriend}
             onDeleteRealFriend={handleDeleteRealFriend}
+            currentUserName={user?.name}
             />
           </>
         )}

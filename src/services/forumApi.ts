@@ -4,7 +4,7 @@
  * 公开可读（未登录也能看帖），写入必须登录且只能操作自己的数据。
  */
 import { cloud, CloudUser } from './cloud';
-import { ForumThread, ForumReply, ForumMeetup } from '../types';
+import { ForumThread, ForumReply, ForumMeetup, OrganizerStats } from '../types';
 
 const AVATAR_STYLES = [
   'bg-orange-100 text-orange-700',
@@ -69,10 +69,20 @@ interface InteractionRow {
   created_at: string;
 }
 
+/** 群入口私有表：RLS 只回传当前用户有权看的行（本人组织或本人已报名） */
+interface AccessRow {
+  thread_id: number;
+  group_entry: string;
+  group_note: string | null;
+}
+
 function errText(error: unknown): string {
   const e = error as { message?: string; code?: string } | null;
   if (e?.code === '42P01') return '数据表尚未创建，请稍后再试';
   if (e?.code === '42501') return '没有权限执行该操作（可能未登录）';
+  // 数据库触发器在名额占满时抛出，作为并发下的最后一道防线
+  if (e?.message?.includes('MEETUP_FULL')) return '名额已满，报名已截止';
+  if (e?.code === '23505') return '你已报过名了';
   return e?.message || '云端请求失败，请检查网络后重试';
 }
 
@@ -83,9 +93,14 @@ function errText(error: unknown): string {
  */
 const db = cloud.database as any;
 
-/** 拉取整个论坛（帖子+回帖+互动），一次组装成 UI 需要的结构 */
+/** 拉取整个论坛（帖子+回帖+互动+群入口），一次组装成 UI 需要的结构 */
 export async function fetchForum(currentUser: CloudUser | null): Promise<ForumThread[]> {
-  const [threadsRes, repliesRes, interactionsRes] = await Promise.all([
+  // 群入口表只授予登录用户：未登录不查询，避免触发权限错误
+  const accessPromise: Promise<{ data: unknown; error: unknown }> = currentUser
+    ? (db.from('forum_meetup_access').select('*').limit(200) as Promise<{ data: unknown; error: unknown }>)
+    : Promise.resolve({ data: [], error: null });
+
+  const [threadsRes, repliesRes, interactionsRes, accessRes] = await Promise.all([
     db
       .from('forum_threads')
       .select('*')
@@ -94,15 +109,19 @@ export async function fetchForum(currentUser: CloudUser | null): Promise<ForumTh
       .limit(100),
     db.from('forum_replies').select('*').order('created_at', { ascending: true }).limit(500),
     db.from('forum_interactions').select('*').limit(1000),
+    accessPromise,
   ]);
 
   if (threadsRes.error) throw new Error(errText(threadsRes.error));
   if (repliesRes.error) throw new Error(errText(repliesRes.error));
   if (interactionsRes.error) throw new Error(errText(interactionsRes.error));
+  // 群入口读取失败不阻塞论坛主流程：降级为不展示群入口
+  if (accessRes.error) console.warn('群入口读取失败，已降级隐藏', accessRes.error);
 
   const threads = (threadsRes.data || []) as unknown as ThreadRow[];
   const replies = (repliesRes.data || []) as unknown as ReplyRow[];
   const interactions = (interactionsRes.data || []) as unknown as InteractionRow[];
+  const accessRows = (accessRes.error ? [] : accessRes.data || []) as unknown as AccessRow[];
 
   const repliesByThread = new Map<number, ReplyRow[]>();
   replies.forEach((r) => {
@@ -111,12 +130,37 @@ export async function fetchForum(currentUser: CloudUser | null): Promise<ForumTh
     repliesByThread.set(r.thread_id, list);
   });
 
+  // 互动按「帖子 + 类型」预分组，避免每个帖子都全量扫描
+  const likesByThread = new Map<number, InteractionRow[]>();
+  const joinsByThread = new Map<number, InteractionRow[]>();
+  interactions.forEach((i) => {
+    const bucket = i.kind === 'like' ? likesByThread : joinsByThread;
+    const list = bucket.get(i.thread_id) || [];
+    list.push(i);
+    bucket.set(i.thread_id, list);
+  });
+
+  const accessByThread = new Map<number, AccessRow>();
+  accessRows.forEach((a) => accessByThread.set(a.thread_id, a));
+
+  // 组织者履历：按作者聚合其历史约练帖与累计报名人次（实时派生，不落库）
+  const statsByOwner = new Map<string, OrganizerStats>();
+  threads.forEach((t) => {
+    if (t.category !== '舞室约练' || !t.meetup?.studio) return;
+    const stat = statsByOwner.get(t.owner_id) || { hosted: 0, totalJoined: 0 };
+    stat.hosted += 1;
+    stat.totalJoined += (joinsByThread.get(t.id) || []).length;
+    statsByOwner.set(t.owner_id, stat);
+  });
+
   return threads.map((t) => {
     const author = t.owner_name || '舞友';
-    const likes = interactions.filter((i) => i.thread_id === t.id && i.kind === 'like');
-    const joins = interactions.filter((i) => i.thread_id === t.id && i.kind === 'join');
+    const likes = likesByThread.get(t.id) || [];
+    const joins = joinsByThread.get(t.id) || [];
     const isLiked = !!currentUser && likes.some((i) => i.owner_id === currentUser.id);
     const isJoined = !!currentUser && joins.some((i) => i.owner_id === currentUser.id);
+    const isOrganizer = !!currentUser && t.owner_id === currentUser.id;
+    const access = accessByThread.get(t.id);
 
     const meetup: ForumMeetup | undefined =
       t.meetup && t.meetup.studio
@@ -125,8 +169,11 @@ export async function fetchForum(currentUser: CloudUser | null): Promise<ForumTh
             date: t.meetup.date || '',
             targetCount: t.meetup.targetCount || 4,
             costNote: t.meetup.costNote,
+            organizerNote: t.meetup.organizerNote,
             joinedBuddies: joins.map((j) => j.owner_name || '舞友'),
             isJoined,
+            groupEntry: access?.group_entry,
+            groupNote: access?.group_note ?? undefined,
           }
         : undefined;
 
@@ -155,8 +202,61 @@ export async function fetchForum(currentUser: CloudUser | null): Promise<ForumTh
       meetup,
       isPinned: !!t.is_pinned,
       tags: Array.isArray(t.tags) ? t.tags : [],
+      organizerStats: meetup ? statsByOwner.get(t.owner_id) : undefined,
+      isOrganizer,
     };
   });
+}
+
+/**
+ * 只保留可公开的约练字段。
+ * 采用白名单而非黑名单：以后新增任何字段默认不公开，
+ * 群入口（groupEntry/groupNote）永远不会写进公开可读的 forum_threads。
+ */
+function publicMeetup(meetup?: ForumMeetup) {
+  if (!meetup) return null;
+  const { studio, date, targetCount, costNote, organizerNote } = meetup;
+  return { studio, date, targetCount, costNote, organizerNote };
+}
+
+/** 同步群入口到私有表：仅帖子作者可写，由 RLS 兜底 */
+async function syncMeetupAccess(
+  threadId: number,
+  groupEntry?: string,
+  groupNote?: string
+): Promise<void> {
+  const entry = (groupEntry || '').trim();
+  const note = (groupNote || '').trim() || null;
+
+  const existing = await db
+    .from('forum_meetup_access')
+    .select('thread_id')
+    .eq('thread_id', threadId)
+    .maybeSingle();
+  if (existing.error) throw new Error(errText(existing.error));
+
+  if (!entry) {
+    if (existing.data) {
+      const del = await db.from('forum_meetup_access').delete().eq('thread_id', threadId).select();
+      if (del.error) throw new Error(errText(del.error));
+    }
+    return;
+  }
+
+  if (existing.data) {
+    const upd = await db
+      .from('forum_meetup_access')
+      .update({ group_entry: entry, group_note: note })
+      .eq('thread_id', threadId)
+      .select();
+    if (upd.error) throw new Error(errText(upd.error));
+  } else {
+    const ins = await db
+      .from('forum_meetup_access')
+      .insert({ thread_id: threadId, group_entry: entry, group_note: note })
+      .select();
+    if (ins.error) throw new Error(errText(ins.error));
+  }
 }
 
 /** 发帖（必须登录）。返回云端生成的帖子 id */
@@ -173,17 +273,26 @@ export async function createThread(
       avatar_bg: thread.avatarBg,
       is_pinned: thread.isPinned || false,
       tags: thread.tags || [],
-      meetup: thread.meetup ? { ...thread.meetup } : null,
+      meetup: publicMeetup(thread.meetup),
       owner_name: user.name,
     })
     .select();
   if (res.error) throw new Error(errText(res.error));
   const row = (res.data?.[0] || { id: '0' }) as unknown as { id: number };
+
+  if (thread.meetup?.groupEntry) {
+    try {
+      await syncMeetupAccess(row.id, thread.meetup.groupEntry, thread.meetup.groupNote);
+    } catch (err) {
+      throw new Error(`帖子已发布，但活动群入口保存失败：${(err as Error).message}`);
+    }
+  }
   return String(row.id);
 }
 
 /** 编辑帖子（仅作者本人，RLS 兜底） */
 export async function updateThread(thread: ForumThread): Promise<void> {
+  const id = Number(thread.id);
   const res = await db
     .from('forum_threads')
     .update({
@@ -192,13 +301,19 @@ export async function updateThread(thread: ForumThread): Promise<void> {
       category: thread.category,
       is_pinned: thread.isPinned || false,
       tags: thread.tags || [],
-      meetup: thread.meetup ? { ...thread.meetup } : null,
+      meetup: publicMeetup(thread.meetup),
     })
-    .eq('id', Number(thread.id))
+    .eq('id', id)
     .select();
   if (res.error) throw new Error(errText(res.error));
   if (!res.data || res.data.length === 0) {
     throw new Error('帖子不存在或不是你发布的，无法修改');
+  }
+
+  try {
+    await syncMeetupAccess(id, thread.meetup?.groupEntry, thread.meetup?.groupNote);
+  } catch (err) {
+    throw new Error(`帖子已保存，但活动群入口保存失败：${(err as Error).message}`);
   }
 }
 
@@ -274,6 +389,23 @@ export async function toggleJoin(threadId: string, user: CloudUser): Promise<voi
       .select();
     if (del.error) throw new Error(errText(del.error));
   } else {
+    // 报名前先校验名额：数据库触发器是并发兜底，这里给用户即时反馈
+    const threadInfo = await db.from('forum_threads').select('meetup').eq('id', id).maybeSingle();
+    if (threadInfo.error) throw new Error(errText(threadInfo.error));
+    const meetup = (threadInfo.data as { meetup?: { targetCount?: number } } | null)?.meetup;
+    const capacity = Number(meetup?.targetCount ?? 0);
+
+    if (capacity > 0) {
+      const cntRes = await db
+        .from('forum_interactions')
+        .select('id')
+        .eq('thread_id', id)
+        .eq('kind', 'join');
+      if (cntRes.error) throw new Error(errText(cntRes.error));
+      const taken = (cntRes.data || []).length;
+      if (taken >= capacity) throw new Error('名额已满，报名已截止');
+    }
+
     const ins = await db
       .from('forum_interactions')
       .insert({ thread_id: id, kind: 'join', owner_name: user.name })

@@ -28,9 +28,32 @@ import {
   Database,
   X,
   AlertCircle,
-  Pencil
+  Pencil,
+  Lock,
+  BadgeCheck,
+  Link2
 } from 'lucide-react';
 import { DanceBuddy, WallMessage, ForumThread, RealFriend, ForumCategory, ForumReply, DanceStage } from '../types';
+
+/**
+ * 站外收款 / 私下拉群检测：命中则折叠正文，引导走官方报名。
+ * 目的不是封禁，而是让「绕开平台」的信息在视觉上降权，
+ * 官方报名按钮始终更显眼、更省事。
+ */
+const OFFSITE_PATTERNS: RegExp[] = [
+  /(收款码|付款码|扫码付|扫码转账|支付宝转账|微信转账|发红包)/,
+  /(加|扫|长按)[^\n]{0,6}(二维码|群二维码)/,
+  /(微信|vx|VX|Vx|v信|weixin)\s*[:：]?\s*[a-zA-Z][-_a-zA-Z0-9]{5,19}/,
+  /(扫码进群|拉群|私聊我发群)/,
+];
+
+function detectOffsite(text: string): string | null {
+  if (!text) return null;
+  for (const p of OFFSITE_PATTERNS) {
+    if (p.test(text)) return '检测到疑似站外收款或私下拉群信息';
+  }
+  return null;
+}
 
 interface DanceBuddiesProps {
   buddies: DanceBuddy[];
@@ -53,6 +76,8 @@ interface DanceBuddiesProps {
   onAddRealFriend?: (friend: RealFriend) => void;
   onUpdateRealFriend?: (friend: RealFriend) => void;
   onDeleteRealFriend?: (friendId: string) => void;
+  /** 当前登录用户昵称：用于名单高亮与组织者判定 */
+  currentUserName?: string;
 }
 
 export const DanceBuddies: React.FC<DanceBuddiesProps> = ({
@@ -76,6 +101,7 @@ export const DanceBuddies: React.FC<DanceBuddiesProps> = ({
   onAddRealFriend,
   onUpdateRealFriend,
   onDeleteRealFriend,
+  currentUserName,
 }) => {
   const [activeTab, setActiveTab] = useState<'forum' | 'friends' | 'buddies' | 'wall'>('forum');
   const [selectedCategory, setSelectedCategory] = useState<ForumCategory>('全部');
@@ -94,6 +120,15 @@ export const DanceBuddies: React.FC<DanceBuddiesProps> = ({
   const [newThreadDate, setNewThreadDate] = useState('本周六 14:00-16:00');
   const [newThreadTargetCount, setNewThreadTargetCount] = useState(4);
   const [newThreadCost, setNewThreadCost] = useState('场地费平摊，人均约 35 元');
+
+  // 报名闭环：活动群入口（仅报名者可见）与组织者身份说明
+  const [newThreadGroupEntry, setNewThreadGroupEntry] = useState('');
+  const [newThreadGroupNote, setNewThreadGroupNote] = useState('');
+  const [newThreadOrganizerNote, setNewThreadOrganizerNote] = useState('');
+  // 疑似站外收款/拉群的帖子：默认折叠，用户可主动展开
+  const [revealedOffsiteIds, setRevealedOffsiteIds] = useState<Record<string, boolean>>({});
+  // 群入口复制反馈
+  const [copiedGroupId, setCopiedGroupId] = useState<string | null>(null);
 
   // Add Real Friend Modal
   const [isAddFriendOpen, setIsAddFriendOpen] = useState(false);
@@ -196,6 +231,9 @@ export const DanceBuddies: React.FC<DanceBuddiesProps> = ({
     setNewThreadDate('本周六 14:00-16:00');
     setNewThreadTargetCount(4);
     setNewThreadCost('场地费平摊，人均约 35 元');
+    setNewThreadGroupEntry('');
+    setNewThreadGroupNote('');
+    setNewThreadOrganizerNote('');
     setIsNewThreadOpen(true);
   };
 
@@ -209,6 +247,9 @@ export const DanceBuddies: React.FC<DanceBuddiesProps> = ({
     setNewThreadDate(thread.meetup?.date ?? '本周末');
     setNewThreadTargetCount(thread.meetup?.targetCount ?? 4);
     setNewThreadCost(thread.meetup?.costNote ?? '');
+    setNewThreadGroupEntry(thread.meetup?.groupEntry ?? '');
+    setNewThreadGroupNote(thread.meetup?.groupNote ?? '');
+    setNewThreadOrganizerNote(thread.meetup?.organizerNote ?? '');
     setIsNewThreadOpen(true);
   };
 
@@ -229,6 +270,9 @@ export const DanceBuddies: React.FC<DanceBuddiesProps> = ({
       joinedBuddies: ['Cici'],
       isJoined: true,
       costNote: newThreadCost.trim() || undefined,
+      organizerNote: newThreadOrganizerNote.trim() || undefined,
+      groupEntry: newThreadGroupEntry.trim() || undefined,
+      groupNote: newThreadGroupNote.trim() || undefined,
     } : undefined;
 
     if (editingThreadId) {
@@ -278,6 +322,17 @@ export const DanceBuddies: React.FC<DanceBuddiesProps> = ({
     if (expandedThreadId === thread.id) {
       setExpandedThreadId(null);
     }
+  };
+
+  // 复制活动群入口（仅报名者/组织者可见时才渲染此按钮）
+  const handleCopyGroup = async (threadId: string, text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      // 浏览器不支持或未授权时静默降级，用户可手动选中复制
+    }
+    setCopiedGroupId(threadId);
+    window.setTimeout(() => setCopiedGroupId((prev) => (prev === threadId ? null : prev)), 2000);
   };
 
   // Handle Thread Reply
@@ -611,7 +666,18 @@ export const DanceBuddies: React.FC<DanceBuddiesProps> = ({
               filteredThreads.map((thread) => {
                 const isExpanded = expandedThreadId === thread.id;
                 const isMeetup = thread.category === '舞室约练' && thread.meetup;
-                const hasJoined = thread.meetup?.joinedBuddies.includes('Cici');
+                const meetup = thread.meetup;
+                // 是否已报名：云端给出 isJoined，本地演示数据回退到昵称匹配
+                const hasJoined = meetup
+                  ? meetup.isJoined ?? (!!currentUserName && meetup.joinedBuddies.includes(currentUserName))
+                  : false;
+                const joinedCount = meetup?.joinedBuddies.length ?? 0;
+                const capacity = meetup?.targetCount ?? 0;
+                const isFull = capacity > 0 && joinedCount >= capacity;
+                // 群入口可见性：组织者本人或已报名者
+                const canSeeGroup = hasJoined || !!thread.isOrganizer;
+                const offsiteWarning = detectOffsite(thread.content);
+                const hideContent = !!offsiteWarning && !revealedOffsiteIds[thread.id];
 
                 return (
                   <article
@@ -630,6 +696,20 @@ export const DanceBuddies: React.FC<DanceBuddiesProps> = ({
                             {thread.authorRole && (
                               <span className="text-[10px] bg-[#FAF2EB] text-[#736357] px-2 py-0.5 rounded-full font-medium">
                                 {thread.authorRole}
+                              </span>
+                            )}
+                            {thread.organizerStats && thread.organizerStats.hosted > 0 && (
+                              <span
+                                title={`已组织 ${thread.organizerStats.hosted} 场约练 · 累计 ${thread.organizerStats.totalJoined} 人报名`}
+                                className={`text-[10px] px-2 py-0.5 rounded-full font-bold flex items-center gap-0.5 cursor-help border ${
+                                  thread.organizerStats.hosted >= 3
+                                    ? 'bg-[#EEF2FF] text-[#4338CA] border-[#C7D2FE]'
+                                    : 'bg-[#F0FDF4] text-[#15803D] border-[#BBF7D0]'
+                                }`}
+                              >
+                                <BadgeCheck className="w-2.5 h-2.5" />
+                                <span>{thread.organizerStats.hosted >= 3 ? '资深组织者' : '活动组织者'}</span>
+                                <span className="opacity-70 font-mono">{thread.organizerStats.hosted}场</span>
                               </span>
                             )}
                             {thread.isPinned && (
@@ -681,74 +761,191 @@ export const DanceBuddies: React.FC<DanceBuddiesProps> = ({
                       {thread.title}
                     </h3>
 
-                    {/* Content snippet */}
-                    <p className="text-xs sm:text-sm text-[#574B40] mt-2 leading-relaxed whitespace-pre-wrap">
-                      {thread.content}
-                    </p>
+                    {/* Content snippet：疑似站外收款/拉群时默认折叠，引导走官方报名 */}
+                    {hideContent ? (
+                      <div className="mt-2 bg-[#FFFBEB] border border-[#FDE68A] rounded-2xl p-3.5 space-y-2">
+                        <div className="flex items-start gap-2">
+                          <AlertTriangle className="w-4 h-4 text-[#B45309] shrink-0 mt-0.5" />
+                          <div className="space-y-1">
+                            <p className="text-xs font-bold text-[#92400E]">{offsiteWarning}</p>
+                            <p className="text-[11px] text-[#A16207] leading-relaxed">
+                              为保障你的权益，站内活动请优先使用上方「官方报名」按钮报名；报名成功后由组织者提供群入口。
+                            </p>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setRevealedOffsiteIds((prev) => ({ ...prev, [thread.id]: true }))
+                          }
+                          className="text-[11px] font-bold text-[#92400E] underline hover:no-underline cursor-pointer"
+                        >
+                          仍要查看帖子原文
+                        </button>
+                      </div>
+                    ) : (
+                      <p className="text-xs sm:text-sm text-[#574B40] mt-2 leading-relaxed whitespace-pre-wrap">
+                        {thread.content}
+                      </p>
+                    )}
 
-                    {/* MEETUP CARD (If category is 舞室约练) */}
-                    {isMeetup && thread.meetup && (
+                    {/* MEETUP CARD：官方报名闭环（人数上限 / 报名名单 / 报名后解锁群入口） */}
+                    {isMeetup && meetup && (
                       <div className="mt-3.5 bg-gradient-to-br from-[#FFF8F3] to-[#FFF1EC] border border-[#FAD6C5] rounded-2xl p-4 space-y-3">
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2">
                           <div className="space-y-1">
                             <div className="flex items-center gap-1.5 text-xs font-bold text-[#A63C29]">
                               <MapPin className="w-3.5 h-3.5 text-[#E65B47]" />
-                              <span>{thread.meetup.studio}</span>
+                              <span>{meetup.studio}</span>
                             </div>
-                            <div className="flex items-center gap-2 text-xs text-[#78695C]">
+                            <div className="flex items-center gap-2 text-xs text-[#78695C] flex-wrap">
                               <Calendar className="w-3.5 h-3.5 text-[#7C3AED]" />
-                              <span>时间: <strong>{thread.meetup.date}</strong></span>
-                              {thread.meetup.costNote && (
+                              <span>时间: <strong>{meetup.date}</strong></span>
+                              {meetup.costNote && (
                                 <>
                                   <span aria-hidden="true">·</span>
-                                  <span>{thread.meetup.costNote}</span>
+                                  <span>{meetup.costNote}</span>
                                 </>
                               )}
                             </div>
+                            {meetup.organizerNote && (
+                              <div className="flex items-center gap-1 text-[11px] text-[#8C7A6B]">
+                                <ShieldCheck className="w-3 h-3 text-[#15803D]" />
+                                <span>组织者：{thread.author} · {meetup.organizerNote}</span>
+                              </div>
+                            )}
                           </div>
 
-                          {/* Join / Leave Meetup Button */}
-                          <button
-                            onClick={() => onToggleJoinMeetup?.(thread.id)}
-                            className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-2xs cursor-pointer ${
-                              hasJoined
-                                ? 'bg-emerald-100 hover:bg-emerald-200 text-emerald-800 border border-emerald-300'
-                                : 'bg-[#FF7E67] hover:bg-[#E65B47] text-white'
-                            }`}
-                          >
-                            <CheckCircle2 className="w-3.5 h-3.5" />
-                            <span>{hasJoined ? '已报名参加 (点击可退出)' : '我要参加约练'}</span>
-                          </button>
+                          {/* 官方报名按钮：满员禁用；组织者本人不显示报名入口 */}
+                          {thread.isOrganizer ? (
+                            <span className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-white border border-[#E8DACB] text-[#78695C]">
+                              <ShieldCheck className="w-3.5 h-3.5 text-[#15803D]" />
+                              <span>你是本场组织者</span>
+                            </span>
+                          ) : (
+                            <button
+                              onClick={() => onToggleJoinMeetup?.(thread.id)}
+                              disabled={!hasJoined && isFull}
+                              className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-2xs ${
+                                hasJoined
+                                  ? 'bg-emerald-100 hover:bg-emerald-200 text-emerald-800 border border-emerald-300 cursor-pointer'
+                                  : isFull
+                                  ? 'bg-[#F5EDE4] text-[#A8988A] border border-[#E8DACB] cursor-not-allowed'
+                                  : 'bg-[#FF7E67] hover:bg-[#E65B47] text-white cursor-pointer'
+                              }`}
+                            >
+                              <CheckCircle2 className="w-3.5 h-3.5" />
+                              <span>{hasJoined ? '已报名 · 点击退出' : isFull ? '名额已满' : '官方报名'}</span>
+                            </button>
+                          )}
                         </div>
 
-                        {/* Joined buddies display */}
-                        <div className="pt-2 border-t border-[#F5DEC7] flex items-center justify-between text-xs">
-                          <div className="flex items-center gap-2">
+                        {/* 报名进度：把「还差几人」变成可见进度，组织者不用再数接龙 */}
+                        <div className="space-y-1.5 pt-1">
+                          <div className="flex items-center justify-between text-[11px]">
                             <span className="text-[#8C7A6B]">
-                              已报名 ({thread.meetup.joinedBuddies.length}/{thread.meetup.targetCount}人):
+                              报名进度{' '}
+                              <strong className="text-[#A63C29] font-mono">{joinedCount}/{capacity}</strong>
+                              {thread.isOrganizer && joinedCount > 0 && (
+                                <span className="ml-1 text-[#15803D] font-semibold">（名单见下方）</span>
+                              )}
                             </span>
-                            <div className="flex flex-wrap items-center gap-1.5">
-                              {thread.meetup.joinedBuddies.map((buddyName, bIdx) => (
+                            <span className={`font-mono font-bold ${isFull ? 'text-[#15803D]' : 'text-[#D94834]'}`}>
+                              {isFull ? '🎉 已满员' : `还差 ${Math.max(0, capacity - joinedCount)} 人成行`}
+                            </span>
+                          </div>
+                          <div className="h-1.5 rounded-full bg-[#F5DEC7] overflow-hidden">
+                            <div
+                              className="h-full rounded-full bg-gradient-to-r from-[#FF9E8A] to-[#E65B47] transition-all"
+                              style={{
+                                width: `${capacity > 0 ? Math.min(100, Math.round((joinedCount / capacity) * 100)) : 0}%`,
+                              }}
+                            />
+                          </div>
+                        </div>
+
+                        {/* 报名名单 */}
+                        <div className="pt-2 border-t border-[#F5DEC7] flex items-start gap-2 text-xs">
+                          <span className="text-[#8C7A6B] shrink-0 pt-0.5">已报名：</span>
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            {joinedCount === 0 && (
+                              <span className="text-[11px] text-[#A8988A]">还没有人报名，来做第一个？</span>
+                            )}
+                            {meetup.joinedBuddies.map((buddyName, bIdx) => {
+                              const isMe = !!currentUserName && buddyName === currentUserName;
+                              return (
                                 <span
-                                  key={bIdx}
+                                  key={`${buddyName}-${bIdx}`}
                                   className={`px-2 py-0.5 rounded-lg text-[11px] font-semibold ${
-                                    buddyName === 'Cici'
+                                    isMe
                                       ? 'bg-[#FFE8DE] text-[#D94834]'
                                       : 'bg-white text-[#574B40] border border-[#E8DACB]'
                                   }`}
                                 >
                                   {buddyName}
+                                  {isMe && <span className="ml-0.5 opacity-70">(我)</span>}
                                 </span>
-                              ))}
-                            </div>
+                              );
+                            })}
                           </div>
-
-                          <span className="text-[11px] font-mono text-[#D94834] font-bold">
-                            {thread.meetup.targetCount - thread.meetup.joinedBuddies.length > 0
-                              ? `还差 ${thread.meetup.targetCount - thread.meetup.joinedBuddies.length} 人成行`
-                              : '🎉 已满员'}
-                          </span>
                         </div>
+
+                        {/* 活动群入口：报名后才解锁（数据层由 RLS 保证，非仅前端隐藏） */}
+                        {meetup.groupEntry ? (
+                          canSeeGroup ? (
+                            <div className="bg-white border border-[#BBF7D0] rounded-xl p-3 space-y-1.5">
+                              <div className="flex items-center justify-between gap-2">
+                                <span className="text-[11px] font-bold text-[#15803D] flex items-center gap-1">
+                                  <Link2 className="w-3 h-3" />
+                                  活动群入口（已解锁）
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => handleCopyGroup(thread.id, meetup.groupEntry!)}
+                                  className="flex items-center gap-1 text-[11px] font-bold text-[#15803D] hover:text-[#166534] px-2 py-0.5 rounded-lg hover:bg-[#F0FDF4] cursor-pointer"
+                                >
+                                  {copiedGroupId === thread.id ? (
+                                    <>
+                                      <Check className="w-3 h-3" />
+                                      已复制
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Copy className="w-3 h-3" />
+                                      复制
+                                    </>
+                                  )}
+                                </button>
+                              </div>
+                              <p className="text-xs font-mono text-[#292524] break-all bg-[#F7FEF9] rounded-lg px-2 py-1.5">
+                                {meetup.groupEntry}
+                              </p>
+                              {meetup.groupNote && (
+                                <p className="text-[11px] text-[#8C7A6B]">{meetup.groupNote}</p>
+                              )}
+                              {!thread.isOrganizer && (
+                                <p className="text-[10px] text-[#A8988A]">
+                                  提示：这是组织者提供的联系方式，交易请自行确认，平台仅提供报名记录
+                                </p>
+                              )}
+                            </div>
+                          ) : (
+                            <div className="bg-[#FAF5EF] border border-dashed border-[#E0D2C3] rounded-xl p-3 flex items-center gap-2">
+                              <Lock className="w-3.5 h-3.5 text-[#A8988A] shrink-0" />
+                              <span className="text-[11px] text-[#8C7A6B]">
+                                活动群入口：<strong className="text-[#574B40]">报名后自动解锁</strong>
+                                ，避免群信息被随手转发
+                              </span>
+                            </div>
+                          )
+                        ) : thread.isOrganizer ? (
+                          <div className="bg-[#F7FEF9] border border-dashed border-[#BBF7D0] rounded-xl p-3 flex items-center gap-2">
+                            <Lock className="w-3.5 h-3.5 text-[#15803D] shrink-0" />
+                            <span className="text-[11px] text-[#15803D]">
+                              你还没有填写活动群入口，编辑帖子即可补上（报名者才能看到）
+                            </span>
+                          </div>
+                        ) : null}
                       </div>
                     )}
 
@@ -1451,6 +1648,43 @@ export const DanceBuddies: React.FC<DanceBuddiesProps> = ({
                       />
                     </div>
                   </div>
+
+                  <div>
+                    <span className="text-[11px] text-[#78695C] block mb-1">组织者身份说明 (选填)</span>
+                    <input
+                      type="text"
+                      value={newThreadOrganizerNote}
+                      onChange={(e) => setNewThreadOrganizerNote(e.target.value)}
+                      placeholder="如：XX 舞室爵士老师 / 练舞 3 年，已组织 8 场"
+                      className="w-full text-xs p-2 rounded-lg border border-[#E8DACB] bg-white"
+                    />
+                  </div>
+
+                  {/* 报名闭环核心：群入口只对报名者可见，不写在正文里 */}
+                  <div className="pt-2.5 border-t border-[#F6DCBE] space-y-2">
+                    <span className="text-[11px] font-bold text-[#15803D] flex items-center gap-1">
+                      <Lock className="w-3 h-3" />
+                      活动群入口（报名后才对舞友可见）
+                    </span>
+                    <input
+                      type="text"
+                      value={newThreadGroupEntry}
+                      onChange={(e) => setNewThreadGroupEntry(e.target.value)}
+                      placeholder="如：微信群「周六爵士练舞」/ 群号 / 邀请链接"
+                      className="w-full text-xs p-2 rounded-lg border border-[#BBF7D0] bg-[#F7FEF9]"
+                    />
+                    <input
+                      type="text"
+                      value={newThreadGroupNote}
+                      onChange={(e) => setNewThreadGroupNote(e.target.value)}
+                      placeholder="入群说明 (选填)，如：进群请备注报名昵称"
+                      className="w-full text-xs p-2 rounded-lg border border-[#BBF7D0] bg-[#F7FEF9]"
+                    />
+                    <p className="text-[10px] text-[#A8988A] leading-relaxed">
+                      只有报名成功的舞友能看到这里的内容。请勿在正文里直接放收款码、群二维码——
+                      那样会被自动折叠，反而没人看得到。
+                    </p>
+                  </div>
                 </div>
               )}
 
@@ -1467,6 +1701,15 @@ export const DanceBuddies: React.FC<DanceBuddiesProps> = ({
                   onChange={(e) => setNewThreadContent(e.target.value)}
                   className="w-full text-xs sm:text-sm p-3 rounded-2xl border border-[#E8DACB] bg-[#FFFDF9] focus:outline-none focus:ring-2 focus:ring-[#7C3AED]/40"
                 />
+                {detectOffsite(newThreadContent) && (
+                  <div className="flex items-start gap-1.5 bg-[#FFFBEB] border border-[#FDE68A] rounded-xl p-2.5 mt-2">
+                    <AlertTriangle className="w-3.5 h-3.5 text-[#B45309] shrink-0 mt-0.5" />
+                    <span className="text-[11px] text-[#92400E] leading-relaxed">
+                      正文疑似包含站外收款或私下拉群信息，发布后会被折叠。建议把群入口填到上方「活动群入口」，
+                      报名成功的舞友才能看到，也更安全。
+                    </span>
+                  </div>
+                )}
               </div>
 
               {/* Action Buttons */}

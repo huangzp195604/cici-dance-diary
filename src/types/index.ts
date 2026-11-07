@@ -90,10 +90,22 @@ export interface ForumReply {
 export interface ForumMeetup {
   studio: string;
   date: string; // e.g. "周六 14:00-16:00"
-  targetCount: number;
+  targetCount: number; // 人数上限：到达后报名关闭
   joinedBuddies: string[];
   isJoined?: boolean;
   costNote?: string;
+  /** 组织者身份说明（公开，如「XX 舞室爵士老师」） */
+  organizerNote?: string;
+  /** 活动群入口：仅报名者与组织者可见，来自私有表 forum_meetup_access */
+  groupEntry?: string;
+  /** 群入口使用说明（如入群口令），同样仅报名者可见 */
+  groupNote?: string;
+}
+
+/** 组织者履历：由该用户历史约练帖实时统计，不落库 */
+export interface OrganizerStats {
+  hosted: number;
+  totalJoined: number;
 }
 
 export interface ForumThread {
@@ -112,6 +124,10 @@ export interface ForumThread {
   meetup?: ForumMeetup;
   isPinned?: boolean;
   tags?: string[];
+  /** 组织者履历（约练帖才有） */
+  organizerStats?: OrganizerStats;
+  /** 当前用户是否为本帖组织者（作者本人） */
+  isOrganizer?: boolean;
 }
 
 export interface RealFriend {
