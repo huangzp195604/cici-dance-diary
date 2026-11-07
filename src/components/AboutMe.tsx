@@ -1,5 +1,5 @@
 import { syncRemoveItem, syncSetItem } from '../utils/sync';
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { 
   Heart, 
   Sparkles, 
@@ -35,6 +35,11 @@ import { PracticeTrajectoryChart } from './PracticeTrajectoryChart';
 import { JazzSkillTree } from './JazzSkillTree';
 import { BeginnerTips } from './BeginnerTips';
 import { usePracticeDays } from '../utils/practice';
+import {
+  buildCalendarDays,
+  buildCalendarWeeks,
+  buildMonthStartTicks,
+} from '../utils/calendarPeriods';
 
 export interface AboutProfileData {
   nickname: string;
@@ -339,78 +344,77 @@ export const AboutMe: React.FC<AboutMeProps> = ({
   const expandedStageData =
     expandedStage ? stageDistribution.find((stage) => stage.key === expandedStage) ?? null : null;
 
-  // 近四周（28 天）活跃度走势：按日期聚合用户真实上传的打卡记录，不使用任何静态/模拟数据
-  const pastFourWeeksData = useMemo(() => {
-    const DAY_MS = 24 * 60 * 60 * 1000;
-    const today = new Date();
-    const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-    const rangeStart = new Date(todayStart.getTime() - 27 * DAY_MS);
+  // 月历活跃度走势：区间从「上月 1 号」到「今天」，每月 1 号重新起算周次
+  const [today, setToday] = useState<Date>(() => new Date());
+  // 跨零点后自动重算月份归属、起始日与周次，避免日期变了文案没变
+  useEffect(() => {
+    const timer = window.setInterval(() => setToday(new Date()), 60 * 1000);
+    return () => window.clearInterval(timer);
+  }, []);
 
-    const toDateKey = (date: Date) =>
-      `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-    const toMonthDay = (date: Date) =>
-      `${String(date.getMonth() + 1).padStart(2, '0')}.${String(date.getDate()).padStart(2, '0')}`;
+  const calendarDays = useMemo(() => buildCalendarDays(today), [today]);
 
-    // 仅保留最近 28 天内的真实打卡记录，并按日期分组
+  // 按日期聚合真实打卡记录；只统计月历区间内的数据（dateKey 字典序即时间序，避开时区误差）
+  const calendarDayData = useMemo(() => {
+    const firstKey = calendarDays[0]?.dateKey ?? '';
+    const lastKey = calendarDays[calendarDays.length - 1]?.dateKey ?? '';
     const postsByDate = new Map<string, DancePost[]>();
     posts.forEach((post) => {
       if (!post.date) return;
       const dateKey = post.date.slice(0, 10);
-      const postDay = new Date(`${dateKey}T00:00:00`);
-      if (Number.isNaN(postDay.getTime()) || postDay < rangeStart || postDay > todayStart) return;
+      if (dateKey < firstKey || dateKey > lastKey) return;
       const list = postsByDate.get(dateKey) ?? [];
       list.push(post);
       postsByDate.set(dateKey, list);
     });
 
     let cumulativePracticeDays = 0;
-    return Array.from({ length: 28 }, (_, index) => {
-      const day = new Date(rangeStart.getTime() + index * DAY_MS);
-      const dateKey = toDateKey(day);
-      const dayPosts = postsByDate.get(dateKey) ?? [];
+    return calendarDays.map((day) => {
+      const dayPosts = postsByDate.get(day.dateKey) ?? [];
       if (dayPosts.length > 0) cumulativePracticeDays += 1;
-
       return {
-        id: dateKey,
-        date: dateKey,
-        axisLabel: toMonthDay(day),
-        weekLabel: `${day.getFullYear()}年${day.getMonth() + 1}月${day.getDate()}日`,
+        id: day.dateKey,
+        date: day.dateKey,
+        axisLabel: day.axisLabel,
+        weekLabel: day.fullDateLabel,
         practiceCount: dayPosts.length,
         cumulativeDays: cumulativePracticeDays,
         titles: dayPosts.map((post) => post.title),
         categories: dayPosts.flatMap((post) => post.categories),
       };
     });
-  }, [posts]);
+  }, [posts, calendarDays]);
 
-  // 每 7 天汇总为一张周卡片，数据全部来自上面按日期聚合的真实记录
-  const fourWeeksWeekSummary = useMemo(
-    () =>
-      Array.from({ length: 4 }, (_, index) => {
-        const weekDays = pastFourWeeksData.slice(index * 7, index * 7 + 7);
-        const firstDay = weekDays[0];
-        const lastDay = weekDays[weekDays.length - 1];
-        const titles = weekDays.flatMap((d) => d.titles);
-        const practiceCount = titles.length;
-        const practiceDayCount = weekDays.filter((d) => d.practiceCount > 0).length;
+  // 横轴刻度固定在每月 1/8/15/22/29 号：从 1 号开始、按月份重新起算
+  const calendarAxisTicks = useMemo(() => buildMonthStartTicks(calendarDays), [calendarDays]);
 
-        return {
-          id: `w${index + 1}`,
-          weekLabel: `第${index + 1}周 (${firstDay.axisLabel}-${lastDay.axisLabel})`,
-          practiceCount,
-          practiceDayCount,
-          recordedWorks: practiceCount,
-          titles,
-          milestone: titles.length > 0 ? `打卡作品：${titles.join('、')}` : '本周暂无打卡记录',
-        };
-      }),
-    [pastFourWeeksData]
-  );
+  // 周卡片与横轴同源于 calendarDays，月份归属、括号日期、周次文案天然一致
+  const calendarWeekSummary = useMemo(() => {
+    const byDate = new Map(calendarDayData.map((day) => [day.date, day]));
+    return buildCalendarWeeks(calendarDays).map((week) => {
+      const weekDays = week.dateKeys.flatMap((key) => {
+        const day = byDate.get(key);
+        return day ? [day] : [];
+      });
+      const titles = weekDays.flatMap((day) => day.titles);
+      const practiceCount = titles.length;
+      const practiceDayCount = weekDays.filter((day) => day.practiceCount > 0).length;
+      return {
+        id: week.id,
+        weekLabel: week.label,
+        practiceCount,
+        practiceDayCount,
+        recordedWorks: practiceCount,
+        titles,
+        milestone: titles.length > 0 ? `打卡作品：${titles.join('、')}` : '本周暂无打卡记录',
+      };
+    });
+  }, [calendarDayData, calendarDays]);
 
-  // 近四周汇总指标（全部由真实记录推导）
-  const fourWeeksTotalSessions = pastFourWeeksData.reduce((sum, d) => sum + d.practiceCount, 0);
-  const fourWeeksTotalDays = pastFourWeeksData.filter((d) => d.practiceCount > 0).length;
-  const fourWeeksStyleCount = new Set(pastFourWeeksData.flatMap((d) => d.categories)).size;
+  // 月历区间汇总指标（全部由真实记录推导）
+  const calendarTotalSessions = calendarDayData.reduce((sum, day) => sum + day.practiceCount, 0);
+  const calendarTotalDays = calendarDayData.filter((day) => day.practiceCount > 0).length;
+  const calendarStyleCount = new Set(calendarDayData.flatMap((day) => day.categories)).size;
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 space-y-6 animate-fadeIn">
@@ -585,14 +589,14 @@ export const AboutMe: React.FC<AboutMeProps> = ({
             <div className="flex items-center gap-2">
               <h3 className="text-base sm:text-lg font-display font-extrabold text-[#292524] tracking-tight flex items-center gap-2">
                 <TrendingUp className="w-5 h-5 text-[#FF7E67]" />
-                <span>过去四周练习活跃度走势 (Recharts 折线图)</span>
+                <span>按月历统计的练习活跃度走势 (Recharts 折线图)</span>
               </h3>
               <span className="text-xs bg-[#FFF2EB] text-[#E65B47] px-2.5 py-0.5 rounded-full font-semibold">
-                近 28 天动态
+                按自然月动态
               </span>
             </div>
             <p className="text-xs text-[#78695C] mt-1">
-              按日期聚合近 28 天真实打卡记录，随作品新增或清空实时更新。
+              从每月 1 号起算，按真实日历跨月重新编号周次；随作品新增或清空实时更新。
             </p>
           </div>
 
@@ -608,34 +612,34 @@ export const AboutMe: React.FC<AboutMeProps> = ({
           </div>
         </div>
 
-        {/* 4-Week Key Metrics Ribbon */}
+        {/* 月历区间关键指标 */}
         <div className="grid grid-cols-3 gap-3 bg-[#FFFDF9] border border-[#F2E5D8] p-3.5 rounded-2xl">
           <div className="text-center">
-            <span className="text-[11px] text-[#8C7A6B] block">近四周打卡次数</span>
+            <span className="text-[11px] text-[#8C7A6B] block">月历区间打卡次数</span>
             <span className="font-display font-black text-xl text-[#E65B47] mt-0.5 block">
-              {fourWeeksTotalSessions} <span className="text-xs font-normal text-[#8C7A6B]">次</span>
+              {calendarTotalSessions} <span className="text-xs font-normal text-[#8C7A6B]">次</span>
             </span>
           </div>
           <div className="text-center border-x border-[#F2E5D8]">
             <span className="text-[11px] text-[#8C7A6B] block">累计练习天数</span>
             <span className="font-display font-black text-xl text-[#8B5CF6] mt-0.5 block">
-              {fourWeeksTotalDays} <span className="text-xs font-normal text-[#8C7A6B]">天</span>
+              {calendarTotalDays} <span className="text-xs font-normal text-[#8C7A6B]">天</span>
             </span>
           </div>
           <div className="text-center">
             <span className="text-[11px] text-[#8C7A6B] block">覆盖舞种</span>
             <span className="font-display font-black text-xl text-[#10B981] mt-0.5 block">
-              {fourWeeksStyleCount} <span className="text-xs font-normal text-[#8C7A6B]">种</span>
+              {calendarStyleCount} <span className="text-xs font-normal text-[#8C7A6B]">种</span>
             </span>
           </div>
         </div>
 
-        {/* Recharts Line/Area Chart: 近 28 天按日期聚合的真实打卡数据 */}
+        {/* Recharts Line/Area Chart: 按自然月（每月 1 号起算）聚合的真实打卡数据 */}
         <div className="w-full h-64 sm:h-72 bg-[#FFFDFB] border border-[#F0E4D8] rounded-2xl p-3 sm:p-4">
-          {fourWeeksTotalSessions > 0 ? (
+          {calendarTotalSessions > 0 ? (
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart
-                data={pastFourWeeksData}
+                data={calendarDayData}
                 margin={{ top: 15, right: 20, left: -15, bottom: 5 }}
               >
                 <defs>
@@ -647,7 +651,8 @@ export const AboutMe: React.FC<AboutMeProps> = ({
                 <CartesianGrid strokeDasharray="3 3" stroke="#F1E5D8" vertical={false} />
                 <XAxis
                   dataKey="axisLabel"
-                  interval={3}
+                  ticks={calendarAxisTicks}
+                  interval={0}
                   tick={{ fill: '#78695C', fontSize: 10, fontWeight: 500 }}
                   axisLine={{ stroke: '#E8DACB' }}
                   tickLine={false}
@@ -722,7 +727,7 @@ export const AboutMe: React.FC<AboutMeProps> = ({
               <div className="w-11 h-11 rounded-2xl bg-[#FAF2EB] border border-[#E8DACB] flex items-center justify-center">
                 <Activity className="w-5 h-5 text-[#A8988A]" />
               </div>
-              <p className="text-sm font-bold text-[#4A3E36]">近四周暂无打卡记录</p>
+              <p className="text-sm font-bold text-[#4A3E36]">这段时间暂无打卡记录</p>
               <p className="text-xs text-[#8C7A6B] max-w-xs leading-relaxed">
                 上传你的第一支舞蹈作品后，这里会按日期自动生成真实的活跃度走势。
               </p>
@@ -730,9 +735,9 @@ export const AboutMe: React.FC<AboutMeProps> = ({
           )}
         </div>
 
-        {/* 4 Weeks Step-by-Step Evolution Cards */}
+        {/* 按自然月周次汇总的卡片：数量随月份天数与跨月情况动态变化 */}
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
-          {fourWeeksWeekSummary.map((week) => (
+          {calendarWeekSummary.map((week) => (
             <div
               key={week.id}
               className="bg-[#FFFDF9] border border-[#F0E4D8] hover:border-[#FF7E67] p-3.5 rounded-2xl transition-all"
