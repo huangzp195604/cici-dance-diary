@@ -14,6 +14,7 @@ import { GrowthReport } from './components/GrowthReport';
 import { MediaModal } from './components/MediaModal';
 import { DancePost, DanceBuddy, WallMessage, ForumThread, RealFriend } from './types';
 import { storage } from './utils/storage';
+import { deleteMediaForPost } from './utils/mediaStore';
 import { metronomeInstance } from './utils/audio';
 import { useAuth, displayName } from './hooks/useAuth';
 import { LoginModal } from './components/LoginModal';
@@ -251,6 +252,18 @@ export default function App() {
     return () => clearTimeout(t);
   }, [toast]);
 
+  /**
+   * 打开网页时主动引导登录（未登录用户，每个浏览器会话一次）。
+   * 手机上登录入口不显眼，若不主动弹出，用户会一直以匿名身份使用，
+   * 数据只留在本地、换设备就丢。用户点「先逛逛」后本次会话不再打扰。
+   */
+  useEffect(() => {
+    if (!ready || user) return;
+    if (sessionStorage.getItem('cici_login_prompted')) return;
+    sessionStorage.setItem('cici_login_prompted', '1');
+    setIsLoginOpen(true);
+  }, [ready, user]);
+
   /** 论坛写入统一带上当前昵称：owner_name 为空会让所有人显示成「舞友」 */
   const withAuthorName = (u: { id: string; name: string }) =>
     profile?.nickname ? { ...u, name: profile.nickname } : u;
@@ -290,6 +303,8 @@ export default function App() {
   const handleDeletePost = async (postId: string) => {
     try {
       await storage.deletePost(postId);
+      const removed = posts.find((p) => p.id === postId);
+      if (removed) void deleteMediaForPost(removed.mediaUrl);
       setPosts((prev) => prev.filter((p) => p.id !== postId));
       if (selectedPost?.id === postId) {
         setSelectedPost(null);

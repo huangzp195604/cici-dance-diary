@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { X, Play, Pause, RotateCcw, FlipHorizontal, Heart, MessageCircle, Send, Music } from 'lucide-react';
+import { X, Play, Pause, RotateCcw, FlipHorizontal, Heart, MessageCircle, Send, Music, AlertCircle } from 'lucide-react';
 import { DancePost } from '../types';
+import { useResolvedMedia } from '../hooks/useResolvedMedia';
 
 interface MediaModalProps {
   post: DancePost | null;
@@ -20,13 +21,20 @@ export const MediaModal: React.FC<MediaModalProps> = ({
   const [isMirrored, setIsMirrored] = useState<boolean>(false);
   const [isLooping, setIsLooping] = useState<boolean>(true);
   const [commentInput, setCommentInput] = useState<string>('');
+  const [mediaError, setMediaError] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
+  // 本地视频存的是引用，播放前需从 IndexedDB 还原成 objectURL
+  const resolved = useResolvedMedia(post?.mediaUrl);
+
+  useEffect(() => {
+    setMediaError(false);
+  }, [post?.mediaUrl]);
 
   useEffect(() => {
     if (videoRef.current) {
       videoRef.current.playbackRate = playbackRate;
     }
-  }, [playbackRate]);
+  }, [playbackRate, resolved.url]);
 
   // Handle ESC key to close
   useEffect(() => {
@@ -87,21 +95,44 @@ export const MediaModal: React.FC<MediaModalProps> = ({
         <div className="flex-1 bg-black flex flex-col items-center justify-center relative min-h-[280px] md:min-h-[460px] overflow-hidden">
           {post.mediaType === 'video' ? (
             <div className="relative w-full h-full flex flex-col items-center justify-center">
-              <video
-                ref={videoRef}
-                src={post.mediaUrl}
-                autoPlay
-                loop={isLooping}
-                playsInline
-                className={`max-h-[60vh] md:max-h-[75vh] w-auto max-w-full object-contain transition-transform duration-200 ${
-                  isMirrored ? 'scale-x-[-1]' : ''
-                }`}
-                onPlay={() => setIsPlaying(true)}
-                onPause={() => setIsPlaying(false)}
-              />
+              {resolved.loading ? (
+                <div className="text-white/80 text-sm px-6 text-center">正在读取本地视频…</div>
+              ) : resolved.missing || !resolved.url ? (
+                <div className="text-white/85 text-sm px-6 text-center leading-relaxed">
+                  <AlertCircle className="w-6 h-6 mx-auto mb-2" />
+                  这段视频保存在上传时的那台设备，本设备没有视频文件。
+                  <br />
+                  请在原设备查看，或重新上传一次。
+                </div>
+              ) : mediaError ? (
+                <div className="text-white/85 text-sm px-6 text-center leading-relaxed">
+                  <AlertCircle className="w-6 h-6 mx-auto mb-2" />
+                  视频无法播放：格式不受支持或资源已失效。
+                  <br />
+                  iPhone 拍摄的 HEVC/MOV 建议先转成 MP4(H.264) 再上传。
+                </div>
+              ) : (
+                <video
+                  ref={videoRef}
+                  src={resolved.url}
+                  autoPlay
+                  muted
+                  loop={isLooping}
+                  playsInline
+                  controls
+                  preload="metadata"
+                  className={`max-h-[60vh] md:max-h-[75vh] w-auto max-w-full object-contain transition-transform duration-200 ${
+                    isMirrored ? 'scale-x-[-1]' : ''
+                  }`}
+                  onPlay={() => setIsPlaying(true)}
+                  onPause={() => setIsPlaying(false)}
+                  onError={() => setMediaError(true)}
+                />
+              )}
 
-              {/* In-Video Practice Controls Overlay */}
-              <div className="absolute bottom-3 left-3 right-3 bg-black/60 backdrop-blur-md rounded-2xl p-2.5 flex items-center justify-between text-white text-xs gap-2">
+              {/* In-Video Practice Controls Overlay：仅在视频确实可播时显示 */}
+              {resolved.url && !resolved.missing && !mediaError && (
+              <div className="absolute bottom-3 left-3 right-3 bg-black/60 backdrop-blur-md rounded-2xl p-2.5 flex flex-wrap items-center justify-between text-white text-xs gap-2">
                 <div className="flex items-center gap-2">
                   <button
                     onClick={handleTogglePlay}
@@ -153,15 +184,24 @@ export const MediaModal: React.FC<MediaModalProps> = ({
                   </button>
                 </div>
               </div>
+              )}
             </div>
           ) : (
             <div className="w-full h-full flex items-center justify-center p-4">
-              <img
-                src={post.mediaUrl}
-                alt={post.title}
-                referrerPolicy="no-referrer"
-                className="max-h-[60vh] md:max-h-[75vh] w-auto max-w-full object-contain rounded-xl"
-              />
+              {resolved.url && !mediaError ? (
+                <img
+                  src={resolved.url}
+                  alt={post.title}
+                  referrerPolicy="no-referrer"
+                  onError={() => setMediaError(true)}
+                  className="max-h-[60vh] md:max-h-[75vh] w-auto max-w-full object-contain rounded-xl"
+                />
+              ) : (
+                <div className="text-white/85 text-sm text-center leading-relaxed">
+                  <AlertCircle className="w-6 h-6 mx-auto mb-2" />
+                  图片加载失败，可能保存在上传时的那台设备或链接已失效
+                </div>
+              )}
             </div>
           )}
         </div>

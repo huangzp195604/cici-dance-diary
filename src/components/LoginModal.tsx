@@ -84,9 +84,9 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onSucce
   };
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={onClose}>
+    <div className="fixed inset-0 z-[60] flex items-start sm:items-center justify-center p-4 py-8 overflow-y-auto bg-black/40 backdrop-blur-sm" onClick={onClose}>
       <div
-        className="w-full max-w-sm rounded-3xl bg-[#FFFDF9] border border-[#F1E5D8] shadow-2xl p-6 relative animate-[fadeIn_.2s_ease-out]"
+        className="w-full max-w-sm my-auto rounded-3xl bg-[#FFFDF9] border border-[#F1E5D8] shadow-2xl p-5 sm:p-6 relative animate-[fadeIn_.2s_ease-out]"
         onClick={(e) => e.stopPropagation()}
       >
         <button
@@ -175,11 +175,19 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onSucce
           </button>
         </form>
 
-        <p className="mt-4 text-[11px] text-[#A8988A] text-center leading-relaxed">
-          登录后你的发帖、点赞、约练记录将保存在云端账号，
+        <p className="mt-3 text-[11px] text-[#A8988A] text-center leading-relaxed">
+          登录后你的作品、打卡、发帖、约练记录会存到云端，
           <br />
           换设备登录同一手机号即可继续使用。
         </p>
+
+        <button
+          type="button"
+          onClick={onClose}
+          className="w-full mt-3 py-2 text-xs font-semibold text-[#8C7A6B] hover:text-[#574B40] hover:bg-[#F7EFE7] rounded-xl transition-colors cursor-pointer"
+        >
+          先逛逛，暂不登录
+        </button>
       </div>
     </div>
   );

@@ -1286,6 +1286,10 @@ export const Timeline: React.FC<TimelineProps> = ({
                             src={post.thumbnailUrl}
                             alt={post.title}
                             referrerPolicy="no-referrer"
+                            onError={(e) => {
+                              // 旧数据可能存了失效的 blob: 地址，隐藏即可露出渐变兜底
+                              e.currentTarget.style.display = 'none';
+                            }}
                             className="w-full h-full object-cover opacity-85"
                           />
                         ) : null}

@@ -1,5 +1,8 @@
 import React, { useState } from 'react';
 import { compressImageFile } from '../utils/imageCompress';
+import { LOCAL_MEDIA_PREFIX, makeLocalMediaId, saveMediaBlob } from '../utils/mediaStore';
+import { formatDuration, probeVideo } from '../utils/videoPoster';
+import { useResolvedMedia } from '../hooks/useResolvedMedia';
 import { 
   UploadCloud, 
   Film, 
@@ -68,6 +71,13 @@ export const UploadForm: React.FC<UploadFormProps> = ({ onAddPost, onCancel }) =
   const [bpm, setBpm] = useState<number | undefined>(92);
   const [fileName, setFileName] = useState<string>('');
   const [errorMsg, setErrorMsg] = useState<string>('');
+  const [mediaNotice, setMediaNotice] = useState('');
+  const [posterUrl, setPosterUrl] = useState<string | null>(null);
+  const [durationText, setDurationText] = useState<string | undefined>();
+  const [busy, setBusy] = useState(false);
+
+  // 本地视频的 mediaUrl 只是引用，需要异步从 IndexedDB 还原成可播放地址
+  const resolved = useResolvedMedia(mediaUrl);
 
   const allCategories: DanceCategory[] = ['Jazz', '韩舞', '编舞', '基础练习', '其他'];
 
@@ -86,7 +96,13 @@ export const UploadForm: React.FC<UploadFormProps> = ({ onAddPost, onCancel }) =
     if (!file) return;
 
     setFileName(file.name);
-    const isVid = file.type.startsWith('video');
+    setErrorMsg('');
+    setMediaNotice('');
+    setPosterUrl(null);
+    setDurationText(undefined);
+    setMediaUrl('');
+    const isVid =
+      file.type.startsWith('video') || /\.(mp4|mov|m4v|webm|avi|mkv)$/i.test(file.name);
     setMediaType(isVid ? 'video' : 'image');
 
     if (!title) {
@@ -94,26 +110,55 @@ export const UploadForm: React.FC<UploadFormProps> = ({ onAddPost, onCancel }) =
     }
 
     if (isVid) {
-      // 视频体积过大，无法可靠地存进数据库：保留本次会话可用的 blob
-      setMediaUrl(URL.createObjectURL(file));
-      setErrorMsg('视频仅在本设备本次浏览有效；换设备后建议重新上传或改传封面图');
+      // 视频体积大：Blob 存 IndexedDB，帖子只保存引用，刷新后仍能重新解析播放
+      setBusy(true);
+      try {
+        const probe = await probeVideo(file);
+        const id = makeLocalMediaId();
+        await saveMediaBlob(id, file);
+        setMediaUrl(`${LOCAL_MEDIA_PREFIX}${id}`);
+        setPosterUrl(probe.poster);
+        setDurationText(formatDuration(probe.duration));
+
+        if (!probe.playable) {
+          setErrorMsg(
+            '当前浏览器无法解码这个视频（常见于 iPhone 拍摄的 HEVC/MOV）。建议改用 MP4(H.264)，或在相册里「导出/转存」一次再上传。'
+          );
+        } else {
+          setMediaNotice(
+            '视频已保存到本设备，刷新或重新打开都能播放。视频文件较大，暂不随账号跨设备同步。'
+          );
+        }
+      } catch (err) {
+        console.warn('视频保存失败', err);
+        setErrorMsg('视频保存失败，可能是文件太大或浏览器存储受限。请换一个较小的视频，或改传照片。');
+      } finally {
+        setBusy(false);
+      }
       return;
     }
 
     // 图片压缩后转 base64，才能持久保存并跨设备同步
     try {
-      setErrorMsg('');
       const dataUrl = await compressImageFile(file);
       setMediaUrl(dataUrl);
     } catch (err) {
       console.warn('图片压缩失败，回退原图', err);
-      setMediaUrl(URL.createObjectURL(file));
+      setErrorMsg('这张图片处理失败，请换一张试试');
     }
   };
 
   const handleApplyPreset = (preset: typeof PRESET_SAMPLES[0]) => {
     setMediaType(preset.type);
     setMediaUrl(preset.url);
+    setPosterUrl(null);
+    setDurationText(undefined);
+    setErrorMsg('');
+    setMediaNotice(
+      preset.type === 'video'
+        ? '在线示例视频需要能访问外网；若加载失败，请改用「从设备选择文件」上传本地视频。'
+        : ''
+    );
     setTitle(preset.title);
     setStage(preset.stage);
     setSelectedCategories(preset.categories);
@@ -129,8 +174,8 @@ export const UploadForm: React.FC<UploadFormProps> = ({ onAddPost, onCancel }) =
       setErrorMsg('请填写作品或打卡标题哦');
       return;
     }
-    if (!mediaUrl.trim()) {
-      setErrorMsg('请选择一段舞蹈视频或上传照片');
+    if (!mediaUrl.trim() || busy) {
+      setErrorMsg(busy ? '视频还在处理中，请稍等一下再保存' : '请选择一段舞蹈视频或上传照片');
       return;
     }
 
@@ -140,7 +185,8 @@ export const UploadForm: React.FC<UploadFormProps> = ({ onAddPost, onCancel }) =
       date,
       mediaType,
       mediaUrl: mediaUrl.trim(),
-      thumbnailUrl: mediaType === 'video' ? mediaUrl.trim() : undefined,
+      // 视频封面必须是图片，不能把视频地址塞给 <img>（旧实现在这里就裂了）
+      thumbnailUrl: mediaType === 'video' ? posterUrl ?? undefined : undefined,
       stage,
       categories: selectedCategories,
       notes: notes.trim(),
@@ -149,7 +195,7 @@ export const UploadForm: React.FC<UploadFormProps> = ({ onAddPost, onCancel }) =
       comments: [],
       musicName: musicName.trim() || undefined,
       bpm: bpm || undefined,
-      duration: mediaType === 'video' ? '00:15' : undefined,
+      duration: mediaType === 'video' ? durationText : undefined,
     };
 
     onAddPost(newPost);
@@ -188,9 +234,15 @@ export const UploadForm: React.FC<UploadFormProps> = ({ onAddPost, onCancel }) =
       </div>
 
       {errorMsg && (
-        <div className="mb-4 p-3 bg-rose-50 border border-rose-200 text-rose-700 rounded-2xl text-xs flex items-center gap-2">
-          <AlertCircle className="w-4 h-4 shrink-0" />
+        <div className="mb-4 p-3 bg-rose-50 border border-rose-200 text-rose-700 rounded-2xl text-xs flex items-start gap-2">
+          <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
           <span>{errorMsg}</span>
+        </div>
+      )}
+
+      {mediaNotice && !errorMsg && (
+        <div className="mb-4 p-3 bg-sky-50 border border-sky-200 text-sky-800 rounded-2xl text-xs leading-relaxed">
+          {mediaNotice}
         </div>
       )}
 
@@ -203,27 +255,46 @@ export const UploadForm: React.FC<UploadFormProps> = ({ onAddPost, onCancel }) =
             1. 舞蹈媒体 (视频 / 图片) *
           </label>
 
-          <div className="border-2 border-dashed border-[#E3D3C4] hover:border-[#FF7E67] bg-[#FFFDFB] rounded-2xl p-6 text-center transition-colors">
-            {mediaUrl ? (
+          <div className="border-2 border-dashed border-[#E3D3C4] hover:border-[#FF7E67] bg-[#FFFDFB] rounded-2xl p-4 sm:p-6 text-center transition-colors">
+            {busy ? (
+              <div className="py-8 text-sm text-[#8C7A6B]">正在处理视频并生成本地封面…</div>
+            ) : mediaUrl ? (
               <div className="space-y-3">
                 {mediaType === 'video' ? (
                   <div className="max-w-md mx-auto aspect-video rounded-xl overflow-hidden bg-black flex items-center justify-center">
-                    <video src={mediaUrl} controls className="max-h-56 w-auto" />
+                    {resolved.loading ? (
+                      <span className="text-xs text-white/70">正在读取本地视频…</span>
+                    ) : resolved.url ? (
+                      <video
+                        src={resolved.url}
+                        controls
+                        muted
+                        playsInline
+                        preload="metadata"
+                        className="w-full h-full object-contain"
+                      />
+                    ) : (
+                      <span className="text-xs text-white/80 px-4">本地视频读取失败，请重新选择</span>
+                    )}
                   </div>
                 ) : (
                   <div className="max-w-md mx-auto max-h-56 rounded-xl overflow-hidden flex items-center justify-center bg-[#F7EFE7]">
-                    <img src={mediaUrl} alt="Preview" className="max-h-56 object-contain" />
+                    <img src={resolved.url || undefined} alt="Preview" className="max-h-56 object-contain" />
                   </div>
                 )}
-                <div className="text-xs text-[#574B40] font-medium flex items-center justify-center gap-2">
-                  <span>已就绪: {fileName || '已选取媒体'}</span>
+                <div className="text-xs text-[#574B40] font-medium flex flex-wrap items-center justify-center gap-2">
+                  <span className="break-all">已就绪: {fileName || '已选取媒体'}</span>
                   <button
                     type="button"
                     onClick={() => {
                       setMediaUrl('');
                       setFileName('');
+                      setPosterUrl(null);
+                      setDurationText(undefined);
+                      setMediaNotice('');
+                      setErrorMsg('');
                     }}
-                    className="text-[#E02424] hover:underline ml-2"
+                    className="text-[#E02424] hover:underline"
                   >
                     重新选择
                   </button>
@@ -237,8 +308,11 @@ export const UploadForm: React.FC<UploadFormProps> = ({ onAddPost, onCancel }) =
                 <p className="text-sm font-semibold text-[#292524]">
                   拖拽或点击上传本地视频 / 照片
                 </p>
-                <p className="text-xs text-[#8C7A6B] mt-1">
-                  支持 MP4, MOV, WEBM 格式视频或 JPG, PNG 图片
+                <p className="text-xs text-[#8C7A6B] mt-1 leading-relaxed">
+                  支持 MP4 / MOV / WEBM 视频或 JPG / PNG 图片
+                  <br className="sm:hidden" />
+                  <span className="hidden sm:inline"> · </span>
+                  手机拍摄建议用 MP4(H.264)，兼容性最好
                 </p>
 
                 <input
@@ -423,7 +497,8 @@ export const UploadForm: React.FC<UploadFormProps> = ({ onAddPost, onCancel }) =
 
           <button
             type="submit"
-            className="px-6 py-2.5 bg-[#FF7E67] hover:bg-[#E65B47] text-white rounded-xl text-xs sm:text-sm font-bold shadow-md hover:shadow-lg transition-all flex items-center gap-1.5 cursor-pointer"
+            disabled={busy}
+            className="px-6 py-2.5 bg-[#FF7E67] hover:bg-[#E65B47] text-white rounded-xl text-xs sm:text-sm font-bold shadow-md hover:shadow-lg transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Sparkles className="w-4 h-4" />
             <span>保存到成长日记</span>
