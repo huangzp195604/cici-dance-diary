@@ -1,4 +1,5 @@
 import { syncRemoveItem, syncSetItem } from '../utils/sync';
+import { compressAvatarFile } from '../utils/imageCompress';
 import React, { useState, useMemo, useEffect } from 'react';
 import { 
   Heart, 
@@ -231,7 +232,7 @@ export const AboutMe: React.FC<AboutMeProps> = ({
     fileInputRef.current?.click();
   };
 
-  const handleAvatarFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleAvatarFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files || e.target.files.length === 0) return;
     const file = e.target.files[0];
 
@@ -255,37 +256,25 @@ export const AboutMe: React.FC<AboutMeProps> = ({
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const result = event.target?.result as string;
-      if (result) {
-        syncSetItem('cici_user_avatar', result);
-        onUpdateAvatar?.(result);
-        setAvatarFeedback({
-          type: 'success',
-          message: '头像更换成功！已全站实时同步',
-        });
-        setTimeout(() => setAvatarFeedback(null), 3000);
-      } else {
-        setAvatarFeedback({
-          type: 'error',
-          message: '读取图片失败，请尝试其他图片',
-        });
-        setTimeout(() => setAvatarFeedback(null), 4000);
-      }
-      if (fileInputRef.current) fileInputRef.current.value = '';
-    };
-
-    reader.onerror = () => {
+    // 压缩后再落盘：原图 base64 可能高达数 MB，会拖垮云端同步
+    try {
+      const result = await compressAvatarFile(file);
+      syncSetItem('cici_user_avatar', result);
+      onUpdateAvatar?.(result);
+      setAvatarFeedback({
+        type: 'success',
+        message: '头像更换成功！已压缩并同步到云端',
+      });
+      setTimeout(() => setAvatarFeedback(null), 3000);
+    } catch {
       setAvatarFeedback({
         type: 'error',
-        message: '读取图片失败，请检查文件权限后重试',
+        message: '图片处理失败，请换一张图片重试',
       });
       setTimeout(() => setAvatarFeedback(null), 4000);
+    } finally {
       if (fileInputRef.current) fileInputRef.current.value = '';
-    };
-
-    reader.readAsDataURL(file);
+    }
   };
 
   // Aggregate stats from posts

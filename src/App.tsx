@@ -21,7 +21,8 @@ import { LoginModal } from './components/LoginModal';
 import { ProfileModal } from './components/ProfileModal';
 import * as forumApi from './services/forumApi';
 import * as userDataApi from './services/userDataApi';
-import { setSyncUser, prepareForUser, pullAllToLocal, queuePush, flush } from './utils/sync';
+import { setSyncUser, prepareForUser, syncAllDomains, queuePush, flush } from './utils/sync';
+import { LogoutConfirmDialog } from './components/LogoutConfirmDialog';
 import type { UserProfile } from './types';
 
 const TAB_KEYS = ['timeline', 'upload', 'buddies', 'growth', 'about'] as const;
@@ -65,6 +66,8 @@ export default function App() {
   const [forumError, setForumError] = useState('');
   const [forumLoading, setForumLoading] = useState(true);
   const [isLoginOpen, setIsLoginOpen] = useState(false);
+  /** 退出登录必须二次确认：手机上退出图标紧挨昵称按钮，误触率很高 */
+  const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false);
   /** 会话恢复兜底定时器到点；为 true 时即使 ready 仍为 false 也要弹登录引导 */
   const [authWaitDone, setAuthWaitDone] = useState(false);
   /** 本次弹窗是否由系统自动打开（会话迟到恢复为已登录时需要自动收起） */
@@ -131,7 +134,9 @@ export default function App() {
       setSyncUser(null);
       setCloudHydrated(false);
       setProfile(null);
+      setIsLogoutConfirmOpen(false);
       sessionStorage.removeItem('cici_sync_reloaded');
+      sessionStorage.removeItem('cici_sync_reload_fp');
       return;
     }
 
@@ -151,8 +156,13 @@ export default function App() {
       }
 
       try {
-        const { changedDomains, data } = await pullAllToLocal();
+        // 双向对账：云端优先拉回本地，同时把「从没上过云」或「离线改得更新」
+        // 的本地域补推到云端，头像 / 自定义标签 / 技能打卡等不会再换设备就丢
+        const { changedDomains, uploadedDomains, data } = await syncAllDomains();
         if (cancelled) return;
+        if (uploadedDomains.length > 0) {
+          console.info('已补齐云端缺失的数据域：', uploadedDomains.join(', '));
+        }
 
         const cloudPosts = data['posts'];
         if (Array.isArray(cloudPosts)) {
@@ -184,12 +194,16 @@ export default function App() {
           setIsProfileOpen(true);
         }
 
-        // 技能打卡 / 关于我 / 头像等从 localStorage 初始化 state，
-        // 云端数据写回本地后需要重载一次才能生效（每个会话只做一次）
-        if (changedDomains.length > 0 && !sessionStorage.getItem('cici_sync_reloaded')) {
-          sessionStorage.setItem('cici_sync_reloaded', '1');
-          window.location.reload();
-          return;
+        // 技能打卡 / 关于我 / 头像等在组件里从 localStorage 初始化 state，
+        // 云端写回本地后要重载一次才能生效。用「用户 + 变更域」指纹防死循环，
+        // 同时允许退出再登录 / 换账号时重新刷新，不再整个会话只 reload 一次。
+        if (changedDomains.length > 0) {
+          const fingerprint = `${user.id}|${[...changedDomains].sort().join(',')}`;
+          if (sessionStorage.getItem('cici_sync_reload_fp') !== fingerprint) {
+            sessionStorage.setItem('cici_sync_reload_fp', fingerprint);
+            window.location.reload();
+            return;
+          }
         }
 
         setUserAvatar(localStorage.getItem('cici_user_avatar') || '/assets/aistudio/image_f83d6670.png');
@@ -326,6 +340,21 @@ export default function App() {
     setIsLoginOpen(true);
     return false;
   };
+
+  /** 二次确认通过后才真正退出；先把待同步的数据冲刷上云，避免退出瞬间丢改动 */
+  const handleConfirmLogout = useCallback(async () => {
+    setIsLogoutConfirmOpen(false);
+    try {
+      await flush();
+      sessionStorage.removeItem('cici_sync_reloaded');
+      sessionStorage.removeItem('cici_sync_reload_fp');
+      await signOut();
+      setToast('已退出登录，本地数据已保留，重新登录同一手机号即可继续同步');
+    } catch (err) {
+      console.warn('退出登录失败', err);
+      setToast('退出失败，请稍后重试');
+    }
+  }, [signOut]);
 
   const refreshForum = async () => {
     try {
@@ -599,12 +628,7 @@ export default function App() {
         userAvatar={userAvatar}
         userName={ready ? (user ? profile?.nickname || displayName(user) : null) : undefined}
         onLogin={() => setIsLoginOpen(true)}
-        onLogout={async () => {
-          await flush();
-          sessionStorage.removeItem('cici_sync_reloaded');
-          await signOut();
-          setToast('已退出登录，本地数据已保留');
-        }}
+        onLogout={() => setIsLogoutConfirmOpen(true)}
         onOpenProfile={() => {
           setProfileRequired(false);
           setIsProfileOpen(true);
@@ -742,6 +766,13 @@ export default function App() {
         onSuccess={() => setToast('✨ 登录成功，欢迎加入舞友论坛！')}
         sendCode={sendCode}
         verifyCode={verifyCode}
+      />
+
+      {/* 6.2 退出登录二次确认：手机上退出图标紧贴昵称按钮，必须确认才放行 */}
+      <LogoutConfirmDialog
+        isOpen={isLogoutConfirmOpen}
+        onCancel={() => setIsLogoutConfirmOpen(false)}
+        onConfirm={handleConfirmLogout}
       />
 
       {/* 6.5 个人资料：昵称 / 性别 / 年龄 */}

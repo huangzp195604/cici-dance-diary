@@ -1,4 +1,5 @@
 import { syncRemoveItem, syncSetItem } from '../utils/sync';
+import { compressAvatarFile } from '../utils/imageCompress';
 import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { 
   Play, 
@@ -206,7 +207,7 @@ export const Timeline: React.FC<TimelineProps> = ({
     fileInputRef.current?.click();
   };
 
-  const handleAvatarFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleAvatarFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     // 1. Scenario: User canceled selection
     if (!e.target.files || e.target.files.length === 0) {
       return;
@@ -236,40 +237,26 @@ export const Timeline: React.FC<TimelineProps> = ({
       return;
     }
 
-    // 3. Scenario: Upload / read failure handling
-    const reader = new FileReader();
-
-    reader.onload = (event) => {
-      const result = event.target?.result as string;
-      if (result) {
-        setAvatar(result);
-        syncSetItem('cici_user_avatar', result);
-        onUpdateAvatar?.(result);
-        setAvatarFeedback({
-          type: 'success',
-          message: '头像更换成功！已同步至你的舞蹈日记',
-        });
-        setTimeout(() => setAvatarFeedback(null), 3000);
-      } else {
-        setAvatarFeedback({
-          type: 'error',
-          message: '读取图片失败，请尝试其他图片',
-        });
-        setTimeout(() => setAvatarFeedback(null), 4000);
-      }
-      if (fileInputRef.current) fileInputRef.current.value = '';
-    };
-
-    reader.onerror = () => {
+    // 3. 压缩后再落盘：原图 base64 可能高达数 MB，会拖垮云端同步
+    try {
+      const result = await compressAvatarFile(file);
+      setAvatar(result);
+      syncSetItem('cici_user_avatar', result);
+      onUpdateAvatar?.(result);
+      setAvatarFeedback({
+        type: 'success',
+        message: '头像更换成功！已压缩并同步到云端',
+      });
+      setTimeout(() => setAvatarFeedback(null), 3000);
+    } catch {
       setAvatarFeedback({
         type: 'error',
-        message: '上传图片失败，请检查文件是否损坏',
+        message: '图片处理失败，请换一张图片重试',
       });
       setTimeout(() => setAvatarFeedback(null), 4000);
+    } finally {
       if (fileInputRef.current) fileInputRef.current.value = '';
-    };
-
-    reader.readAsDataURL(file);
+    }
   };
 
   // Start date state (freely selected and modifiable by user, persistent in localStorage)

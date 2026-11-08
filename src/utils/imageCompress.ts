@@ -33,7 +33,8 @@ function loadImage(src: string): Promise<HTMLImageElement> {
  */
 export async function compressImageFile(
   file: File,
-  maxEdge = DEFAULT_MAX_EDGE
+  maxEdge = DEFAULT_MAX_EDGE,
+  targetBytes = TARGET_BYTES
 ): Promise<string> {
   const original = await readAsDataURL(file);
   const img = await loadImage(original);
@@ -55,11 +56,20 @@ export async function compressImageFile(
 
   let quality = 0.82;
   let out = canvas.toDataURL('image/jpeg', quality);
-  while (out.length > TARGET_BYTES && quality > 0.4) {
+  while (out.length > targetBytes && quality > 0.4) {
     quality -= 0.12;
     out = canvas.toDataURL('image/jpeg', quality);
   }
   return out;
+}
+
+/**
+ * 头像专用：缩到 320px、目标 80KB 以内。
+ * 头像原先直接存 8MB 原图的 base64，单行 jsonb 太大，云端写入容易超时/被拒，
+ * 是「换了设备头像就没了」的第二个原因。
+ */
+export async function compressAvatarFile(file: File): Promise<string> {
+  return compressImageFile(file, 320, 80 * 1024);
 }
 
 export function isImageFile(file: File): boolean {

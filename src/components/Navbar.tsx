@@ -187,9 +187,11 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <span className="truncate">{userName}</span>
               </button>
               <button
+                type="button"
                 onClick={onLogout}
-                title="退出登录"
-                className="flex items-center gap-1 px-2 py-1.5 rounded-full text-xs font-semibold text-[#8C7A6B] hover:bg-[#F7EFE7] transition-colors"
+                title="退出登录（需二次确认）"
+                aria-label="退出登录，需二次确认"
+                className="flex items-center gap-1 ml-0.5 pl-2 border-l border-[#ECE0D3] px-2 py-1.5 rounded-full text-xs font-semibold text-[#8C7A6B] hover:bg-[#F7EFE7] transition-colors cursor-pointer"
               >
                 <LogOut className="w-3.5 h-3.5" />
                 <span className="hidden lg:inline">退出</span>

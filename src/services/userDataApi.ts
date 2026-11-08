@@ -100,6 +100,32 @@ export async function pullUserData(): Promise<Record<string, unknown>> {
   return out;
 }
 
+/**
+ * 拉取私有数据域 + 各域的云端更新时间（毫秒时间戳）。
+ * 登录时用它做「谁更新」对账：本地离线修改比云端新时，以本地为准回写云端，
+ * 避免用户在没登录时改的头像 / 标签被云端旧数据反向覆盖。
+ */
+export async function pullUserDataWithMeta(): Promise<{
+  data: Record<string, unknown>;
+  meta: Record<string, number>;
+}> {
+  let res = await db.from('user_data').select('domain, payload, updated_at');
+  // 兼容极早期建表（没有 updated_at 列）：降级为不带时间，由调用方按「云端权威」处理
+  if (res.error) res = await db.from('user_data').select('domain, payload');
+  if (res.error) throw new Error(errText(res.error));
+
+  const data: Record<string, unknown> = {};
+  const meta: Record<string, number> = {};
+  ((res.data || []) as unknown as { domain: string; payload: unknown; updated_at?: string }[]).forEach(
+    (row) => {
+      data[row.domain] = row.payload;
+      const ts = row.updated_at ? Date.parse(row.updated_at) : NaN;
+      if (Number.isFinite(ts)) meta[row.domain] = ts;
+    }
+  );
+  return { data, meta };
+}
+
 /** 写入单个数据域（存在则覆盖） */
 export async function pushUserData(domain: string, payload: unknown): Promise<void> {
   const row = { payload: payload === undefined ? null : payload, updated_at: new Date().toISOString() };
