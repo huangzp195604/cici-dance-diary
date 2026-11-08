@@ -23,6 +23,7 @@ import * as forumApi from './services/forumApi';
 import * as userDataApi from './services/userDataApi';
 import * as socialApi from './services/socialApi';
 import { setSyncUser, prepareForUser, syncAllDomains, queuePush, flush, syncSetItem } from './utils/sync';
+import { isManualSignOut } from './utils/authSession';
 import { LogoutConfirmDialog } from './components/LogoutConfirmDialog';
 import type { SocialData, UserProfile } from './types';
 import type { SocialActions } from './components/SocialViews';
@@ -104,7 +105,7 @@ export default function App() {
   const [toast, setToast] = useState('');
 
   // 云端登录状态（会话自动恢复）
-  const { user, ready, sendCode, verifyCode, signOut } = useAuth();
+  const { user, ready, authHint, sendCode, verifyCode, signOut } = useAuth();
   const [userAvatar, setUserAvatar] = useState<string | null>(() => {
     return localStorage.getItem('cici_user_avatar') || '/assets/aistudio/image_f83d6670.png';
   });
@@ -475,11 +476,17 @@ export default function App() {
     return () => clearTimeout(t);
   }, [toast]);
 
+  // 会话正在校验 / 会话过期时用轻提示告知，不打断当前操作、不强行弹窗
+  useEffect(() => {
+    if (authHint) setToast(authHint);
+  }, [authHint]);
+
   /**
    * 打开网页时主动引导登录。
    *
    * 真机上"没弹窗"的三个坑，这里逐一规避：
-   * 1. 会话恢复请求被拦截 / 抛错 → ready 迟迟不来：加独立超时兜底，到点就按未登录放行。
+   * 1. 会话恢复请求被拦截 / 抛错 → ready 迟迟不来：加独立超时兜底放行首屏；
+   *    但本地已有会话时绝不抢先判成未登录，避免「每次打开都要重登」。
    * 2. 旧实现用 sessionStorage 且"弹窗打开前"就写标记：只要页面加载过一次，
    *    哪怕弹窗因任何原因没渲染出来，整个会话都不会再弹。改为只有用户明确
    *    点关闭 /「先逛逛」才记一次跳过，并带 6 小时过期（localStorage，跨标签可查）。
@@ -508,6 +515,10 @@ export default function App() {
     }
     if (user) return;
     if (!ready && !authWaitDone) return;
+    // 曾登录设备遇到网络抖动 / 续期暂时失败时，useAuth 会保留已登录态并后台校准，
+    // 此时 user 有值，根本不会走到这里；只有 SDK 明确清除会话后才重新引导登录。
+    // 用户主动登出后也不自动打扰，登录按钮仍常驻，想登再点即可。
+    if (isManualSignOut()) return;
 
     let skippedAt = 0;
     try {
