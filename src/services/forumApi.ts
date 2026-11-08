@@ -209,6 +209,7 @@ export async function fetchForum(currentUser: CloudUser | null): Promise<ForumTh
       return {
         id: String(r.id),
         author: authorOf(r.owner_id, r.owner_name),
+        authorId: r.owner_id,
         authorGender: replyProfile?.gender ?? undefined,
         authorAge: replyProfile?.age ?? undefined,
         avatarBg: avatarFor(authorOf(r.owner_id, r.owner_name)),
@@ -226,6 +227,7 @@ export async function fetchForum(currentUser: CloudUser | null): Promise<ForumTh
       content: t.content || '',
       category: (t.category as ForumThread['category']) || '舞友随笔',
       author,
+      authorId: t.owner_id,
       authorGender: authorProfile?.gender ?? undefined,
       authorAge: authorProfile?.age ?? undefined,
       avatarBg: t.avatar_bg || avatarFor(author),

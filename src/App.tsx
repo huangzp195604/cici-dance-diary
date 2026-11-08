@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useCallback, useState, useEffect, useRef } from 'react';
+import React, { useCallback, useState, useEffect, useRef, useMemo } from 'react';
 import { Navbar } from './components/Navbar';
 import { GrooveMetronome } from './components/GrooveMetronome';
 import { Timeline } from './components/Timeline';
@@ -21,9 +21,11 @@ import { LoginModal } from './components/LoginModal';
 import { ProfileModal } from './components/ProfileModal';
 import * as forumApi from './services/forumApi';
 import * as userDataApi from './services/userDataApi';
+import * as socialApi from './services/socialApi';
 import { setSyncUser, prepareForUser, syncAllDomains, queuePush, flush, syncSetItem } from './utils/sync';
 import { LogoutConfirmDialog } from './components/LogoutConfirmDialog';
-import type { UserProfile } from './types';
+import type { SocialData, UserProfile } from './types';
+import type { SocialActions } from './components/SocialViews';
 
 const TAB_KEYS = ['timeline', 'upload', 'buddies', 'growth', 'about'] as const;
 type TabKey = (typeof TAB_KEYS)[number];
@@ -87,6 +89,11 @@ export default function App() {
   const [selectedPost, setSelectedPost] = useState<DancePost | null>(null);
   const [forumError, setForumError] = useState('');
   const [forumLoading, setForumLoading] = useState(true);
+  /** 好友关系 / 私信 / 会话：只在登录后从云端拉取 */
+  const [social, setSocial] = useState<SocialData | null>(null);
+  const [socialLoading, setSocialLoading] = useState(false);
+  const [socialError, setSocialError] = useState('');
+  const [activeChatPeerId, setActiveChatPeerId] = useState<string | null>(null);
   const [isLoginOpen, setIsLoginOpen] = useState(false);
   /** 退出登录必须二次确认：手机上退出图标紧挨昵称按钮，误触率很高 */
   const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false);
@@ -347,6 +354,119 @@ export default function App() {
       cancelled = true;
     };
   }, [ready, user]);
+
+  // ---- 好友与私信：登录后拉取，停留在论坛页时轻量轮询 ----
+  const refreshSocial = useCallback(async (silent = false) => {
+    if (!user) {
+      setSocial(null);
+      setSocialError('');
+      return;
+    }
+    if (!silent) setSocialLoading(true);
+    try {
+      const data = await socialApi.fetchSocial(user);
+      setSocial(data);
+      setSocialError('');
+    } catch (err: any) {
+      setSocialError(err.message || '好友数据加载失败');
+    } finally {
+      if (!silent) setSocialLoading(false);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (!ready || !user) {
+      setSocial(null);
+      setActiveChatPeerId(null);
+      return;
+    }
+    void refreshSocial();
+    if (activeTab !== 'buddies') return;
+    const timer = window.setInterval(() => void refreshSocial(true), 10000);
+    return () => window.clearInterval(timer);
+  }, [ready, user, refreshSocial, activeTab]);
+
+  /**
+   * 旧版「舞伴名册」并入「线下联系人」：只在本地执行一次，按姓名去重。
+   * 原 buddies 数据不删除（云端仍保留备份），历史记录不会丢。
+   */
+  useEffect(() => {
+    if (!cloudHydrated || buddies.length === 0) return;
+    const KEY = 'cici_contacts_merged_v1';
+    if (localStorage.getItem(KEY)) return;
+    const names = new Set(realFriends.map((f) => f.name.trim().toLowerCase()));
+    const merged: RealFriend[] = buddies
+      .filter((b) => !names.has((b.name || '').trim().toLowerCase()))
+      .map((b) => ({
+        id: `buddy_${b.id}`,
+        name: b.name,
+        contact: '',
+        studio: b.studio || '',
+        danceStyle: b.style || '',
+        notes: b.bio || '',
+        avatarBg: b.avatarBg || 'bg-indigo-100 text-indigo-700',
+        initials: b.initials,
+        stage: b.stage,
+        followersCount: b.followersCount,
+        isFollowed: b.isFollowed,
+        currentPractice: b.currentPractice,
+        status: '空闲',
+        createdAt: b.createdAt,
+        source: 'buddy',
+      }));
+    if (merged.length > 0) {
+      setRealFriends((prev) => [...merged, ...prev]);
+      setToast(`已把 ${merged.length} 位舞伴并入线下联系人`);
+    }
+    try {
+      localStorage.setItem(KEY, '1');
+    } catch {
+      // 隐私模式下无法写入也不阻断
+    }
+  }, [cloudHydrated, buddies, realFriends]);
+
+  const socialActions: SocialActions = useMemo(
+    () => ({
+      onAddFriend: async (peerId: string, note: string) => {
+        if (!user) throw new Error('请先登录');
+        const result = await socialApi.sendFriendRequest(peerId, note, user);
+        setToast(result === 'accepted' ? '已互相加为好友，可以发私信了' : '好友申请已发出，等对方同意');
+        await refreshSocial(true);
+      },
+      onRespond: async (relationId: string, accept: boolean) => {
+        if (!user) throw new Error('请先登录');
+        await socialApi.respondFriendRequest(relationId, accept, user);
+        setToast(accept ? '已成为好友，可以发私信了' : '已拒绝该申请');
+        await refreshSocial(true);
+      },
+      onRemoveFriend: async (relationId: string) => {
+        await socialApi.removeFriendship(relationId);
+        setToast('已删除好友关系');
+        await refreshSocial(true);
+      },
+      onSendMessage: async (peerId: string, content: string) => {
+        if (!user) throw new Error('请先登录');
+        await socialApi.sendDirectMessage(peerId, content, user);
+        await refreshSocial(true);
+      },
+      onMarkRead: (peerId: string) => {
+        if (!user) return;
+        void socialApi
+          .markConversationRead(peerId, user)
+          .then(() => refreshSocial(true))
+          .catch(() => {});
+      },
+      onOpenChat: (peerId: string) => {
+        setActiveChatPeerId(peerId);
+        navigate('buddies');
+      },
+      onRefresh: () => {
+        void refreshSocial();
+      },
+      onLogin: () => setIsLoginOpen(true),
+    }),
+    [user, refreshSocial, navigate]
+  );
 
   // 轻提示（自动消失）
   useEffect(() => {
@@ -792,6 +912,15 @@ export default function App() {
             onUpdateRealFriend={handleUpdateRealFriend}
             onDeleteRealFriend={handleDeleteRealFriend}
             currentUserName={profile?.nickname || user?.name}
+            social={social}
+            socialLoading={socialLoading}
+            socialError={socialError}
+            currentUserId={user?.id}
+            isLoggedIn={!!user}
+            activeChatPeerId={activeChatPeerId}
+            onSelectChat={setActiveChatPeerId}
+            socialActions={socialActions}
+            onLoginRequired={() => setIsLoginOpen(true)}
             />
           </>
         )}

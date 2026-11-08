@@ -89,6 +89,8 @@ export type ForumCategory = '全部' | '舞室约练' | '动作拆解' | '扒舞
 export interface ForumReply {
   id: string;
   author: string;
+  /** 作者云端账号 ID：点头像加好友 / 发私信时需要定位到具体的人 */
+  authorId?: string;
   authorRole?: string;
   authorGender?: Gender;
   authorAge?: number;
@@ -129,6 +131,8 @@ export interface ForumThread {
   content: string;
   category: '舞室约练' | '动作拆解' | '扒舞音乐' | '舞友随笔';
   author: string;
+  /** 作者云端账号 ID：论坛头像资料卡依赖此字段，缺失时头像不可点 */
+  authorId?: string;
   authorRole?: string;
   /** 作者资料（来自 profiles，用于展示性别/年龄） */
   authorGender?: Gender;
@@ -165,5 +169,63 @@ export interface RealFriend {
   age?: number;
   recentTopic?: string;
   createdAt?: string; // 系统自动记录的新增时间 (ISO)
+  /** 以下为「舞伴名册」并入后保留的扩展字段，全部可选，旧数据不受影响 */
+  initials?: string;
+  stage?: DanceStage;
+  followersCount?: number;
+  isFollowed?: boolean;
+  currentPractice?: string;
+  /** 数据来源：manual=现实舞友手动录入，buddy=旧舞伴名册迁移 */
+  source?: 'manual' | 'buddy';
+}
+
+/* ---------------- 好友与私信（云端真实账号关系） ---------------- */
+
+export type FriendshipStatus = 'pending' | 'accepted' | 'declined';
+
+/** 对方的最小公开画像，来自 profiles 表 */
+export interface SocialPeer {
+  id: string;
+  nickname: string;
+  gender?: Gender | null;
+  age?: number | null;
+}
+
+export interface Friendship {
+  id: string;
+  requesterId: string;
+  addresseeId: string;
+  status: FriendshipStatus;
+  note?: string | null;
+  createdAt: string;
+  /** incoming=对方申请加我；outgoing=我申请加对方 */
+  direction: 'incoming' | 'outgoing';
+  peer: SocialPeer;
+}
+
+export interface DirectMessage {
+  id: string;
+  senderId: string;
+  recipientId: string;
+  content: string;
+  createdAt: string;
+  readAt?: string | null;
+}
+
+export interface Conversation {
+  peerId: string;
+  peer: SocialPeer;
+  lastContent: string;
+  lastAt: string;
+  lastFromMe: boolean;
+  unread: number;
+}
+
+/** 一次拉取的社交全量数据：页面自行组装会话、未读与好友状态 */
+export interface SocialData {
+  friendships: Friendship[];
+  messages: DirectMessage[];
+  conversations: Conversation[];
+  profiles: Map<string, SocialPeer>;
 }
 
