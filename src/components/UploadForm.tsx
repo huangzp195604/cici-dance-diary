@@ -20,6 +20,8 @@ import { DancePost, DanceCategory, DanceStage } from '../types';
 interface UploadFormProps {
   onAddPost: (post: DancePost) => void;
   onCancel: () => void;
+  /** 从空状态引导进入时的默认记录方式：text 表示先写一句话，不必先找视频 */
+  initialMode?: 'media' | 'text';
 }
 
 // Preset samples for quick demonstration if user has no file immediately
@@ -59,7 +61,8 @@ const PRESET_SAMPLES = [
   },
 ];
 
-export const UploadForm: React.FC<UploadFormProps> = ({ onAddPost, onCancel }) => {
+export const UploadForm: React.FC<UploadFormProps> = ({ onAddPost, onCancel, initialMode = 'media' }) => {
+  const [entryMode, setEntryMode] = useState<'media' | 'text'>(initialMode);
   const [title, setTitle] = useState('');
   const [date, setDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [mediaType, setMediaType] = useState<'video' | 'image'>('video');
@@ -80,6 +83,9 @@ export const UploadForm: React.FC<UploadFormProps> = ({ onAddPost, onCancel }) =
   const resolved = useResolvedMedia(mediaUrl);
 
   const allCategories: DanceCategory[] = ['Jazz', '韩舞', '编舞', '基础练习', '其他'];
+
+  /** 纯文字模式：新用户不必先找视频，写一句话就能完成第一次记录 */
+  const isTextMode = entryMode === 'text';
 
   const toggleCategory = (cat: DanceCategory) => {
     if (selectedCategories.includes(cat)) {
@@ -174,8 +180,12 @@ export const UploadForm: React.FC<UploadFormProps> = ({ onAddPost, onCancel }) =
       setErrorMsg('请填写作品或打卡标题哦');
       return;
     }
-    if (!mediaUrl.trim() || busy) {
-      setErrorMsg(busy ? '视频还在处理中，请稍等一下再保存' : '请选择一段舞蹈视频或上传照片');
+    if (!isTextMode && (!mediaUrl.trim() || busy)) {
+      setErrorMsg(
+        busy
+          ? '视频还在处理中，请稍等一下再保存'
+          : '请选择一段舞蹈视频或上传照片；如果暂时没有素材，可以切换到「只写文字」。'
+      );
       return;
     }
 
@@ -183,10 +193,10 @@ export const UploadForm: React.FC<UploadFormProps> = ({ onAddPost, onCancel }) =
       id: `post-${Date.now()}`,
       title: title.trim(),
       date,
-      mediaType,
-      mediaUrl: mediaUrl.trim(),
+      mediaType: isTextMode ? 'text' : mediaType,
+      mediaUrl: isTextMode ? '' : mediaUrl.trim(),
       // 视频封面必须是图片，不能把视频地址塞给 <img>（旧实现在这里就裂了）
-      thumbnailUrl: mediaType === 'video' ? posterUrl ?? undefined : undefined,
+      thumbnailUrl: !isTextMode && mediaType === 'video' ? posterUrl ?? undefined : undefined,
       stage,
       categories: selectedCategories,
       notes: notes.trim(),
@@ -195,7 +205,7 @@ export const UploadForm: React.FC<UploadFormProps> = ({ onAddPost, onCancel }) =
       comments: [],
       musicName: musicName.trim() || undefined,
       bpm: bpm || undefined,
-      duration: mediaType === 'video' ? durationText : undefined,
+      duration: !isTextMode && mediaType === 'video' ? durationText : undefined,
     };
 
     onAddPost(newPost);
@@ -233,6 +243,36 @@ export const UploadForm: React.FC<UploadFormProps> = ({ onAddPost, onCancel }) =
         </div>
       </div>
 
+      {/* 记录方式切换：新手不必先找素材，写一句话也能完成第一次记录 */}
+      <div className="flex items-center gap-1.5 p-1 mb-5 bg-[#F6EDE4] rounded-2xl">
+        <button
+          type="button"
+          onClick={() => {
+            setEntryMode('media');
+            setErrorMsg('');
+          }}
+          className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+            !isTextMode ? 'bg-white text-[#C4432E] shadow-2xs' : 'text-[#8C7A6B] hover:bg-white/60'
+          }`}
+        >
+          <Film className="w-3.5 h-3.5" />
+          <span>传视频 / 照片</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setEntryMode('text');
+            setErrorMsg('');
+          }}
+          className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+            isTextMode ? 'bg-white text-[#C4432E] shadow-2xs' : 'text-[#8C7A6B] hover:bg-white/60'
+          }`}
+        >
+          <FileText className="w-3.5 h-3.5" />
+          <span>只写文字（最快）</span>
+        </button>
+      </div>
+
       {errorMsg && (
         <div className="mb-4 p-3 bg-rose-50 border border-rose-200 text-rose-700 rounded-2xl text-xs flex items-start gap-2">
           <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
@@ -250,7 +290,7 @@ export const UploadForm: React.FC<UploadFormProps> = ({ onAddPost, onCancel }) =
       <form onSubmit={handleSubmit} className="bg-white border border-[#EDE0D2] rounded-3xl p-6 sm:p-8 shadow-xs space-y-6">
         
         {/* 1. Media Upload / Preset Selector */}
-        <div>
+        <div className={isTextMode ? 'hidden' : ''}>
           <label className="block text-xs font-bold text-[#574B40] uppercase tracking-wider mb-2">
             1. 舞蹈媒体 (视频 / 图片) *
           </label>
@@ -354,16 +394,27 @@ export const UploadForm: React.FC<UploadFormProps> = ({ onAddPost, onCancel }) =
           </div>
         </div>
 
+        {isTextMode && (
+          <div className="bg-[#FFF9F3] border border-[#F5E6D8] rounded-2xl p-4 text-xs text-[#78695C] leading-relaxed">
+            <span className="font-bold text-[#574B40]">今天先写一句话，也算一次记录。</span>
+            标题写「今天练了什么」，想到什么就写什么；以后想补视频，随时可以再传一条。
+          </div>
+        )}
+
         {/* 2. Title & Date */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div className="sm:col-span-2">
             <label className="block text-xs font-bold text-[#574B40] uppercase tracking-wider mb-1.5">
-              2. 作品标题 *
+              {isTextMode ? '2. 今天练了什么 *' : '2. 作品标题 *'}
             </label>
             <input
               type="text"
               required
-              placeholder="例如：第一次完整跳完一支 Jazz、周二胸腔隔离练习"
+              placeholder={
+                isTextMode
+                  ? '例如：今天练了 40 分钟胸腔隔离，终于能连着做完 8 个八拍'
+                  : '例如：第一次完整跳完一支 Jazz、周二胸腔隔离练习'
+              }
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               className="w-full text-sm px-3.5 py-2.5 rounded-xl border border-[#E3D4C5] focus:outline-none focus:ring-2 focus:ring-[#FF7E67]/50 bg-[#FFFDF9]"
@@ -501,7 +552,7 @@ export const UploadForm: React.FC<UploadFormProps> = ({ onAddPost, onCancel }) =
             className="px-6 py-2.5 bg-[#FF7E67] hover:bg-[#E65B47] text-white rounded-xl text-xs sm:text-sm font-bold shadow-md hover:shadow-lg transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Sparkles className="w-4 h-4" />
-            <span>保存到成长日记</span>
+            <span>{isTextMode ? '保存这条记录' : '保存到成长日记'}</span>
           </button>
         </div>
 

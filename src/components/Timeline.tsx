@@ -113,7 +113,7 @@ interface TimelineProps {
   buddies: DanceBuddy[];
   userAvatar?: string | null;
   onUpdateAvatar?: (avatarUrl: string | null) => void;
-  onOpenUpload: () => void;
+  onOpenUpload: (mode?: 'media' | 'text') => void;
   onOpenBuddies: () => void;
   onSelectMedia: (post: DancePost) => void;
   onToggleLike: (postId: string) => void;
@@ -637,12 +637,12 @@ export const Timeline: React.FC<TimelineProps> = ({
     return counts;
   }, [posts]);
 
-  // Real-time dynamic counts per media type, consolidated under "全部" (All = Videos + Photos)
+  // Real-time dynamic counts per media type; 纯文字记录只计入「全部」
   const mediaCounts = useMemo(() => {
     const video = posts.filter((p) => p.mediaType === 'video').length;
     const image = posts.filter((p) => p.mediaType === 'image').length;
     return {
-      all: video + image, // Consolidated into "All"
+      all: posts.length,
       video,
       image,
     };
@@ -982,6 +982,7 @@ export const Timeline: React.FC<TimelineProps> = ({
       </section>
 
       {/* 2. 筛选 Chips Bar - as sketched in wireframe image_70723755.png */}
+      {posts.length > 0 && (
       <section className="bg-[#FEF6E8] border border-[#FCE6BE] rounded-2xl p-3 sm:p-4 shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-3">
         <div className="flex items-center gap-2 overflow-x-auto pb-1 md:pb-0 scrollbar-none min-w-0 max-w-full">
           <span className="text-xs font-bold text-[#8C6B46] shrink-0 mr-1">舞种筛选:</span>
@@ -1199,10 +1200,12 @@ export const Timeline: React.FC<TimelineProps> = ({
           </button>
         </div>
       </section>
+      )}
 
       {/* 3. 时间线作品流 (Cards Stream) */}
       <section className="space-y-4">
         {/* Dynamic Project Showcase Section Header with Live Category Counts */}
+        {posts.length > 0 && (
         <div className="bg-white border border-[#EFE3D5] rounded-2xl p-3.5 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-xl bg-[#FFF0EB] text-[#E65B47] flex items-center justify-center shrink-0 border border-[#FFDCD3]">
@@ -1247,21 +1250,60 @@ export const Timeline: React.FC<TimelineProps> = ({
             ))}
           </div>
         </div>
+        )}
         {filteredPosts.length === 0 ? (
-          <div className="bg-white border border-[#EFE4D8] rounded-3xl p-10 text-center">
-            <div className="w-12 h-12 mx-auto rounded-full bg-[#FFF4ED] text-[#FF7E67] flex items-center justify-center mb-3">
-              <Film className="w-6 h-6" />
+          <div className="bg-white border border-[#EFE4D8] rounded-3xl p-6 sm:p-10 text-center">
+            <div className="w-14 h-14 mx-auto rounded-2xl bg-[#FFF1E8] text-[#FF7E67] flex items-center justify-center mb-4">
+              <Sparkles className="w-7 h-7" />
             </div>
             {posts.length === 0 ? (
               <>
-                <p className="text-sm font-semibold text-[#5C4D42]">作品展示区还是空的</p>
-                <p className="text-xs text-[#9B897D] mt-1">上传第一个舞蹈作品，它会实时出现在这里。</p>
-                <button
-                  onClick={onOpenUpload}
-                  className="mt-4 px-4 py-1.5 text-xs font-semibold text-white bg-[#FF7E67] rounded-full hover:bg-[#E65B47] transition-all"
-                >
-                  去上传作品
-                </button>
+                <h3 className="text-lg sm:text-xl font-display font-bold text-[#292524] tracking-tight">
+                  从今天开始，记下你的第一支舞
+                </h3>
+                <p className="text-xs sm:text-sm text-[#8C7A6B] mt-2 leading-relaxed">
+                  不用先拍好视频，写一句话也算一次练习。
+                </p>
+
+                <div className="grid grid-cols-3 gap-1.5 sm:gap-2 mt-5 text-left">
+                  {[
+                    { n: '01', t: '选日期舞种', d: '默认今天和 Jazz' },
+                    { n: '02', t: '写一句复盘', d: '想到什么写什么' },
+                    { n: '03', t: '生成成长曲线', d: '之后逐次累加' },
+                  ].map((step) => (
+                    <div
+                      key={step.n}
+                      className="bg-[#FFFBF7] border border-[#F3E7DA] rounded-2xl px-2 py-2 sm:px-3 sm:py-2.5"
+                    >
+                      <span className="font-mono text-[10px] font-bold text-[#C9B7A8]">{step.n}</span>
+                      <p className="text-[11px] sm:text-xs font-semibold text-[#574B40] mt-0.5 leading-tight">
+                        {step.t}
+                      </p>
+                      <p className="text-[10px] sm:text-[11px] text-[#A8988A] mt-1 leading-snug">{step.d}</p>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="mt-5 flex flex-row gap-2 justify-center">
+                  <button
+                    onClick={() => onOpenUpload('text')}
+                    className="flex-1 sm:flex-none min-h-[44px] px-3 sm:px-5 py-2.5 text-[11px] sm:text-sm font-bold text-white bg-[#FF7E67] rounded-full hover:bg-[#E65B47] transition-all shadow-2xs cursor-pointer flex items-center justify-center gap-1.5"
+                  >
+                    <Edit3 className="w-4 h-4 shrink-0" />
+                    <span>先写一句话</span>
+                  </button>
+                  <button
+                    onClick={() => onOpenUpload('media')}
+                    className="flex-1 sm:flex-none min-h-[44px] px-3 sm:px-5 py-2.5 text-[11px] sm:text-sm font-bold text-[#C4432E] bg-[#FFEFE8] border border-[#F8D9C9] rounded-full hover:bg-[#FFE3D6] transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                  >
+                    <Film className="w-4 h-4 shrink-0" />
+                    <span>传视频或照片</span>
+                  </button>
+                </div>
+
+                <p className="text-[11px] text-[#B3A296] mt-2.5">
+                  第一条就是成长曲线的起点，视频之后可补传。
+                </p>
               </>
             ) : (
               <>
@@ -1283,6 +1325,10 @@ export const Timeline: React.FC<TimelineProps> = ({
         ) : (
           filteredPosts.map((post) => {
             const isVideo = post.mediaType === 'video';
+            const isText = post.mediaType === 'text';
+            const openMedia = () => {
+              if (!isText) onSelectMedia(post);
+            };
             const isNoteOpen = expandedNotes[post.id];
             const isCommentBoxOpen = activeCommentPostId === post.id;
 
@@ -1293,7 +1339,8 @@ export const Timeline: React.FC<TimelineProps> = ({
               >
                 <div className="flex flex-col sm:flex-row gap-4 sm:gap-5">
                   
-                  {/* Media Thumbnail / Preview Area */}
+                  {/* Media Thumbnail / Preview Area（纯文字记录不占媒体位） */}
+                  {!isText && (
                   <div
                     onClick={() => onSelectMedia(post)}
                     className={`relative w-full sm:w-56 md:w-64 h-44 sm:h-38 rounded-2xl overflow-hidden cursor-pointer shrink-0 transition-transform group-hover:scale-[1.01] ${
@@ -1356,6 +1403,7 @@ export const Timeline: React.FC<TimelineProps> = ({
                       </div>
                     )}
                   </div>
+                  )}
 
                   {/* Content & Metadata Area */}
                   <div className="flex-1 flex flex-col justify-between">
@@ -1371,12 +1419,20 @@ export const Timeline: React.FC<TimelineProps> = ({
                         </span>
                         <span aria-hidden="true" className="text-[#CDBEB3]">·</span>
                         <span className="text-[#78695C]">{post.categories.join(' / ')}</span>
+                        {isText && (
+                          <>
+                            <span aria-hidden="true" className="text-[#CDBEB3]">·</span>
+                            <span className="font-semibold text-[#FF7E67]">文字记录</span>
+                          </>
+                        )}
                       </div>
 
                       {/* Title */}
                       <h3
-                        onClick={() => onSelectMedia(post)}
-                        className="text-base sm:text-lg font-display font-bold text-[#292524] tracking-tight hover:text-[#E65B47] cursor-pointer transition-colors leading-snug"
+                        onClick={openMedia}
+                        className={`text-base sm:text-lg font-display font-bold text-[#292524] tracking-tight transition-colors leading-snug ${
+                          isText ? '' : 'hover:text-[#E65B47] cursor-pointer'
+                        }`}
                       >
                         {post.title}
                       </h3>
@@ -1522,7 +1578,7 @@ export const Timeline: React.FC<TimelineProps> = ({
       {/* 4. "+ 去上传今天的作品" 快捷入口按钮 - wireframe requirement */}
       <section>
         <button
-          onClick={onOpenUpload}
+          onClick={() => onOpenUpload()}
           className="w-full py-3.5 px-4 bg-[#FFE5EC] hover:bg-[#FFD9E3] text-[#D83A6F] border border-[#FFCCD9] rounded-2xl font-display font-bold text-sm sm:text-base flex items-center justify-center gap-2 shadow-2xs hover:shadow-sm transition-all cursor-pointer"
         >
           <Plus className="w-4 h-4 stroke-[2.5]" />
@@ -1951,6 +2007,8 @@ export const Timeline: React.FC<TimelineProps> = ({
                     alt={postToDelete.title}
                     className="w-full h-full object-cover"
                   />
+                ) : postToDelete.mediaType === 'text' ? (
+                  <Edit3 className="w-5 h-5 text-orange-500" />
                 ) : (
                   <Film className="w-5 h-5 text-orange-500" />
                 )}

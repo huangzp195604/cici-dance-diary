@@ -68,6 +68,8 @@ const readTabFromHash = (): TabKey => {
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<TabKey>(readTabFromHash);
+  /** 上传页默认的记录方式：从空状态引导点「先写一句话」时切到 text */
+  const [uploadMode, setUploadMode] = useState<'media' | 'text'>('media');
 
   // 标签页与 URL hash 双向同步
   const navigate = useCallback((tab: TabKey) => {
@@ -82,6 +84,11 @@ export default function App() {
     window.addEventListener('hashchange', handleHashChange);
     return () => window.removeEventListener('hashchange', handleHashChange);
   }, []);
+
+  // 离开上传页后回到默认「传视频/照片」，避免下次从导航进入时残留文字模式
+  useEffect(() => {
+    if (activeTab !== 'upload') setUploadMode('media');
+  }, [activeTab]);
   const [posts, setPosts] = useState<DancePost[]>([]);
   const [buddies, setBuddies] = useState<DanceBuddy[]>([]);
   const [messages, setMessages] = useState<WallMessage[]>([]);
@@ -519,6 +526,8 @@ export default function App() {
     // 此时 user 有值，根本不会走到这里；只有 SDK 明确清除会话后才重新引导登录。
     // 用户主动登出后也不自动打扰，登录按钮仍常驻，想登再点即可。
     if (isManualSignOut()) return;
+    // 已经在填写上传表单时不要弹窗打断；保存或互动时再按需引导登录
+    if (activeTab === 'upload') return;
 
     let skippedAt = 0;
     try {
@@ -530,7 +539,7 @@ export default function App() {
 
     autoPromptedRef.current = true;
     setIsLoginOpen(true);
-  }, [ready, authWaitDone, user]);
+  }, [ready, authWaitDone, user, activeTab]);
 
   /** 超时兜底先判未登录、会话随后恢复为已登录时，收起自动弹出的登录框 */
   useEffect(() => {
@@ -864,7 +873,10 @@ export default function App() {
             buddies={buddies}
             userAvatar={userAvatar}
             onUpdateAvatar={setUserAvatar}
-            onOpenUpload={() => navigate('upload')}
+            onOpenUpload={(mode) => {
+              setUploadMode(mode ?? 'media');
+              navigate('upload');
+            }}
             onOpenBuddies={() => navigate('buddies')}
             onSelectMedia={(post) => setSelectedPost(post)}
             onToggleLike={handleToggleLike}
@@ -879,6 +891,7 @@ export default function App() {
           <UploadForm
             onAddPost={handleAddPost}
             onCancel={() => navigate('timeline')}
+            initialMode={uploadMode}
           />
         )}
 

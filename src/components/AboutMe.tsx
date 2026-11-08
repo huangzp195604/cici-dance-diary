@@ -303,6 +303,7 @@ export const AboutMe: React.FC<AboutMeProps> = ({
   const totalPosts = posts.length;
   const videoCount = posts.filter((p) => p.mediaType === 'video').length;
   const imageCount = posts.filter((p) => p.mediaType === 'image').length;
+  const textCount = posts.filter((p) => p.mediaType === 'text').length;
   const totalLikes = posts.reduce((sum, p) => sum + p.likes, 0);
 
   // Practice days are persisted and auto-increment from the user-set start date (0 by default)
@@ -571,7 +572,9 @@ export const AboutMe: React.FC<AboutMeProps> = ({
           <span className="font-display font-extrabold text-2xl sm:text-3xl text-[#D97706] mt-1 block">
             {totalPosts} <span className="text-xs font-normal text-[#8C7A6B]">篇</span>
           </span>
-          <span className="text-[11px] text-[#A67E6B] mt-0.5 block">{videoCount} 视频 / {imageCount} 照片</span>
+          <span className="text-[11px] text-[#A67E6B] mt-0.5 block">
+            {videoCount} 视频 / {imageCount} 照片{textCount > 0 ? ` / ${textCount} 文字` : ''}
+          </span>
         </div>
 
         <div className="bg-[#EDE9FE] border border-[#DDD0FA] rounded-3xl p-4 text-center">

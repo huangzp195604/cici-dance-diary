@@ -25,7 +25,8 @@ export interface DancePost {
   id: string;
   title: string;
   date: string; // e.g. "2026-03-12"
-  mediaType: 'video' | 'image';
+  mediaType: 'video' | 'image' | 'text';
+  /** text（纯文字打卡）时为空字符串；视频可能是本地引用或在线地址，图片是压缩后的 dataURL */
   mediaUrl: string;
   thumbnailUrl?: string;
   stage: DanceStage;

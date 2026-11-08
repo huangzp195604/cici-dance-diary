@@ -47,7 +47,7 @@ export const MediaModal: React.FC<MediaModalProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [onClose]);
 
-  if (!post) return null;
+  if (!post || post.mediaType === 'text') return null;
 
   const handleTogglePlay = () => {
     if (!videoRef.current) return;
