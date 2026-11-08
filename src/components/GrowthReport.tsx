@@ -52,6 +52,8 @@ const LEVEL_ACCENT: Record<SkillLevel, string> = {
 interface GrowthReportProps {
   /** 空状态下引导用户去技能树打卡 */
   onGoCheckIn?: () => void;
+  /** 全站统一昵称：导出分享卡时不再写死 Cici */
+  displayNickname?: string;
 }
 
 const SectionCard: React.FC<{
@@ -95,7 +97,7 @@ const StatCard: React.FC<{
   </div>
 );
 
-export const GrowthReport: React.FC<GrowthReportProps> = ({ onGoCheckIn }) => {
+export const GrowthReport: React.FC<GrowthReportProps> = ({ onGoCheckIn, displayNickname }) => {
   const [skills, setSkills] = useState<JazzSkill[]>(loadSkills);
   const [checkIns, setCheckIns] = useState<SkillCheckIn[]>(loadCheckIns);
   const [now, setNow] = useState<Date>(() => new Date());
@@ -175,13 +177,13 @@ export const GrowthReport: React.FC<GrowthReportProps> = ({ onGoCheckIn }) => {
     setExporting(true);
     setExportError('');
     try {
-      await downloadGrowthCard(stats, { name: 'Cici' });
+      await downloadGrowthCard(stats, { name: displayNickname || 'Cici' });
     } catch (error) {
       setExportError(error instanceof Error ? error.message : '分享卡生成失败');
     } finally {
       setExporting(false);
     }
-  }, [stats]);
+  }, [stats, displayNickname]);
 
   const radarData = stats.categoryProgress.map((item) => ({
     category: item.category,

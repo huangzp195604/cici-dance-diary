@@ -121,6 +121,8 @@ interface TimelineProps {
   onDeletePost: (postId: string) => void;
   /** 保存作品标签；失败时抛错，由弹窗展示错误且不关闭 */
   onUpdatePostTags: (postId: string, categories: string[]) => Promise<void>;
+  /** 全站统一昵称：由 App 传入，避免时间线把名字写死导致改名后不同步 */
+  displayNickname?: string;
 }
 
 export const Timeline: React.FC<TimelineProps> = ({
@@ -135,6 +137,7 @@ export const Timeline: React.FC<TimelineProps> = ({
   onAddComment,
   onDeletePost,
   onUpdatePostTags,
+  displayNickname,
 }) => {
   const [selectedCategory, setSelectedCategory] = useState<string>('全部');
   const [selectedStage, setSelectedStage] = useState<string>('全部');
@@ -890,7 +893,7 @@ export const Timeline: React.FC<TimelineProps> = ({
           <div>
             <div className="flex items-center gap-2">
               <h2 className="text-xl sm:text-2xl font-display font-extrabold text-[#292524] tracking-tight">
-                嗨，我是 Cici
+                嗨，我是 {displayNickname || 'Cici'}
               </h2>
               <span className="text-xs bg-[#FFD9D2] text-[#9E3524] px-2 py-0.5 rounded-full font-medium">
                 普通 Jazz 爱好者 · 学习中

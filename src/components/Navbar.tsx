@@ -93,7 +93,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-[#FFE8E0] text-[#FF6B6B] flex items-center justify-center font-bold text-lg shadow-sm border border-[#FFD5C8] overflow-hidden">
             <img
               src={userAvatar || '/assets/aistudio/image_f83d6670.png'}
-              alt="Cici"
+              alt={userName || '我的头像'}
               className="w-full h-full object-cover rounded-full"
               onError={(e) => {
                 (e.currentTarget as HTMLImageElement).src = '/assets/aistudio/image_f83d6670.png';

@@ -9,7 +9,7 @@ import { GrooveMetronome } from './components/GrooveMetronome';
 import { Timeline } from './components/Timeline';
 import { UploadForm } from './components/UploadForm';
 import { DanceBuddies } from './components/DanceBuddies';
-import { AboutMe } from './components/AboutMe';
+import { AboutMe, DEFAULT_ABOUT_PROFILE } from './components/AboutMe';
 import { GrowthReport } from './components/GrowthReport';
 import { MediaModal } from './components/MediaModal';
 import { DancePost, DanceBuddy, WallMessage, ForumThread, RealFriend } from './types';
@@ -21,7 +21,7 @@ import { LoginModal } from './components/LoginModal';
 import { ProfileModal } from './components/ProfileModal';
 import * as forumApi from './services/forumApi';
 import * as userDataApi from './services/userDataApi';
-import { setSyncUser, prepareForUser, syncAllDomains, queuePush, flush } from './utils/sync';
+import { setSyncUser, prepareForUser, syncAllDomains, queuePush, flush, syncSetItem } from './utils/sync';
 import { LogoutConfirmDialog } from './components/LogoutConfirmDialog';
 import type { UserProfile } from './types';
 
@@ -30,6 +30,28 @@ type TabKey = (typeof TAB_KEYS)[number];
 
 /** 用户主动跳过登录后，6 小时内不再自动打扰；换 key 让旧的 sessionStorage 标记失效 */
 const LOGIN_SKIP_KEY = 'cici_login_skipped_at_v2';
+
+/**
+ * 把昵称写进本地「关于我」域。
+ * 保留 roleStage / bioText / habitTags 等其余字段，只覆盖 nickname；
+ * syncSetItem 会顺带把 about 域推上云，未登录时也能先落地、登录后由对账补推。
+ */
+function writeAboutNickname(name: string): void {
+  try {
+    const raw = localStorage.getItem('cici_about_profile');
+    const parsed = raw ? JSON.parse(raw) : null;
+    syncSetItem(
+      'cici_about_profile',
+      JSON.stringify({
+        ...DEFAULT_ABOUT_PROFILE,
+        ...(parsed && typeof parsed === 'object' ? parsed : {}),
+        nickname: name,
+      })
+    );
+  } catch {
+    // 本地存储不可用时也不阻断改名
+  }
+}
 const LOGIN_SKIP_WINDOW_MS = 6 * 60 * 60 * 1000;
 /** 会话恢复异常时，最多再等这么久就无条件放行首屏登录引导 */
 const AUTH_FALLBACK_MS = 3000;
@@ -83,6 +105,51 @@ export default function App() {
   // 个人资料（昵称/性别/年龄）与同步状态
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+
+  /**
+   * 昵称唯一权威源：登录后以云端 profiles.nickname 为准，未登录回退本地「关于我」。
+   * 时间线、关于我、成长报告、导航栏、论坛都读这一个值，避免「同一个人三个名字」。
+   */
+  const [localNickname, setLocalNickname] = useState<string>(() => {
+    try {
+      const raw = localStorage.getItem('cici_about_profile');
+      const parsed = raw ? JSON.parse(raw) : null;
+      return typeof parsed?.nickname === 'string' && parsed.nickname.trim()
+        ? parsed.nickname
+        : DEFAULT_ABOUT_PROFILE.nickname;
+    } catch {
+      return DEFAULT_ABOUT_PROFILE.nickname;
+    }
+  });
+  const displayNickname = profile?.nickname || localNickname;
+
+  /** 「关于我」里改昵称：本机即时生效，已登录则同步写云端 profiles 供跨设备使用 */
+  const handleNicknameChange = useCallback(
+    async (name: string) => {
+      const trimmed = name.trim();
+      if (!trimmed) return;
+      setLocalNickname(trimmed);
+      writeAboutNickname(trimmed);
+      if (!user) return;
+      // 乐观更新：离线 / 云端写入失败时也先让全站显示新名字，不卡住界面
+      setProfile((prev) => ({
+        user_id: user.id,
+        nickname: trimmed,
+        gender: prev?.gender ?? null,
+        age: prev?.age ?? null,
+      }));
+      try {
+        await userDataApi.saveProfile(user.id, {
+          nickname: trimmed,
+          gender: profile?.gender ?? null,
+          age: profile?.age ?? null,
+        });
+      } catch {
+        setToast('昵称已在本机更新，云端同步失败，请稍后重试');
+      }
+    },
+    [user, profile]
+  );
   const [profileRequired, setProfileRequired] = useState(false);
   /** 云端数据拉取完成前不允许反向推送，否则会用旧本地数据覆盖云端 */
   const [cloudHydrated, setCloudHydrated] = useState(false);
@@ -189,7 +256,19 @@ export default function App() {
         const loadedProfile = await userDataApi.fetchProfile(user.id);
         if (cancelled) return;
         setProfile(loadedProfile);
-        if (!loadedProfile?.nickname) {
+        if (loadedProfile?.nickname) {
+          setLocalNickname(loadedProfile.nickname);
+          // 账号昵称是权威：换设备登录后，把本地「关于我」里的旧昵称一起校正并推上云
+          try {
+            const raw = localStorage.getItem('cici_about_profile');
+            const parsed = raw ? JSON.parse(raw) : null;
+            if (!parsed || parsed.nickname !== loadedProfile.nickname) {
+              writeAboutNickname(loadedProfile.nickname);
+            }
+          } catch {
+            writeAboutNickname(loadedProfile.nickname);
+          }
+        } else {
           setProfileRequired(true);
           setIsProfileOpen(true);
         }
@@ -430,7 +509,7 @@ export default function App() {
 
     const newComment = {
       id: `c-${Date.now()}`,
-      author: 'Cici (普通爱好者)',
+      author: displayNickname,
       avatarBg: 'bg-[#FFE4D4] text-[#E65B47]',
       content: commentText,
       createdAt: '刚刚',
@@ -501,7 +580,7 @@ export default function App() {
 
     const newReply = {
       id: `r-${Date.now()}`,
-      author: 'Cici (普通爱好者)',
+      author: displayNickname,
       content: replyText,
       createdAt: '刚刚',
     };
@@ -661,6 +740,7 @@ export default function App() {
             onAddComment={handleAddComment}
             onDeletePost={handleDeletePost}
             onUpdatePostTags={handleUpdatePostTags}
+            displayNickname={displayNickname}
           />
         )}
 
@@ -717,7 +797,7 @@ export default function App() {
         )}
 
         {activeTab === 'growth' && (
-          <GrowthReport onGoCheckIn={() => navigate('about')} />
+          <GrowthReport onGoCheckIn={() => navigate('about')} displayNickname={displayNickname} />
         )}
 
         {activeTab === 'about' && (
@@ -725,6 +805,8 @@ export default function App() {
             posts={posts}
             userAvatar={userAvatar}
             onUpdateAvatar={setUserAvatar}
+            displayNickname={displayNickname}
+            onNicknameChange={handleNicknameChange}
           />
         )}
       </main>
@@ -785,8 +867,12 @@ export default function App() {
           required={profileRequired}
           onSaved={async (saved) => {
             setProfile(saved);
+            const savedName = saved.nickname?.trim() || DEFAULT_ABOUT_PROFILE.nickname;
+            setLocalNickname(savedName);
+            // 个人资料改名后，时间线 / 关于我 / 成长报告必须立刻跟着变，并随 about 域上云
+            writeAboutNickname(savedName);
             setProfileRequired(false);
-            setToast(`资料已保存，舞友们会看到「${saved.nickname}」`);
+            setToast(`资料已保存，全站昵称已更新为「${savedName}」`);
             await refreshForum();
           }}
         />

@@ -133,13 +133,20 @@ interface AboutMeProps {
   posts: DancePost[];
   userAvatar?: string | null;
   onUpdateAvatar?: (avatarUrl: string | null) => void;
+  /** 全站统一昵称（账号资料为准）；传入后「关于我」不再读自己那份旧昵称 */
+  displayNickname?: string;
+  /** 在「关于我」里改昵称时，同时写云端账号资料，保证跨设备与全站一致 */
+  onNicknameChange?: (name: string) => void | Promise<void>;
 }
 
 export const AboutMe: React.FC<AboutMeProps> = ({
   posts,
   userAvatar,
   onUpdateAvatar,
+  displayNickname,
+  onNicknameChange,
 }) => {
+  const shownNickname = displayNickname || DEFAULT_ABOUT_PROFILE.nickname;
   const DEFAULT_CICI_AVATAR = '/assets/aistudio/image_f83d6670.png';
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const [avatarFeedback, setAvatarFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
@@ -160,6 +167,13 @@ export const AboutMe: React.FC<AboutMeProps> = ({
     return DEFAULT_ABOUT_PROFILE;
   });
 
+  // 账号昵称（云端）变化时，让本地资料 state 与编辑弹窗默认值一起跟上
+  useEffect(() => {
+    if (displayNickname && displayNickname !== profile.nickname) {
+      setProfile((prev) => ({ ...prev, nickname: displayNickname }));
+    }
+  }, [displayNickname, profile.nickname]);
+
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editNickname, setEditNickname] = useState(profile.nickname);
   const [editRoleStage, setEditRoleStage] = useState(profile.roleStage);
@@ -172,7 +186,7 @@ export const AboutMe: React.FC<AboutMeProps> = ({
   const [expandedStage, setExpandedStage] = useState<'入门' | '进阶' | '挑战' | null>(null);
 
   const handleOpenEditModal = () => {
-    setEditNickname(profile.nickname);
+    setEditNickname(shownNickname);
     setEditRoleStage(profile.roleStage);
     setEditBioText(profile.bioText);
     setEditHabitTags([...profile.habitTags]);
@@ -189,8 +203,12 @@ export const AboutMe: React.FC<AboutMeProps> = ({
     };
     setProfile(updated);
     syncSetItem('cici_about_profile', JSON.stringify(updated));
+    // 昵称写回账号资料（云端）+ 本地 about 域，时间线 / 导航栏 / 论坛 / 换设备同步一致
+    if (onNicknameChange && updated.nickname !== shownNickname) {
+      void onNicknameChange(updated.nickname);
+    }
     setIsEditModalOpen(false);
-    setProfileToast('个人资料已成功保存并即时更新！');
+    setProfileToast('个人资料已保存，昵称已同步到全站与云端！');
     setTimeout(() => setProfileToast(null), 3500);
   };
 
@@ -201,6 +219,10 @@ export const AboutMe: React.FC<AboutMeProps> = ({
     setEditRoleStage(DEFAULT_ABOUT_PROFILE.roleStage);
     setEditBioText(DEFAULT_ABOUT_PROFILE.bioText);
     setEditHabitTags([...DEFAULT_ABOUT_PROFILE.habitTags]);
+    // 恢复默认时账号昵称也要一起回退，否则关于我与导航栏又会显示两个名字
+    if (onNicknameChange) {
+      void onNicknameChange(DEFAULT_ABOUT_PROFILE.nickname);
+    }
     setProfileToast('已恢复为初始默认个人信息！');
     setTimeout(() => setProfileToast(null), 3000);
   };
@@ -490,7 +512,7 @@ export const AboutMe: React.FC<AboutMeProps> = ({
             {/* Top row: Name & Stage & Edit button */}
             <div className="flex flex-wrap items-center justify-center md:justify-start gap-2">
               <h2 className="text-2xl font-display font-black text-[#292524] tracking-tight">
-                {profile.nickname}
+                {shownNickname}
               </h2>
               <span className="text-xs bg-[#FFEFE8] text-[#C4432E] px-3 py-1 rounded-full font-bold border border-[#FFD8CB]">
                 {profile.roleStage}
