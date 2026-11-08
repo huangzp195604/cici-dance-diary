@@ -190,9 +190,10 @@ export const Timeline: React.FC<TimelineProps> = ({
   };
 
   // Avatar state and error/success feedback
-  const DEFAULT_CICI_AVATAR = '/assets/aistudio/image_f83d6670.png';
+  /** 没有自定义头像时的占位走昵称首字，不再引用不存在的图片（会 404 出破图） */
+  const DEFAULT_AVATAR = '';
   const [avatar, setAvatar] = useState<string>(() => {
-    return userAvatar || localStorage.getItem('cici_user_avatar') || DEFAULT_CICI_AVATAR;
+    return userAvatar || localStorage.getItem('cici_user_avatar') || DEFAULT_AVATAR;
   });
   const [avatarFeedback, setAvatarFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -204,7 +205,7 @@ export const Timeline: React.FC<TimelineProps> = ({
     }
   }, [userAvatar]);
 
-  const activeAvatar = avatar || userAvatar || (typeof window !== 'undefined' ? localStorage.getItem('cici_user_avatar') : null) || DEFAULT_CICI_AVATAR;
+  const activeAvatar = avatar || userAvatar || (typeof window !== 'undefined' ? localStorage.getItem('cici_user_avatar') : null) || DEFAULT_AVATAR;
 
   const handleAvatarClick = () => {
     fileInputRef.current?.click();
@@ -843,7 +844,7 @@ export const Timeline: React.FC<TimelineProps> = ({
         </div>
       )}
 
-      {/* 1. Cici 形象卡 (Hi, I'm Cici!) - as sketched in wireframe image_70723755.png */}
+      {/* 1. 个人形象卡（跟随账号昵称） */}
       <section className="bg-[#FFEFEF] border border-[#FFDCD8] rounded-3xl p-5 sm:p-6 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-all">
         <div className="flex items-center gap-4">
           <div
@@ -860,14 +861,21 @@ export const Timeline: React.FC<TimelineProps> = ({
             title="点击更换个人头像 (支持拍照或从相册选择)"
             className="relative group cursor-pointer w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-[#FFD7CE] text-[#E0523D] border-2 border-[#FFC2B5] hover:border-[#FF7E67] flex items-center justify-center font-display font-black text-2xl shadow-inner shrink-0 transition-all duration-200 hover:scale-105 active:scale-95 hover:shadow-md ring-2 ring-transparent hover:ring-[#FF7E67]/40 overflow-hidden"
           >
-            <img
-              src={activeAvatar}
-              alt="Cici 头像"
-              className="w-full h-full object-cover rounded-full"
-              onError={(e) => {
-                (e.currentTarget as HTMLImageElement).src = DEFAULT_CICI_AVATAR;
-              }}
-            />
+            {activeAvatar ? (
+              <img
+                src={activeAvatar}
+                alt="我的头像"
+                className="w-full h-full object-cover rounded-full"
+                onError={(e) => {
+                  // 头像失效就退回首字占位，避免出现破图
+                  e.currentTarget.style.display = 'none';
+                }}
+              />
+            ) : (
+              <span aria-hidden="true" className="font-display font-black text-2xl select-none">
+                {Array.from(displayNickname || '舞')[0]}
+              </span>
+            )}
 
             {/* Hover Camera Overlay */}
             <div className="absolute inset-0 bg-black/45 rounded-full flex flex-col items-center justify-center text-white opacity-0 group-hover:opacity-100 group-focus:opacity-100 transition-opacity backdrop-blur-2xs">
@@ -891,12 +899,12 @@ export const Timeline: React.FC<TimelineProps> = ({
             />
           </div>
           <div>
-            <div className="flex items-center gap-2">
-              <h2 className="text-xl sm:text-2xl font-display font-extrabold text-[#292524] tracking-tight">
-                嗨，我是 {displayNickname || 'Cici'}
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+              <h2 className="text-xl sm:text-2xl font-display font-extrabold text-[#292524] tracking-tight break-words line-clamp-2 max-w-full">
+                嗨，我是 {displayNickname || '舞者'}
               </h2>
-              <span className="text-xs bg-[#FFD9D2] text-[#9E3524] px-2 py-0.5 rounded-full font-medium">
-                普通 Jazz 爱好者 · 学习中
+              <span className="shrink-0 whitespace-nowrap text-xs bg-[#FFD9D2] text-[#9E3524] px-2 py-0.5 rounded-full font-medium">
+                舞蹈爱好者 · 学习中
               </span>
             </div>
             {/* Clean unboxed metadata with dot separators */}
@@ -1267,7 +1275,7 @@ export const Timeline: React.FC<TimelineProps> = ({
 
                 <div className="grid grid-cols-3 gap-1.5 sm:gap-2 mt-5 text-left">
                   {[
-                    { n: '01', t: '选日期舞种', d: '默认今天和 Jazz' },
+                    { n: '01', t: '选日期舞种', d: '默认今天，可随时改' },
                     { n: '02', t: '写一句复盘', d: '想到什么写什么' },
                     { n: '03', t: '生成成长曲线', d: '之后逐次累加' },
                   ].map((step) => (
@@ -1539,7 +1547,7 @@ export const Timeline: React.FC<TimelineProps> = ({
                           <div key={c.id} className="text-xs bg-white p-2 rounded-xl border border-[#F0E4D8]">
                             <div className="flex items-center justify-between mb-0.5">
                               <span className="font-semibold text-[#3D3126]">
-                                {c.author} {c.isOwner && <span className="text-[10px] text-[#FF6B6B] font-normal">(Cici)</span>}
+                                {c.author} {c.isOwner && <span className="text-[10px] text-[#FF6B6B] font-normal">(作者)</span>}
                               </span>
                               <span className="text-[10px] text-[#A8988A]">{c.createdAt}</span>
                             </div>
@@ -1552,7 +1560,7 @@ export const Timeline: React.FC<TimelineProps> = ({
                     <form onSubmit={(e) => handleInlineComment(post.id, e)} className="flex gap-2">
                       <input
                         type="text"
-                        placeholder="给 Cici 留一句鼓励或练舞心得..."
+                        placeholder="留一句鼓励或练舞心得..."
                         value={commentInput}
                         onChange={(e) => setCommentInput(e.target.value)}
                         className="flex-1 text-xs px-3 py-1.5 rounded-xl border border-[#E8DACB] bg-white focus:outline-none focus:ring-2 focus:ring-[#FF7E67]/50"

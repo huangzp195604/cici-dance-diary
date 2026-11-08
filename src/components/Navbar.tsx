@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Calendar, UploadCloud, Users, Sparkles, Volume2, VolumeX, Download, LogIn, LogOut, UserCircle2, LineChart, ChevronRight } from 'lucide-react';
+import { brandTitle, brandInitial } from '../utils/brand';
 
 interface NavbarProps {
   activeTab: 'timeline' | 'upload' | 'buddies' | 'growth' | 'about';
@@ -10,6 +11,8 @@ interface NavbarProps {
   userAvatar?: string | null;
   /** undefined=会话恢复中；null=未登录；有值=已登录昵称 */
   userName?: string | null;
+  /** 品牌标题用的昵称：与「关于我」等页面同源，避免手机号脱敏名跑进站名 */
+  brandName?: string | null;
   onLogin: () => void;
   onLogout: () => void;
   /** 打开个人资料弹窗（昵称 / 性别 / 年龄） */
@@ -33,6 +36,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   metronomeBeat,
   userAvatar,
   userName,
+  brandName,
   onLogin,
   onLogout,
   onOpenProfile,
@@ -42,6 +46,9 @@ export const Navbar: React.FC<NavbarProps> = ({
   const [narrow, setNarrow] = useState(() => typeof window !== 'undefined' && window.innerWidth < 350);
   /** 仅当导航确实可横向滚动、且尚未滑到末尾时，才显示右缘箭头 */
   const [showMoreHint, setShowMoreHint] = useState(false);
+
+  // 站名跟随账号昵称：未登录 / 未设昵称 → 「你的舞蹈成长日记」
+  const brandText = brandTitle(brandName ?? userName);
 
   useEffect(() => {
     const onResize = () => setNarrow(window.innerWidth < 350);
@@ -91,21 +98,28 @@ export const Navbar: React.FC<NavbarProps> = ({
         {/* Zone 1: wordmark */}
         <div className="flex items-center gap-2 shrink-0 order-1 cursor-pointer" onClick={() => setActiveTab('timeline')}>
           <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-[#FFE8E0] text-[#FF6B6B] flex items-center justify-center font-bold text-lg shadow-sm border border-[#FFD5C8] overflow-hidden">
-            <img
-              src={userAvatar || '/assets/aistudio/image_f83d6670.png'}
-              alt={userName || '我的头像'}
-              className="w-full h-full object-cover rounded-full"
-              onError={(e) => {
-                (e.currentTarget as HTMLImageElement).src = '/assets/aistudio/image_f83d6670.png';
-              }}
-            />
+            {userAvatar ? (
+              <img
+                src={userAvatar}
+                alt={userName || '我的头像'}
+                className="w-full h-full object-cover rounded-full"
+                onError={(e) => {
+                  e.currentTarget.style.display = 'none';
+                }}
+              />
+            ) : (
+              <span aria-hidden="true" className="select-none">{brandInitial(brandText)}</span>
+            )}
           </div>
-          <div className="flex flex-col min-w-0">
-            <span className="font-display font-extrabold text-base sm:text-lg tracking-tight text-[#292524] whitespace-nowrap">
-              Cici&apos;s Jazz Diary
+          <div className="flex flex-col min-w-0 max-w-[150px] sm:max-w-[280px]">
+            <span
+              className="font-display font-extrabold text-base sm:text-lg tracking-tight text-[#292524] truncate"
+              title={brandText}
+            >
+              {brandText}
             </span>
-            <span className="hidden sm:block text-[11px] text-[#8C7A6B] -mt-0.5 tracking-wider font-medium whitespace-nowrap">
-              普通爱好者的跳舞小角落
+            <span className="hidden sm:block text-[11px] text-[#8C7A6B] -mt-0.5 tracking-wider font-medium truncate">
+              记录每一次练舞与成长
             </span>
           </div>
         </div>
@@ -222,7 +236,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           <button
             onClick={toggleMetronome}
-            title={metronomeActive ? '暂停 Jazz 8-Count 节拍器' : '开启 Jazz 8-Count 节拍器'}
+            title={metronomeActive ? '暂停 8-Count 练舞节拍器' : '开启 8-Count 练舞节拍器'}
             className={`flex items-center gap-1 px-2 sm:px-3 py-1.5 rounded-full text-xs font-semibold transition-all shadow-sm border whitespace-nowrap cursor-pointer ${
               metronomeActive
                 ? 'bg-[#FF7E67] text-white border-[#FF6B6B] ring-2 ring-[#FF7E67]/20 shadow-md'

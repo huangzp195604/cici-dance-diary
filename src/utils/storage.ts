@@ -329,7 +329,8 @@ class StorageManager {
             meetup: {
               ...t.meetup,
               joinedBuddies: newJoined,
-              isJoined: newJoined.includes('Cici'),
+              // 删除的是通讯录联系人，不应影响「我」自己的参加状态
+              isJoined: t.meetup.isJoined,
             },
           };
         }

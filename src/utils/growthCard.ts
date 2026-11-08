@@ -92,7 +92,7 @@ export async function downloadGrowthCard(
 
   ctx.fillStyle = '#292524';
   ctx.font = `bold 62px ${FONT_STACK}`;
-  ctx.fillText('我的爵士舞成长报告', 64, 178);
+  ctx.fillText('我的舞蹈成长报告', 64, 178);
 
   ctx.fillStyle = '#8C7A6B';
   ctx.font = `500 26px ${FONT_STACK}`;
@@ -170,7 +170,7 @@ export async function downloadGrowthCard(
   // 页脚
   ctx.fillStyle = '#C4B2A3';
   ctx.font = `500 22px ${FONT_STACK}`;
-  ctx.fillText("Cici's Jazz Diary · 每一次练习都算数", 64, H - 48);
+  ctx.fillText('舞蹈成长日记 · 每一次练习都算数', 64, H - 48);
 
   const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'));
   if (!blob) throw new Error('图片生成失败');

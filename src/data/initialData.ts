@@ -38,7 +38,7 @@ export const LEGACY_DEMO_POSTS: DancePost[] = [
       },
       {
         id: 'c-3',
-        author: 'Cici',
+        author: '小满',
         avatarBg: 'bg-orange-100 text-orange-700',
         content: '谢谢大家打气！其实下半身重心还在漂，一起加油！🥰',
         createdAt: '2026-03-12 22:05',
@@ -146,7 +146,7 @@ export const LEGACY_DEMO_POSTS: DancePost[] = [
         id: 'c-8',
         author: '小桃_JazzChore',
         avatarBg: 'bg-rose-100 text-rose-700',
-        content: '太美了Cici！气场两米八！穿高跟能把重心立起来很不容易的',
+        content: '太美了小满！气场两米八！穿高跟能把重心立起来很不容易的',
         createdAt: '2026-01-08 21:05',
       },
     ],
@@ -278,7 +278,7 @@ export const LEGACY_DEMO_MESSAGES: WallMessage[] = [
     replies: [
       {
         id: 'r-1',
-        author: 'Cici',
+        author: '小满',
         content: '我这周六正好空！下午2点可以吗？我带上我的广角镜头帮你拍！',
         createdAt: '1小时前',
       },
@@ -405,16 +405,16 @@ export const LEGACY_DEMO_THREADS: import('../types').ForumThread[] = [
       studio: '星光舞蹈工作室 (静安店 2号大教室)',
       date: '本周六 14:00-16:00',
       targetCount: 4,
-      joinedBuddies: ['小桃_JazzChore', 'Cici'],
+      joinedBuddies: ['小桃_JazzChore', '小满'],
       isJoined: true,
       costNote: '场地费平摊，人均约 35 元 / 2 小时',
     },
-    content: '已经订好周六下午 2 点到 4 点的星光静安店 2 号大教室（带落地大镜子与蓝牙专业音响）。前半小时大家一起跟着 8-Count 节拍器做胸部Roll、头肩隔离基础热身，后一个半小时各练各的或互相用三脚架录视频复盘！目前我和 Cici 已经确认加入，还差 2 位喜欢 Jazz 的姐妹一起拼场～',
+    content: '已经订好周六下午 2 点到 4 点的星光静安店 2 号大教室（带落地大镜子与蓝牙专业音响）。前半小时大家一起跟着 8-Count 节拍器做胸部Roll、头肩隔离基础热身，后一个半小时各练各的或互相用三脚架录视频复盘！目前我和 小满 已经确认加入，还差 2 位喜欢 Jazz 的姐妹一起拼场～',
     replies: [
       {
         id: 'rep-1',
-        author: 'Cici',
-        authorRole: '楼主伙伴 (Cici)',
+        author: '小满',
+        authorRole: '楼主伙伴 (小满)',
         avatarBg: 'bg-orange-100 text-orange-700',
         content: '我这周六带上广角补光支架和充电宝，到时候帮大家多角度录成片复盘！👯',
         createdAt: '1小时前',
@@ -446,7 +446,7 @@ export const LEGACY_DEMO_THREADS: import('../types').ForumThread[] = [
     isLiked: true,
     views: 142,
     tags: ['胸部Roll', '隔离基础', '动作纠错'],
-    content: '每次老师喊 5-6-7-8 转到侧面和后方的时候，我总觉得自己是在拿脖子去使劲甩，第二天斜方肌酸痛得不行。看 Cici 和阿澈的练习视频感觉动作为什么那么松弛舒展？求问各位同好平时自己在家练习有什么关键发力点吗？',
+    content: '每次老师喊 5-6-7-8 转到侧面和后方的时候，我总觉得自己是在拿脖子去使劲甩，第二天斜方肌酸痛得不行。看 小满 和阿澈的练习视频感觉动作为什么那么松弛舒展？求问各位同好平时自己在家练习有什么关键发力点吗？',
     replies: [
       {
         id: 'rep-3',
@@ -460,8 +460,8 @@ export const LEGACY_DEMO_THREADS: import('../types').ForumThread[] = [
       },
       {
         id: 'rep-4',
-        author: 'Cici',
-        authorRole: 'Cici',
+        author: '小满',
+        authorRole: '小满',
         avatarBg: 'bg-orange-100 text-orange-700',
         content: 'Kiki 加油！我前两周也死磕这个，后来发现在网站里把节拍器开到 80 BPM 慢速走，吸气顶胸、吐气含胸，顺着呼吸练比硬使劲有效果得多！',
         createdAt: '昨天 21:30',
@@ -501,8 +501,8 @@ export const LEGACY_DEMO_THREADS: import('../types').ForumThread[] = [
     id: 'thread-4',
     title: '【舞后随笔】业余打工人学舞记：不用和任何人比较，能在镜子前大笑流汗就很酷',
     category: '舞友随笔',
-    author: 'Cici',
-    authorRole: '发起人 (Cici)',
+    author: '小满',
+    authorRole: '发起人 (小满)',
     avatarBg: 'bg-orange-100 text-orange-700',
     createdAt: '5天前',
     likes: 36,

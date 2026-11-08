@@ -177,7 +177,7 @@ export const GrowthReport: React.FC<GrowthReportProps> = ({ onGoCheckIn, display
     setExporting(true);
     setExportError('');
     try {
-      await downloadGrowthCard(stats, { name: displayNickname || 'Cici' });
+      await downloadGrowthCard(stats, { name: displayNickname || '舞者' });
     } catch (error) {
       setExportError(error instanceof Error ? error.message : '分享卡生成失败');
     } finally {
@@ -217,7 +217,7 @@ export const GrowthReport: React.FC<GrowthReportProps> = ({ onGoCheckIn, display
             <span className="text-[11px] font-semibold text-[#B8A697]">实时派生 · 不存统计字段</span>
           </div>
           <h1 className="font-display text-2xl sm:text-3xl font-extrabold text-[#292524] tracking-tight">
-            我的爵士舞成长报告
+            我的舞蹈成长报告
           </h1>
           <p className="text-sm text-[#8C7A6B] mt-2">
             从每一次技能打卡里长出来的数字。

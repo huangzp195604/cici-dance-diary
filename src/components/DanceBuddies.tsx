@@ -138,6 +138,8 @@ export const DanceBuddies: React.FC<DanceBuddiesProps> = ({
   socialActions = NOOP_SOCIAL_ACTIONS,
   onLoginRequired,
 }) => {
+  /** 当前用户在本站的展示名：发帖作者、约练发起人、空间主人等处统一用它，不再写死人名 */
+  const selfName = (currentUserName || '').trim() || '我';
   const [activeTab, setActiveTab] = useState<'forum' | 'friends' | 'messages'>('forum');
   /** 论坛点头像打开的用户资料卡 */
   const [userCard, setUserCard] = useState<{ id: string; name: string; avatarBg: string } | null>(null);
@@ -199,7 +201,7 @@ export const DanceBuddies: React.FC<DanceBuddiesProps> = ({
   const [newFriendName, setNewFriendName] = useState('');
   const [newFriendContact, setNewFriendContact] = useState('');
   const [newFriendStudio, setNewFriendStudio] = useState('星光舞蹈工作室 (静安)');
-  const [newFriendStyle, setNewFriendStyle] = useState('Jazz Funk · 基础班');
+  const [newFriendStyle, setNewFriendStyle] = useState('基础班 · 律动');
   const [newFriendNotes, setNewFriendNotes] = useState('');
   const [newFriendGender, setNewFriendGender] = useState<Gender | null>(null);
   const [newFriendAge, setNewFriendAge] = useState('');
@@ -243,7 +245,7 @@ export const DanceBuddies: React.FC<DanceBuddiesProps> = ({
     recentTrack: string;
   }>({
     name: '',
-    style: 'Jazz 基础 · 律动',
+    style: '基础班 · 律动',
     stage: '入门',
     studio: '',
     frequency: '每周 1 次',
@@ -333,7 +335,7 @@ export const DanceBuddies: React.FC<DanceBuddiesProps> = ({
       studio: newThreadStudio.trim(),
       date: newThreadDate.trim(),
       targetCount: newThreadTargetCount,
-      joinedBuddies: ['Cici'],
+      joinedBuddies: [selfName],
       isJoined: true,
       costNote: newThreadCost.trim() || undefined,
       organizerNote: newThreadOrganizerNote.trim() || undefined,
@@ -349,9 +351,9 @@ export const DanceBuddies: React.FC<DanceBuddiesProps> = ({
           title: newThreadTitle.trim(),
           category: newThreadCategory,
           content: newThreadContent.trim(),
-          tags: original.tags?.length ? [newThreadCategory, ...original.tags.slice(1)] : [newThreadCategory, 'Cici发帖'],
+          tags: original.tags?.length ? [newThreadCategory, ...original.tags.slice(1)] : [newThreadCategory, `${selfName}发帖`],
           meetup: meetup
-            ? { ...meetup, joinedBuddies: original.meetup?.joinedBuddies ?? ['Cici'], isJoined: original.meetup?.isJoined ?? true }
+            ? { ...meetup, joinedBuddies: original.meetup?.joinedBuddies ?? [selfName], isJoined: original.meetup?.isJoined ?? true }
             : undefined,
         };
         onUpdateThread?.(updated);
@@ -365,15 +367,15 @@ export const DanceBuddies: React.FC<DanceBuddiesProps> = ({
       title: newThreadTitle.trim(),
       category: newThreadCategory,
       content: newThreadContent.trim(),
-      author: 'Cici',
-      authorRole: '发起人 (Cici)',
+      author: selfName,
+      authorRole: '发起人',
       avatarBg: 'bg-orange-100 text-orange-700',
       createdAt: formatNow(),
       likes: 1,
       isLiked: true,
       views: 1,
       replies: [],
-      tags: [newThreadCategory, 'Cici发帖'],
+      tags: [newThreadCategory, `${selfName}发帖`],
       meetup,
     };
 
@@ -454,7 +456,7 @@ export const DanceBuddies: React.FC<DanceBuddiesProps> = ({
     setNewFriendName('');
     setNewFriendContact('');
     setNewFriendStudio('星光舞蹈工作室 (静安)');
-    setNewFriendStyle('Jazz Funk · 基础班');
+    setNewFriendStyle('基础班 · 律动');
     setNewFriendNotes('');
     setNewFriendGender(null);
     setNewFriendAge('');
@@ -484,7 +486,7 @@ export const DanceBuddies: React.FC<DanceBuddiesProps> = ({
     setEditingThreadId(null);
     setNewThreadCategory('舞室约练');
     setNewThreadTitle(`【${studio}】约 @${friendName} 一起拼教室练舞～`);
-    setNewThreadContent(`Hi @${friendName}，这周末有空一起在 ${studio} 拼大教室练 Jazz 基础和扒舞吗？互相纠动作拍视频！`);
+    setNewThreadContent(`Hi @${friendName}，这周末有空一起在 ${studio} 拼大教室练基础和扒舞吗？互相纠动作拍视频！`);
     setNewThreadStudio(studio);
     setIsNewThreadOpen(true);
   };
@@ -513,7 +515,7 @@ export const DanceBuddies: React.FC<DanceBuddiesProps> = ({
   // --- 舞伴名册：新增 / 编辑 / 删除 ---
   const emptyBuddyForm = () => ({
     name: '',
-    style: 'Jazz 基础 · 律动',
+    style: '基础班 · 律动',
     stage: '入门' as DanceStage,
     studio: '',
     frequency: '每周 1 次',
@@ -554,7 +556,7 @@ export const DanceBuddies: React.FC<DanceBuddiesProps> = ({
       name,
       initials: base?.initials ?? name.slice(0, 1),
       avatarBg: base?.avatarBg ?? 'bg-indigo-100 text-indigo-700',
-      style: buddyForm.style.trim() || 'Jazz 基础 · 律动',
+      style: buddyForm.style.trim() || '基础班 · 律动',
       stage: buddyForm.stage,
       bio: buddyForm.bio.trim() || '刚刚加入舞伴名册，正在寻找一起练舞的搭子。',
       studio: buddyForm.studio.trim(),
@@ -598,11 +600,11 @@ export const DanceBuddies: React.FC<DanceBuddiesProps> = ({
                   舞友论坛 & 真实舞友圈
                 </h2>
                 <span className="text-[11px] bg-[#EDE9FE] text-[#6D28D9] px-2.5 py-0.5 rounded-full font-bold border border-[#DDD0FA]">
-                  Jazz Community
+                  Dance Community
                 </span>
               </div>
               <p className="text-xs sm:text-sm text-[#6D28D9] mt-0.5">
-                连接现实练舞好友、舞室组队拼房约练、Jazz 动作避坑答疑与音乐交流。
+                连接现实练舞好友、舞室组队拼房约练、舞蹈动作避坑答疑与音乐交流。
               </p>
             </div>
           </div>
@@ -1542,7 +1544,7 @@ export const DanceBuddies: React.FC<DanceBuddiesProps> = ({
                 <textarea
                   rows={4}
                   required
-                  placeholder="写下你想和舞友交流的内容、约练的练习重点（如前半段练隔离，后半段录成片），或者请教某个 Jazz 卡点细节..."
+                  placeholder="写下你想和舞友交流的内容、约练的练习重点（如前半段练隔离，后半段录成片），或者请教某段卡点的细节..."
                   value={newThreadContent}
                   onChange={(e) => setNewThreadContent(e.target.value)}
                   className="w-full text-xs sm:text-sm p-3 rounded-2xl border border-[#E8DACB] bg-[#FFFDF9] focus:outline-none focus:ring-2 focus:ring-[#7C3AED]/40"
@@ -1653,7 +1655,7 @@ export const DanceBuddies: React.FC<DanceBuddiesProps> = ({
                   </label>
                   <input
                     type="text"
-                    placeholder="如：抒情Jazz、基础课"
+                    placeholder="如：抒情爵士、基础课"
                     value={newFriendStyle}
                     onChange={(e) => setNewFriendStyle(e.target.value)}
                     className="w-full text-xs p-2.5 rounded-xl border border-[#E8DACB] bg-[#FFFDF9]"
@@ -1782,7 +1784,7 @@ export const DanceBuddies: React.FC<DanceBuddiesProps> = ({
                   系统已为你准备了友好的约练招呼语：
                 </p>
                 <div className="bg-[#FFFDF9] border border-[#E8DACB] p-3 rounded-xl text-xs text-[#6B5A4D]">
-                  &quot;嗨 {invitedBuddy.name}！在 Cici 的舞蹈日记里看到你常在 {invitedBuddy.studio} 练舞，我也在练 Jazz，这周末要不要一起拼个教室练基础或者扒个舞？互相拍视频纠动作～&quot;
+                  &quot;嗨 {invitedBuddy.name}！在「舞蹈成长日记」里看到你常在 {invitedBuddy.studio} 练舞，我也在练舞，这周末要不要一起拼个教室练基础或者扒个舞？互相拍视频纠动作～&quot;
                 </div>
                 <div className="flex justify-end gap-2 pt-2">
                   <button
@@ -1798,8 +1800,8 @@ export const DanceBuddies: React.FC<DanceBuddiesProps> = ({
                         id: `thread-inv-${Date.now()}`,
                         title: `【${invitedBuddy.studio}】向 @${invitedBuddy.name} 发起舞室约练`,
                         category: '舞室约练',
-                        author: 'Cici',
-                        authorRole: 'Cici',
+                        author: selfName,
+                        authorRole: selfName,
                         avatarBg: 'bg-orange-100 text-orange-700',
                         createdAt: '刚刚',
                         likes: 1,
@@ -1809,7 +1811,7 @@ export const DanceBuddies: React.FC<DanceBuddiesProps> = ({
                           studio: invitedBuddy.studio,
                           date: '本周末',
                           targetCount: 2,
-                          joinedBuddies: ['Cici', invitedBuddy.name],
+                          joinedBuddies: [selfName, invitedBuddy.name],
                           isJoined: true,
                         },
                         content: `向 @${invitedBuddy.name} 发出约练邀请：这周末一起在 ${invitedBuddy.studio} 拼大教室练舞拍视频复盘！`,
@@ -1819,7 +1821,7 @@ export const DanceBuddies: React.FC<DanceBuddiesProps> = ({
                             author: invitedBuddy.name,
                             authorRole: '舞伴回复',
                             avatarBg: invitedBuddy.avatarBg,
-                            content: '收到啦 Cici！我周六下午正好有空，到时候在舞室见！👯',
+                            content: `收到啦 ${selfName}！我周六下午正好有空，到时候在舞室见！👯`,
                             createdAt: '刚刚',
                             likes: 1,
                           },
@@ -1920,7 +1922,7 @@ export const DanceBuddies: React.FC<DanceBuddiesProps> = ({
                   <span>操作权限校验 (Permission Check)</span>
                 </div>
                 <span className="text-[10px] bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full font-semibold border border-amber-200">
-                  Cici (空间主人)
+                  {selfName} (空间主人)
                 </span>
               </div>
               <p className="text-[11px] text-amber-800/90">

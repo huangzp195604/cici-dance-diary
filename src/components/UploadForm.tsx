@@ -24,12 +24,13 @@ interface UploadFormProps {
   initialMode?: 'media' | 'text';
 }
 
-// Preset samples for quick demonstration if user has no file immediately
+// 示例素材：随站点一起打包的本地文件（相对路径，兼容根域与子路径部署）
+// 以前指向外部 mp4 与一张不存在的图片，实测 403 / 404，点开会是空白卡片
 const PRESET_SAMPLES = [
   {
-    name: 'Jazz 基础步伐与隔离 (视频示范)',
+    name: '基础律动与隔离 (视频示范)',
     type: 'video' as const,
-    url: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
+    url: 'samples/sample-landscape.webm',
     title: '下课后在舞室的卡点复习',
     categories: ['Jazz', '基础练习'] as DanceCategory[],
     stage: '入门' as DanceStage,
@@ -38,9 +39,9 @@ const PRESET_SAMPLES = [
     notes: '今天重点练习了手腕的延伸和胸部的上下卡点，虽然还有点僵硬，但节奏稳多了！',
   },
   {
-    name: '韩舞快歌卡点排练 (视频示范)',
+    name: '快歌卡点排练 (视频示范)',
     type: 'video' as const,
-    url: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyBlazes.mp4',
+    url: 'samples/sample-portrait.webm',
     title: '周末韩舞翻跳打卡：快节奏挑战',
     categories: ['韩舞', 'Jazz'] as DanceCategory[],
     stage: '进阶' as DanceStage,
@@ -49,9 +50,9 @@ const PRESET_SAMPLES = [
     notes: '速度提上来之后呼吸容易乱，这次学会了在慢拍偷换气，体力撑下来了！',
   },
   {
-    name: '编舞课定格大合影 (照片示范)',
+    name: '结课定格抓拍 (照片示范)',
     type: 'image' as const,
-    url: '/assets/aistudio/image_f83d6670.png',
+    url: 'samples/sample-photo.jpg',
     title: '抒情 Jazz 结课抓拍',
     categories: ['编舞', 'Jazz'] as DanceCategory[],
     stage: '进阶' as DanceStage,
@@ -162,7 +163,7 @@ export const UploadForm: React.FC<UploadFormProps> = ({ onAddPost, onCancel, ini
     setErrorMsg('');
     setMediaNotice(
       preset.type === 'video'
-        ? '在线示例视频需要能访问外网；若加载失败，请改用「从设备选择文件」上传本地视频。'
+        ? '这是内置示例素材，可直接保存体验完整流程；想换成自己的视频就点「重新选择」。'
         : ''
     );
     setTitle(preset.title);
@@ -376,7 +377,7 @@ export const UploadForm: React.FC<UploadFormProps> = ({ onAddPost, onCancel, ini
           <div className="mt-3 bg-[#FFF9F3] border border-[#F5E6D8] rounded-xl p-3">
             <span className="text-[11px] font-bold text-[#8C7A6B] flex items-center gap-1 mb-2">
               <Sparkles className="w-3 h-3 text-[#FF7E67]" />
-              手头没有舞蹈素材？快速选用真实练习片段体验：
+              手头暂时没有素材？先用内置示例走一遍流程：
             </span>
             <div className="flex flex-wrap gap-2">
               {PRESET_SAMPLES.map((sample, idx) => (

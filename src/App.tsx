@@ -24,6 +24,7 @@ import * as userDataApi from './services/userDataApi';
 import * as socialApi from './services/socialApi';
 import { setSyncUser, prepareForUser, syncAllDomains, queuePush, flush, syncSetItem } from './utils/sync';
 import { isManualSignOut } from './utils/authSession';
+import { brandTitle, brandInitial } from './utils/brand';
 import { LogoutConfirmDialog } from './components/LogoutConfirmDialog';
 import type { SocialData, UserProfile } from './types';
 import type { SocialActions } from './components/SocialViews';
@@ -114,7 +115,7 @@ export default function App() {
   // 云端登录状态（会话自动恢复）
   const { user, ready, authHint, sendCode, verifyCode, signOut } = useAuth();
   const [userAvatar, setUserAvatar] = useState<string | null>(() => {
-    return localStorage.getItem('cici_user_avatar') || '/assets/aistudio/image_f83d6670.png';
+    return localStorage.getItem('cici_user_avatar') || '';
   });
 
   // 个人资料（昵称/性别/年龄）与同步状态
@@ -168,6 +169,11 @@ export default function App() {
   const [profileRequired, setProfileRequired] = useState(false);
   /** 云端数据拉取完成前不允许反向推送，否则会用旧本地数据覆盖云端 */
   const [cloudHydrated, setCloudHydrated] = useState(false);
+
+  // 浏览器标签页标题也跟随账号昵称，与导航栏品牌保持一致
+  useEffect(() => {
+    document.title = `${brandTitle(displayNickname)} | Your Dance Diary`;
+  }, [displayNickname]);
 
   // Metronome states
   const [metronomeActive, setMetronomeActive] = useState<boolean>(false);
@@ -300,7 +306,7 @@ export default function App() {
           }
         }
 
-        setUserAvatar(localStorage.getItem('cici_user_avatar') || '/assets/aistudio/image_f83d6670.png');
+        setUserAvatar(localStorage.getItem('cici_user_avatar') || '');
         setCloudHydrated(true);
       } catch (err) {
         console.warn('云端数据同步失败，继续使用本地数据', err);
@@ -846,6 +852,7 @@ export default function App() {
         metronomeBeat={metronomeBeat}
         userAvatar={userAvatar}
         userName={ready ? (user ? profile?.nickname || displayName(user) : null) : undefined}
+        brandName={displayNickname}
         onLogin={() => setIsLoginOpen(true)}
         onLogout={() => setIsLogoutConfirmOpen(true)}
         onOpenProfile={() => {
@@ -977,9 +984,9 @@ export default function App() {
         <div className="max-w-4xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <span className="w-5 h-5 rounded-full bg-[#FFEAE0] text-[#E65B47] flex items-center justify-center font-bold text-[10px]">
-              C
+              {brandInitial(displayNickname)}
             </span>
-            <span className="font-semibold text-[#4A3E36]">Cici&apos;s Jazz Diary</span>
+            <span className="font-semibold text-[#4A3E36]">{brandTitle(displayNickname)}</span>
             <span>· 献给所有在业余时间里热爱律动的人</span>
           </div>
           <div className="flex items-center gap-4 text-[#A8988A]">

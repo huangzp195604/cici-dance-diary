@@ -39,7 +39,7 @@ export const GrooveMetronome: React.FC<GrooveMetronomeProps> = ({
             <Music className="w-4 h-4" />
           </div>
           <div>
-            <span className="font-semibold text-[#3D3126]">Jazz 8-Count 伴舞练习节拍器</span>
+            <span className="font-semibold text-[#3D3126]">8-Count 练舞节拍器</span>
             <span className="text-[#8C7A6B] ml-2 text-xs hidden sm:inline">
               (第 1 与 第 5 拍带切分重音提醒，适合打点卡拍)
             </span>

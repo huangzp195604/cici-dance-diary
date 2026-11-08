@@ -92,47 +92,53 @@ export const MediaModal: React.FC<MediaModalProps> = ({
         </button>
 
         {/* Left: Media Player / Viewer */}
-        <div className="flex-1 bg-black flex flex-col items-center justify-center relative min-h-[280px] md:min-h-[460px] overflow-hidden">
+        <div className="flex-1 bg-black flex flex-col relative min-h-[280px] md:min-h-[460px] overflow-hidden">
           {post.mediaType === 'video' ? (
-            <div className="relative w-full h-full flex flex-col items-center justify-center">
-              {resolved.loading ? (
-                <div className="text-white/80 text-sm px-6 text-center">正在读取本地视频…</div>
-              ) : resolved.missing || !resolved.url ? (
-                <div className="text-white/85 text-sm px-6 text-center leading-relaxed">
-                  <AlertCircle className="w-6 h-6 mx-auto mb-2" />
-                  这段视频保存在上传时的那台设备，本设备没有视频文件。
-                  <br />
-                  请在原设备查看，或重新上传一次。
+            <div className="flex-1 min-h-0 w-full flex flex-col">
+              {/* 视频舞台：不叠加任何浮层，保证原生控件（进度条 / 音量 / 全屏）始终可见可点。
+                  用 absolute inset-0 撑出确定高度，竖屏视频的 max-h-full 才能正确生效，不会溢出压到工具条。 */}
+              <div className="flex-1 min-h-0 w-full relative">
+                <div className="absolute inset-0 flex items-center justify-center overflow-hidden p-1">
+                {resolved.loading ? (
+                  <div className="text-white/80 text-sm px-6 text-center">正在读取本地视频…</div>
+                ) : resolved.missing || !resolved.url ? (
+                  <div className="text-white/85 text-sm px-6 text-center leading-relaxed">
+                    <AlertCircle className="w-6 h-6 mx-auto mb-2" />
+                    这段视频保存在上传时的那台设备，本设备没有视频文件。
+                    <br />
+                    请在原设备查看，或重新上传一次。
+                  </div>
+                ) : mediaError ? (
+                  <div className="text-white/85 text-sm px-6 text-center leading-relaxed">
+                    <AlertCircle className="w-6 h-6 mx-auto mb-2" />
+                    视频无法播放：格式不受支持或资源已失效。
+                    <br />
+                    iPhone 拍摄的 HEVC/MOV 建议先转成 MP4(H.264) 再上传。
+                  </div>
+                ) : (
+                  <video
+                    ref={videoRef}
+                    src={resolved.url}
+                    autoPlay
+                    muted
+                    loop={isLooping}
+                    playsInline
+                    controls
+                    preload="metadata"
+                    className={`max-h-full max-w-full w-auto h-auto object-contain transition-transform duration-200 ${
+                      isMirrored ? 'scale-x-[-1]' : ''
+                    }`}
+                    onPlay={() => setIsPlaying(true)}
+                    onPause={() => setIsPlaying(false)}
+                    onError={() => setMediaError(true)}
+                  />
+                )}
                 </div>
-              ) : mediaError ? (
-                <div className="text-white/85 text-sm px-6 text-center leading-relaxed">
-                  <AlertCircle className="w-6 h-6 mx-auto mb-2" />
-                  视频无法播放：格式不受支持或资源已失效。
-                  <br />
-                  iPhone 拍摄的 HEVC/MOV 建议先转成 MP4(H.264) 再上传。
-                </div>
-              ) : (
-                <video
-                  ref={videoRef}
-                  src={resolved.url}
-                  autoPlay
-                  muted
-                  loop={isLooping}
-                  playsInline
-                  controls
-                  preload="metadata"
-                  className={`max-h-[60vh] md:max-h-[75vh] w-auto max-w-full object-contain transition-transform duration-200 ${
-                    isMirrored ? 'scale-x-[-1]' : ''
-                  }`}
-                  onPlay={() => setIsPlaying(true)}
-                  onPause={() => setIsPlaying(false)}
-                  onError={() => setMediaError(true)}
-                />
-              )}
+              </div>
 
-              {/* In-Video Practice Controls Overlay：仅在视频确实可播时显示 */}
+              {/* 扒舞工具条：独立占位在画面下方，不再覆盖视频底部，避免遮住原生进度条 / 音量 / 全屏 */}
               {resolved.url && !resolved.missing && !mediaError && (
-              <div className="absolute bottom-3 left-3 right-3 bg-black/60 backdrop-blur-md rounded-2xl p-2.5 flex flex-wrap items-center justify-between text-white text-xs gap-2">
+              <div className="shrink-0 bg-black/85 px-3 py-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-2 text-white text-xs border-t border-white/10">
                 <div className="flex items-center gap-2">
                   <button
                     onClick={handleTogglePlay}
@@ -187,7 +193,7 @@ export const MediaModal: React.FC<MediaModalProps> = ({
               )}
             </div>
           ) : (
-            <div className="w-full h-full flex items-center justify-center p-4">
+            <div className="flex-1 min-h-0 w-full flex items-center justify-center p-4">
               {resolved.url && !mediaError ? (
                 <img
                   src={resolved.url}

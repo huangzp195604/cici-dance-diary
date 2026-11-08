@@ -36,6 +36,7 @@ import { PracticeTrajectoryChart } from './PracticeTrajectoryChart';
 import { JazzSkillTree } from './JazzSkillTree';
 import { BeginnerTips } from './BeginnerTips';
 import { usePracticeDays } from '../utils/practice';
+import { FALLBACK_NICKNAME } from '../utils/brand';
 import {
   buildCalendarDays,
   buildCalendarWeeks,
@@ -50,19 +51,19 @@ export interface AboutProfileData {
 }
 
 export const DEFAULT_ABOUT_PROFILE: AboutProfileData = {
-  nickname: 'Cici (琪琪)',
-  roleStage: '普通 Jazz 爱好者 · 学习阶段',
-  bioText: '你好呀！我是 Cici。白天是个普通上班族，晚上和周末是我最期待的舞室时间。从肢体僵硬、同手同脚分不清左右的第 1 天，到如今可以跟着喜欢的 Jazz 音乐把每一个 8-Count 顺畅做完。这个网站不为展示什么专业大作，只是想真诚记录一个普通人学跳舞的全部快乐、瓶颈与进步。',
+  nickname: FALLBACK_NICKNAME,
+  roleStage: '舞蹈爱好者 · 学习阶段',
+  bioText: '你好呀，欢迎来到我的舞蹈成长日记。白天是普通上班族，晚上和周末是我最期待的舞室时间。从肢体僵硬、分不清左右的第 1 天，到如今能跟着喜欢的音乐把一段动作顺畅跳完。这里不为展示什么专业大作，只想真诚记录一个普通人学跳舞的快乐、瓶颈与进步。',
   habitTags: [
-    '💃 主练 Jazz Funk',
-    '🎵 偏好 85-105 BPM 中速律动',
-    '📍 上海舞室周末常客',
+    '💃 正在练自己的主项',
+    '🎵 偏爱中速律动',
+    '📍 周末常驻舞室',
     '👯 热衷寻找约练舞伴',
   ],
 };
 
 const PRESET_ROLE_STAGES = [
-  '普通 Jazz 爱好者 · 学习阶段',
+  '舞蹈爱好者 · 学习阶段',
   '初级入门 · 基础律动与体能打卡',
   '进阶突破 · 舞台编舞研习中',
   '周末常驻舞者 · 快乐释放第一',
@@ -71,11 +72,11 @@ const PRESET_ROLE_STAGES = [
 ];
 
 const PRESET_HABIT_TAGS = [
-  '💃 主练 Jazz Funk',
-  '🎵 偏好 85-105 BPM 中速律动',
-  '📍 上海舞室周末常客',
+  '💃 正在练自己的主项',
+  '🎵 偏爱中速律动',
+  '📍 周末常驻舞室',
   '👯 热衷寻找约练舞伴',
-  '👠 初试高跟爵士',
+  '👠 想试试高跟鞋风格',
   '🔥 每天20min核心耐力',
   '🎧 卡点狂热分子',
   '🧘‍♀️ 柔韧拉伸必修',
@@ -117,7 +118,7 @@ const STAGE_DEFS = [
 const PRESET_BIO_TEMPLATES = [
   {
     title: '工作与爱好平衡',
-    content: '你好呀！我是 Cici。白天是个普通上班族，晚上和周末是我最期待的舞室时间。从肢体僵硬、同手同脚分不清左右的第 1 天，到如今可以跟着喜欢的 Jazz 音乐把每一个 8-Count 顺畅做完。这个网站不为展示什么专业大作，只是想真诚记录一个普通人学跳舞的全部快乐、瓶颈与进步。',
+    content: '你好呀，欢迎来到我的舞蹈成长日记。白天是普通上班族，晚上和周末是我最期待的舞室时间。从肢体僵硬、分不清左右的第 1 天，到如今能跟着喜欢的音乐把一段动作顺畅跳完。这里不为展示什么专业大作，只想真诚记录一个普通人学跳舞的快乐、瓶颈与进步。',
   },
   {
     title: '专注身体律动与治愈',
@@ -147,7 +148,8 @@ export const AboutMe: React.FC<AboutMeProps> = ({
   onNicknameChange,
 }) => {
   const shownNickname = displayNickname || DEFAULT_ABOUT_PROFILE.nickname;
-  const DEFAULT_CICI_AVATAR = '/assets/aistudio/image_f83d6670.png';
+  /** 无自定义头像时用昵称首字占位，避免引用不存在的图片导致 404 */
+  const DEFAULT_AVATAR = '';
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const [avatarFeedback, setAvatarFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
@@ -196,8 +198,8 @@ export const AboutMe: React.FC<AboutMeProps> = ({
   const handleSaveProfile = (e: React.FormEvent) => {
     e.preventDefault();
     const updated: AboutProfileData = {
-      nickname: editNickname.trim() || 'Cici (琪琪)',
-      roleStage: editRoleStage.trim() || '普通 Jazz 爱好者 · 学习阶段',
+      nickname: editNickname.trim() || FALLBACK_NICKNAME,
+      roleStage: editRoleStage.trim() || '舞蹈爱好者 · 学习阶段',
       bioText: editBioText.trim() || DEFAULT_ABOUT_PROFILE.bioText,
       habitTags: editHabitTags.length > 0 ? editHabitTags : DEFAULT_ABOUT_PROFILE.habitTags,
     };
@@ -248,7 +250,7 @@ export const AboutMe: React.FC<AboutMeProps> = ({
     }
   };
 
-  const activeAvatar = userAvatar || (typeof window !== 'undefined' ? localStorage.getItem('cici_user_avatar') : null) || DEFAULT_CICI_AVATAR;
+  const activeAvatar = userAvatar || (typeof window !== 'undefined' ? localStorage.getItem('cici_user_avatar') : null) || DEFAULT_AVATAR;
 
   const handleAvatarClick = () => {
     fileInputRef.current?.click();
@@ -457,7 +459,7 @@ export const AboutMe: React.FC<AboutMeProps> = ({
         </div>
       )}
 
-      {/* 1. Cici Profile Card */}
+      {/* 1. 个人资料卡 */}
       <section className="bg-white border border-[#EFE3D5] rounded-3xl p-6 sm:p-8 shadow-xs relative overflow-hidden">
         {/* Soft background decor */}
         <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-bl from-[#FFE8DE] to-transparent rounded-full -mr-20 -mt-20 pointer-events-none opacity-60" />
@@ -475,17 +477,23 @@ export const AboutMe: React.FC<AboutMeProps> = ({
               }
             }}
             title="已实时同步头像 · 点击可从相册上传或更换头像"
-            aria-label="Cici 个人头像，点击可更换"
-            className="relative group/avatar cursor-pointer w-24 h-24 sm:w-28 sm:h-28 rounded-3xl bg-[#FFDFD6] border-4 border-white shadow-md overflow-hidden shrink-0 transition-transform duration-200 hover:scale-105 active:scale-95 ring-2 ring-[#FFD5C8] hover:ring-[#FF7E67]/50"
+            aria-label="个人头像，点击可更换"
+            className="relative group/avatar cursor-pointer w-24 h-24 sm:w-28 sm:h-28 rounded-3xl bg-[#FFDFD6] border-4 border-white shadow-md overflow-hidden shrink-0 transition-transform duration-200 hover:scale-105 active:scale-95 ring-2 ring-[#FFD5C8] hover:ring-[#FF7E67]/50 flex items-center justify-center"
           >
-            <img
-              src={activeAvatar}
-              alt="Cici 个人头像"
-              className="w-full h-full object-cover rounded-2xl group-hover/avatar:scale-105 transition-transform duration-300"
-              onError={(e) => {
-                (e.currentTarget as HTMLImageElement).src = DEFAULT_CICI_AVATAR;
-              }}
-            />
+            {activeAvatar ? (
+              <img
+                src={activeAvatar}
+                alt="个人头像"
+                className="w-full h-full object-cover rounded-2xl group-hover/avatar:scale-105 transition-transform duration-300"
+                onError={(e) => {
+                  e.currentTarget.style.display = 'none';
+                }}
+              />
+            ) : (
+              <span aria-hidden="true" className="font-display font-black text-4xl text-[#E0523D] select-none">
+                {Array.from(shownNickname || '舞')[0]}
+              </span>
+            )}
 
             {/* Hover Camera Overlay */}
             <div className="absolute inset-0 bg-black/45 rounded-2xl flex flex-col items-center justify-center text-white opacity-0 group-hover/avatar:opacity-100 group-focus/avatar:opacity-100 transition-opacity backdrop-blur-2xs">
@@ -515,9 +523,11 @@ export const AboutMe: React.FC<AboutMeProps> = ({
               <h2 className="text-2xl font-display font-black text-[#292524] tracking-tight">
                 {shownNickname}
               </h2>
-              <span className="text-xs bg-[#FFEFE8] text-[#C4432E] px-3 py-1 rounded-full font-bold border border-[#FFD8CB]">
-                {profile.roleStage}
-              </span>
+              {profile.roleStage ? (
+                <span className="text-xs bg-[#FFEFE8] text-[#C4432E] px-3 py-1 rounded-full font-bold border border-[#FFD8CB]">
+                  {profile.roleStage}
+                </span>
+              ) : null}
               <button
                 type="button"
                 onClick={handleOpenEditModal}
@@ -958,7 +968,7 @@ export const AboutMe: React.FC<AboutMeProps> = ({
                   type="text"
                   value={editNickname}
                   onChange={(e) => setEditNickname(e.target.value)}
-                  placeholder="如：Cici (琪琪)、小雨、Groove舞者..."
+                  placeholder="如：小雨、阿棠、舞室常客..."
                   className="w-full px-3 py-2 text-xs bg-[#FAF5F0] border border-[#E8D4C2] rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF7E67]/30 text-[#3D2C1E]"
                   maxLength={24}
                   required
@@ -975,7 +985,7 @@ export const AboutMe: React.FC<AboutMeProps> = ({
                   type="text"
                   value={editRoleStage}
                   onChange={(e) => setEditRoleStage(e.target.value)}
-                  placeholder="如：普通 Jazz 爱好者 · 学习阶段..."
+                  placeholder="如：舞蹈爱好者 · 学习阶段..."
                   className="w-full px-3 py-2 text-xs bg-[#FAF5F0] border border-[#E8D4C2] rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF7E67]/30 text-[#3D2C1E]"
                   maxLength={32}
                   required

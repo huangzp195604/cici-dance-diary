@@ -133,7 +133,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
                 setNickname(e.target.value);
                 setError('');
               }}
-              placeholder="如：小鹿 / Cici / 阿棠"
+              placeholder="如：小鹿 / 阿棠 / 小满"
               className="w-full px-4 py-3 rounded-2xl border border-[#E8DACB] bg-white text-sm text-[#292524] placeholder-[#B8A99A] focus:outline-none focus:ring-2 focus:ring-[#7C3AED]/20 focus:border-[#7C3AED]/40 transition-all"
             />
             <p className="mt-1 text-[10px] text-[#A8988A]">
