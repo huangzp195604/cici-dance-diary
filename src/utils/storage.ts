@@ -28,6 +28,30 @@ const LEGACY_MESSAGE_IDS = LEGACY_DEMO_MESSAGES.map((m) => m.id);
 const LEGACY_THREAD_IDS = LEGACY_DEMO_THREADS.map((t) => t.id);
 const LEGACY_REAL_FRIEND_IDS = LEGACY_DEMO_REAL_FRIENDS.map((f) => f.id);
 
+/**
+ * 帖子字段兜底
+ *
+ * 数据有三个来源：本机 IndexedDB、云端 jsonb、早期版本遗留。任何一处缺字段
+ * （老记录没有 notes、categories 被写成 null），时间线的筛选里
+ * `post.notes.toLowerCase()` 就会抛错 —— 一条旧记录足以让整个日记白屏打不开。
+ * 这里统一补齐，宁可显示空字符串，也不要让页面崩掉。
+ */
+export function normalizePost(p: DancePost): DancePost {
+  if (!p || typeof p !== 'object') return p;
+  return {
+    ...p,
+    title: typeof p.title === 'string' ? p.title : '',
+    notes: typeof p.notes === 'string' ? p.notes : '',
+    categories: Array.isArray(p.categories) ? p.categories.filter((c) => typeof c === 'string') : [],
+    mediaType: p.mediaType === 'video' || p.mediaType === 'image' ? p.mediaType : 'text',
+    mediaUrl: typeof p.mediaUrl === 'string' ? p.mediaUrl : '',
+    date: typeof p.date === 'string' ? p.date : '',
+    likes: typeof p.likes === 'number' ? p.likes : 0,
+    comments: Array.isArray(p.comments) ? p.comments : [],
+    stage: p.stage || '入门',
+  };
+}
+
 class StorageManager {
   private dbPromise: Promise<IDBDatabase> | null = null;
 
@@ -212,7 +236,7 @@ class StorageManager {
   async getPosts(): Promise<DancePost[]> {
     const items = await this.readCollection<DancePost>(STORE_POSTS, LS_POSTS, LEGACY_POST_IDS);
     items.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-    return items;
+    return items.map(normalizePost);
   }
 
   async savePost(post: DancePost): Promise<void> {

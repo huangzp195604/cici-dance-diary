@@ -13,7 +13,7 @@ import { AboutMe, DEFAULT_ABOUT_PROFILE } from './components/AboutMe';
 import { GrowthReport } from './components/GrowthReport';
 import { MediaModal } from './components/MediaModal';
 import { DancePost, DanceBuddy, WallMessage, ForumThread, RealFriend } from './types';
-import { storage } from './utils/storage';
+import { storage, normalizePost } from './utils/storage';
 import { deleteMediaForPost } from './utils/mediaStore';
 import { metronomeInstance } from './utils/audio';
 import { useAuth, displayName } from './hooks/useAuth';
@@ -296,10 +296,13 @@ export default function App() {
 
         const cloudPosts = data['posts'];
         if (Array.isArray(cloudPosts)) {
+          // 云端 jsonb 可能来自早期版本或别的客户端，字段不一定齐；
+          // 先归一化再合并，避免缺 notes 的旧记录把时间线整页打白
+          const safeCloudPosts = (cloudPosts as DancePost[]).map(normalizePost);
           // 游客 → 登录：把本机独有的作品并进来，云端同 id 的以云端为准
           const { items, addedCount } = guestHandoff
-            ? mergeCollections<DancePost>(await storage.getPosts(), cloudPosts as DancePost[])
-            : { items: cloudPosts as DancePost[], addedCount: 0 };
+            ? mergeCollections<DancePost>(await storage.getPosts(), safeCloudPosts)
+            : { items: safeCloudPosts, addedCount: 0 };
           handoffCount += addedCount;
           items.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
           await storage.replaceAll('posts', items);

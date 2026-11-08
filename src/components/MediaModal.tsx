@@ -1,7 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { X, Play, Pause, RotateCcw, FlipHorizontal, Heart, MessageCircle, Send, Music, AlertCircle } from 'lucide-react';
+import { X, Play, Pause, RotateCcw, FlipHorizontal, Heart, MessageCircle, Send, Music, AlertCircle, HardDrive } from 'lucide-react';
 import { DancePost } from '../types';
 import { useResolvedMedia } from '../hooks/useResolvedMedia';
+import { VIDEO_NOTE_LOCAL, VIDEO_MISSING_TITLE, VIDEO_MISSING_BODY, VIDEO_MISSING_TIP } from '../utils/videoNotice';
 
 interface MediaModalProps {
   post: DancePost | null;
@@ -102,11 +103,13 @@ export const MediaModal: React.FC<MediaModalProps> = ({
                 {resolved.loading ? (
                   <div className="text-white/80 text-sm px-6 text-center">正在读取本地视频…</div>
                 ) : resolved.missing || !resolved.url ? (
-                  <div className="text-white/85 text-sm px-6 text-center leading-relaxed">
-                    <AlertCircle className="w-6 h-6 mx-auto mb-2" />
-                    这段视频保存在上传时的那台设备，本设备没有视频文件。
-                    <br />
-                    请在原设备查看，或重新上传一次。
+                  /* 换设备打开了别人（其实是自己旧设备）的帖子：只说事实 + 道歉 + 给两个出口，
+                     不出现「失败 / 丢失 / 错误」这类会让人以为数据没了的词 */
+                  <div className="max-w-sm px-5 text-center leading-relaxed">
+                    <AlertCircle className="w-6 h-6 mx-auto mb-2.5 text-amber-300/90" />
+                    <p className="text-sm font-semibold text-white mb-2">{VIDEO_MISSING_TITLE}</p>
+                    <p className="text-xs text-white/75 mb-1.5">{VIDEO_MISSING_BODY}</p>
+                    <p className="text-[11px] text-white/55">{VIDEO_MISSING_TIP}</p>
                   </div>
                 ) : mediaError ? (
                   <div className="text-white/85 text-sm px-6 text-center leading-relaxed">
@@ -138,6 +141,7 @@ export const MediaModal: React.FC<MediaModalProps> = ({
 
               {/* 扒舞工具条：独立占位在画面下方，不再覆盖视频底部，避免遮住原生进度条 / 音量 / 全屏 */}
               {resolved.url && !resolved.missing && !mediaError && (
+              <>
               <div className="shrink-0 bg-black/85 px-3 py-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-2 text-white text-xs border-t border-white/10">
                 <div className="flex items-center gap-2">
                   <button
@@ -190,6 +194,14 @@ export const MediaModal: React.FC<MediaModalProps> = ({
                   </button>
                 </div>
               </div>
+
+              {/* 视频区域常驻备注：播放着的时候也要看得见「原片只在这里」，
+                  否则用户换设备发现打不开才第一次知道，观感像数据丢了 */}
+              <div className="shrink-0 flex items-start gap-1.5 px-3 py-1.5 bg-black/85 border-t border-white/5 text-[10.5px] leading-snug text-white/55">
+                <HardDrive className="w-3 h-3 shrink-0 mt-px" />
+                <span>{VIDEO_NOTE_LOCAL}</span>
+              </div>
+              </>
               )}
             </div>
           ) : (

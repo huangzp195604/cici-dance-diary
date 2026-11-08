@@ -37,7 +37,7 @@ export const ACCESS_ROWS: AccessRow[] = [
   },
   {
     module: '上传视频 / 照片 / 文字',
-    hint: '视频文件始终留在本机',
+    hint: '视频原片只留本机',
     guest: { level: 'full', text: '不限条数' },
     member: { level: 'full', text: '记录云同步' },
   },
@@ -88,7 +88,7 @@ export const ACCESS_ROWS: AccessRow[] = [
 export const SYNC_NOTES: { title: string; body: string }[] = [
   {
     title: '游客期间：写入本机',
-    body: '记录、打卡、头像、标签都直接存进这台设备的 IndexedDB，关掉网页再打开还在。视频文件不会上传，只留在本机。',
+    body: '记录、打卡、头像、标签都直接存进这台设备的 IndexedDB，关掉网页再打开还在。视频原片不上传，只留在本机。',
   },
   {
     title: '首次登录：自动并入账号',

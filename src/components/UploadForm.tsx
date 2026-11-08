@@ -3,6 +3,7 @@ import { compressImageFile } from '../utils/imageCompress';
 import { LOCAL_MEDIA_PREFIX, makeLocalMediaId, saveMediaBlob } from '../utils/mediaStore';
 import { formatDuration, probeVideo } from '../utils/videoPoster';
 import { useResolvedMedia } from '../hooks/useResolvedMedia';
+import { VIDEO_NOTE_LOCAL, VIDEO_UPLOAD_NOTICE } from '../utils/videoNotice';
 import { 
   UploadCloud, 
   Film, 
@@ -12,7 +13,8 @@ import {
   Sparkles, 
   Music, 
   FileText,
-  AlertCircle
+  AlertCircle,
+  HardDrive
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { DancePost, DanceCategory, DanceStage } from '../types';
@@ -132,9 +134,7 @@ export const UploadForm: React.FC<UploadFormProps> = ({ onAddPost, onCancel, ini
             '当前浏览器无法解码这个视频（常见于 iPhone 拍摄的 HEVC/MOV）。建议改用 MP4(H.264)，或在相册里「导出/转存」一次再上传。'
           );
         } else {
-          setMediaNotice(
-            '视频已保存到本设备，刷新或重新打开都能播放。视频文件较大，暂不随账号跨设备同步。'
-          );
+          setMediaNotice(VIDEO_UPLOAD_NOTICE);
         }
       } catch (err) {
         console.warn('视频保存失败', err);
@@ -302,22 +302,30 @@ export const UploadForm: React.FC<UploadFormProps> = ({ onAddPost, onCancel, ini
             ) : mediaUrl ? (
               <div className="space-y-3">
                 {mediaType === 'video' ? (
-                  <div className="max-w-md mx-auto aspect-video rounded-xl overflow-hidden bg-black flex items-center justify-center">
-                    {resolved.loading ? (
-                      <span className="text-xs text-white/70">正在读取本地视频…</span>
-                    ) : resolved.url ? (
-                      <video
-                        src={resolved.url}
-                        controls
-                        muted
-                        playsInline
-                        preload="metadata"
-                        className="w-full h-full object-contain"
-                      />
-                    ) : (
-                      <span className="text-xs text-white/80 px-4">本地视频读取失败，请重新选择</span>
-                    )}
-                  </div>
+                  <>
+                    <div className="max-w-md mx-auto aspect-video rounded-xl overflow-hidden bg-black flex items-center justify-center">
+                      {resolved.loading ? (
+                        <span className="text-xs text-white/70">正在读取本地视频…</span>
+                      ) : resolved.url ? (
+                        <video
+                          src={resolved.url}
+                          controls
+                          muted
+                          playsInline
+                          preload="metadata"
+                          className="w-full h-full object-contain"
+                        />
+                      ) : (
+                        <span className="text-xs text-white/80 px-4">本地视频读取失败，请重新选择</span>
+                      )}
+                    </div>
+                    {/* 视频区域备注：选完就告知「换设备打不开原片」，
+                        不让用户等到换设备那天才发现，也不让人误以为已上云 */}
+                    <div className="max-w-md mx-auto flex items-start gap-1.5 text-left text-[11px] leading-snug text-[#9A8578]">
+                      <HardDrive className="w-3 h-3 shrink-0 mt-0.5" />
+                      <span>{VIDEO_NOTE_LOCAL}</span>
+                    </div>
+                  </>
                 ) : (
                   <div className="max-w-md mx-auto max-h-56 rounded-xl overflow-hidden flex items-center justify-center bg-[#F7EFE7]">
                     <img src={resolved.url || undefined} alt="Preview" className="max-h-56 object-contain" />

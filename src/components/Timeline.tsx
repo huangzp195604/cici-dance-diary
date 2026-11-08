@@ -1,5 +1,7 @@
 import { syncRemoveItem, syncSetItem } from '../utils/sync';
 import { compressAvatarFile } from '../utils/imageCompress';
+import { VIDEO_BADGE_LOCAL, VIDEO_NOTE_LOCAL } from '../utils/videoNotice';
+import { normalizePost } from '../utils/storage';
 import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { 
   Play, 
@@ -34,7 +36,8 @@ import {
   Filter,
   Edit3,
   Smile,
-  Lock
+  Lock,
+  HardDrive
 } from 'lucide-react';
 import { DancePost, DanceCategory, DanceStage, DanceBuddy } from '../types';
 import {
@@ -131,7 +134,7 @@ interface TimelineProps {
 }
 
 export const Timeline: React.FC<TimelineProps> = ({
-  posts,
+  posts: rawPosts,
   buddies,
   userAvatar,
   onUpdateAvatar,
@@ -146,6 +149,13 @@ export const Timeline: React.FC<TimelineProps> = ({
   isGuest = false,
   onLogin,
 }) => {
+  /**
+   * 统一兜底：本机旧版本数据、云端 jsonb、别处写进来的记录都可能缺
+   * notes / categories 等字段，而下面的分类筛选会直接 `post.notes.toLowerCase()`。
+   * 只要有一条缺字段，整个时间线就会白屏 —— 一次洗掉比在每个筛选分支加 `|| ''` 稳妥。
+   */
+  const posts = useMemo(() => rawPosts.map(normalizePost), [rawPosts]);
+
   const [selectedCategory, setSelectedCategory] = useState<string>('全部');
   const [selectedStage, setSelectedStage] = useState<string>('全部');
   const [selectedMediaType, setSelectedMediaType] = useState<'all' | 'video' | 'image'>('all');
@@ -1411,6 +1421,16 @@ export const Timeline: React.FC<TimelineProps> = ({
                           <Film className="w-3 h-3" />
                           <span>视频</span>
                           {post.duration && <span>{post.duration}</span>}
+                        </div>
+
+                        {/* 仅存本机：卡片上先给一个轻标记，点开播放器还有一行完整说明。
+                            hover 显示全文，避免在列表里堆字 */}
+                        <div
+                          className="absolute top-2.5 right-2.5 bg-black/55 backdrop-blur-xs text-white/90 text-[10px] font-medium px-1.5 py-0.5 rounded-md flex items-center gap-1 cursor-help"
+                          title={VIDEO_NOTE_LOCAL}
+                        >
+                          <HardDrive className="w-2.5 h-2.5" />
+                          <span>{VIDEO_BADGE_LOCAL}</span>
                         </div>
                       </div>
                     ) : (
