@@ -232,6 +232,32 @@ export function prepareForUser(userId: string): boolean {
 }
 
 /**
+ * 本机是否还没绑定过任何账号。
+ * 必须在校验登录态之前读取：它是「游客数据交接」的判定依据——
+ * 这台设备从没登录过，那本地的东西一定是游客自己记的，登录时要并进账号，
+ * 不能被云端整表覆盖掉。
+ */
+export function isFirstBindOnDevice(): boolean {
+  return !localStorage.getItem(LAST_USER_KEY);
+}
+
+/**
+ * 游客数据并入账号：按 id 取并集。
+ * - 同 id 以云端为准（云端是账号的权威副本，避免旧本地记录把已编辑的覆盖回去）
+ * - 本地独有的（游客期间新写的）排在前面，登录后第一眼就能看到
+ * 返回 addedCount 用于「已并入 N 条记录」的提示。
+ */
+export function mergeCollections<T extends { id: string }>(
+  local: T[],
+  cloud: T[]
+): { items: T[]; addedCount: number } {
+  const cloudIds = new Set(cloud.map((item) => item.id));
+  const onlyLocal = local.filter((item) => !cloudIds.has(item.id));
+  if (onlyLocal.length === 0) return { items: cloud, addedCount: 0 };
+  return { items: [...onlyLocal, ...cloud], addedCount: onlyLocal.length };
+}
+
+/**
  * 登录后的双向对账（取代旧的单向 pullAllToLocal）。
  *
  * 返回 changedDomains（本地被云端改动，需要刷新组件 state）、

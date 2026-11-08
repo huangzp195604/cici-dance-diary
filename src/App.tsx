@@ -22,18 +22,33 @@ import { ProfileModal } from './components/ProfileModal';
 import * as forumApi from './services/forumApi';
 import * as userDataApi from './services/userDataApi';
 import * as socialApi from './services/socialApi';
-import { setSyncUser, prepareForUser, syncAllDomains, queuePush, flush, syncSetItem } from './utils/sync';
+import {
+  setSyncUser,
+  prepareForUser,
+  syncAllDomains,
+  queuePush,
+  flush,
+  syncSetItem,
+  isFirstBindOnDevice,
+  mergeCollections,
+} from './utils/sync';
 import { isManualSignOut } from './utils/authSession';
 import { brandTitle, brandInitial } from './utils/brand';
 import { LogoutConfirmDialog } from './components/LogoutConfirmDialog';
+import { GuestModeBar } from './components/GuestModeBar';
+import { AccessCompareModal } from './components/AccessCompareModal';
+import { LoginGateDialog } from './components/LoginGateDialog';
+import { WelcomeModal } from './components/WelcomeModal';
 import type { SocialData, UserProfile } from './types';
 import type { SocialActions } from './components/SocialViews';
 
 const TAB_KEYS = ['timeline', 'upload', 'buddies', 'growth', 'about'] as const;
 type TabKey = (typeof TAB_KEYS)[number];
 
-/** 用户主动跳过登录后，6 小时内不再自动打扰；换 key 让旧的 sessionStorage 标记失效 */
-const LOGIN_SKIP_KEY = 'cici_login_skipped_at_v2';
+/** 首次进入的「游客 / 登录」选择只出现一次，之后由顶部游客提示条常驻提醒 */
+const WELCOME_SEEN_KEY = 'cici_guest_welcome_seen_v1';
+/** 游客提示条手动收起：只对本次会话生效，下次打开仍会提醒「数据在本机」 */
+const GUEST_BAR_KEY = 'cici_guest_bar_hidden_v1';
 
 /**
  * 把昵称写进本地「关于我」域。
@@ -56,7 +71,7 @@ function writeAboutNickname(name: string): void {
     // 本地存储不可用时也不阻断改名
   }
 }
-const LOGIN_SKIP_WINDOW_MS = 6 * 60 * 60 * 1000;
+// 旧版自动弹窗的 6 小时跳过窗口已随「游客模式」下线，key 仅用于兼容已有本地标记
 /** 会话恢复异常时，最多再等这么久就无条件放行首屏登录引导 */
 const AUTH_FALLBACK_MS = 3000;
 
@@ -111,9 +126,32 @@ export default function App() {
   /** 本次弹窗是否由系统自动打开（会话迟到恢复为已登录时需要自动收起） */
   const autoPromptedRef = useRef(false);
   const [toast, setToast] = useState('');
+  /** 首次进入的游客 / 登录二选一 */
+  const [welcomeOpen, setWelcomeOpen] = useState(false);
+  /** 权限对比（游客 vs 登录）说明弹窗 */
+  const [accessOpen, setAccessOpen] = useState(false);
+  /** 顶部游客提示条是否被本次会话收起 */
+  const [guestBarHidden, setGuestBarHidden] = useState(() => {
+    try {
+      return sessionStorage.getItem(GUEST_BAR_KEY) === '1';
+    } catch {
+      return false;
+    }
+  });
+  /** 「这里需要登录」的提示层：先解释再给出口，不直接甩验证码 */
+  const [loginGate, setLoginGate] = useState<{
+    title: string;
+    description: string;
+    benefits?: string[];
+  } | null>(null);
 
   // 云端登录状态（会话自动恢复）
   const { user, ready, authHint, sendCode, verifyCode, signOut } = useAuth();
+  /**
+   * 游客态：会话校验完成且没有账号。
+   * 会话仍在恢复（ready=false）时不判游客，避免首屏闪一下「游客模式」再变回登录态。
+   */
+  const isGuest = ready && !user;
   const [userAvatar, setUserAvatar] = useState<string | null>(() => {
     return localStorage.getItem('cici_user_avatar') || '';
   });
@@ -232,6 +270,8 @@ export default function App() {
     setSyncUser(user.id);
 
     (async () => {
+      // 本机从没绑定过账号：本地数据就是游客自己记的，登录时并进账号而不是被覆盖
+      const guestHandoff = isFirstBindOnDevice();
       // 换账号：先清空本地集合数据，避免把上一个账号的数据推到新账号
       const switched = prepareForUser(user.id);
       if (switched) {
@@ -242,6 +282,8 @@ export default function App() {
         setMessages([]);
         setRealFriends([]);
       }
+      /** 游客期间新增、账号云端还没有的记录数（用于登录后的并入提示） */
+      let handoffCount = 0;
 
       try {
         // 双向对账：云端优先拉回本地，同时把「从没上过云」或「离线改得更新」
@@ -254,23 +296,45 @@ export default function App() {
 
         const cloudPosts = data['posts'];
         if (Array.isArray(cloudPosts)) {
-          await storage.replaceAll('posts', cloudPosts as DancePost[]);
-          if (!cancelled) setPosts(cloudPosts as DancePost[]);
+          // 游客 → 登录：把本机独有的作品并进来，云端同 id 的以云端为准
+          const { items, addedCount } = guestHandoff
+            ? mergeCollections<DancePost>(await storage.getPosts(), cloudPosts as DancePost[])
+            : { items: cloudPosts as DancePost[], addedCount: 0 };
+          handoffCount += addedCount;
+          items.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+          await storage.replaceAll('posts', items);
+          if (!cancelled) setPosts(items);
+          if (addedCount > 0) queuePush('posts', items);
         }
         const cloudBuddies = data['buddies'];
         if (Array.isArray(cloudBuddies)) {
-          await storage.replaceAll('buddies', cloudBuddies as DanceBuddy[]);
-          if (!cancelled) setBuddies(cloudBuddies as DanceBuddy[]);
+          const { items, addedCount } = guestHandoff
+            ? mergeCollections<DanceBuddy>(await storage.getBuddies(), cloudBuddies as DanceBuddy[])
+            : { items: cloudBuddies as DanceBuddy[], addedCount: 0 };
+          handoffCount += addedCount;
+          await storage.replaceAll('buddies', items);
+          if (!cancelled) setBuddies(items);
+          if (addedCount > 0) queuePush('buddies', items);
         }
         const cloudMessages = data['messages'];
         if (Array.isArray(cloudMessages)) {
-          await storage.replaceAll('messages', cloudMessages as WallMessage[]);
-          if (!cancelled) setMessages(cloudMessages as WallMessage[]);
+          const { items, addedCount } = guestHandoff
+            ? mergeCollections<WallMessage>(await storage.getMessages(), cloudMessages as WallMessage[])
+            : { items: cloudMessages as WallMessage[], addedCount: 0 };
+          handoffCount += addedCount;
+          await storage.replaceAll('messages', items);
+          if (!cancelled) setMessages(items);
+          if (addedCount > 0) queuePush('messages', items);
         }
         const cloudFriends = data['realFriends'];
         if (Array.isArray(cloudFriends)) {
-          await storage.replaceAll('realFriends', cloudFriends as RealFriend[]);
-          if (!cancelled) setRealFriends(cloudFriends as RealFriend[]);
+          const { items, addedCount } = guestHandoff
+            ? mergeCollections<RealFriend>(await storage.getRealFriends(), cloudFriends as RealFriend[])
+            : { items: cloudFriends as RealFriend[], addedCount: 0 };
+          handoffCount += addedCount;
+          await storage.replaceAll('realFriends', items);
+          if (!cancelled) setRealFriends(items);
+          if (addedCount > 0) queuePush('realFriends', items);
         }
 
         // 资料：昵称为空时强制补填，否则论坛里只能显示「舞友」
@@ -308,6 +372,9 @@ export default function App() {
 
         setUserAvatar(localStorage.getItem('cici_user_avatar') || '');
         setCloudHydrated(true);
+        if (handoffCount > 0) {
+          setToast(`已把游客期间的 ${handoffCount} 条记录并入你的账号，正在云端同步`);
+        }
       } catch (err) {
         console.warn('云端数据同步失败，继续使用本地数据', err);
         if (!cancelled) {
@@ -494,32 +561,24 @@ export default function App() {
     if (authHint) setToast(authHint);
   }, [authHint]);
 
-  /**
-   * 打开网页时主动引导登录。
-   *
-   * 真机上"没弹窗"的三个坑，这里逐一规避：
-   * 1. 会话恢复请求被拦截 / 抛错 → ready 迟迟不来：加独立超时兜底放行首屏；
-   *    但本地已有会话时绝不抢先判成未登录，避免「每次打开都要重登」。
-   * 2. 旧实现用 sessionStorage 且"弹窗打开前"就写标记：只要页面加载过一次，
-   *    哪怕弹窗因任何原因没渲染出来，整个会话都不会再弹。改为只有用户明确
-   *    点关闭 /「先逛逛」才记一次跳过，并带 6 小时过期（localStorage，跨标签可查）。
-   * 3. 分享链接加 ?login=1 可强制打开，方便真机验证与手动登录。
-   */
+  // 会话恢复兜底：超时后放行首屏，避免网络慢时用户一直看白屏
   useEffect(() => {
     if (ready) return;
     const timer = setTimeout(() => setAuthWaitDone(true), AUTH_FALLBACK_MS);
     return () => clearTimeout(timer);
   }, [ready]);
 
-  const markLoginSkipped = useCallback(() => {
-    autoPromptedRef.current = false;
-    try {
-      localStorage.setItem(LOGIN_SKIP_KEY, String(Date.now()));
-    } catch {
-      // 隐私模式禁用 localStorage 时不阻断本次关闭
-    }
-  }, []);
-
+  /**
+   * 打开网页时只做一次「游客 / 登录」选择，不再直接甩手机验证码。
+   *
+   * 变化原因：游客模式成为正式入口后，第一屏弹登录框会把最想试的人挡在门外。
+   * 现在的规则——
+   * 1. 每台设备只在第一次访问时出现选择弹窗（localStorage 记一次），关闭后不再打扰；
+   * 2. 主动登出过的人不弹（他清楚登录入口在哪里）；
+   * 3. 正在填写上传表单时不打断；
+   * 4. 分享链接加 ?login=1 仍可强制打开登录框，便于真机验证。
+   * 其余时候靠顶部游客提示条常驻提醒「数据在本机 + 可登录同步」。
+   */
   useEffect(() => {
     const forceLogin = new URLSearchParams(window.location.search).has('login');
     if (forceLogin) {
@@ -528,31 +587,23 @@ export default function App() {
     }
     if (user) return;
     if (!ready && !authWaitDone) return;
-    // 曾登录设备遇到网络抖动 / 续期暂时失败时，useAuth 会保留已登录态并后台校准，
-    // 此时 user 有值，根本不会走到这里；只有 SDK 明确清除会话后才重新引导登录。
-    // 用户主动登出后也不自动打扰，登录按钮仍常驻，想登再点即可。
     if (isManualSignOut()) return;
-    // 已经在填写上传表单时不要弹窗打断；保存或互动时再按需引导登录
     if (activeTab === 'upload') return;
-
-    let skippedAt = 0;
     try {
-      skippedAt = Number(localStorage.getItem(LOGIN_SKIP_KEY) || 0);
+      if (localStorage.getItem(WELCOME_SEEN_KEY)) return;
     } catch {
-      // 读不到就当作从未跳过
+      // 隐私模式读不到就当作没看过，最多多弹一次
     }
-    if (skippedAt && Date.now() - skippedAt < LOGIN_SKIP_WINDOW_MS) return;
-
-    autoPromptedRef.current = true;
-    setIsLoginOpen(true);
+    setWelcomeOpen(true);
   }, [ready, authWaitDone, user, activeTab]);
 
-  /** 超时兜底先判未登录、会话随后恢复为已登录时，收起自动弹出的登录框 */
+  /** 超时兜底先判未登录、会话随后恢复为已登录时，收起自动弹出的登录框与欢迎弹窗 */
   useEffect(() => {
     if (user && autoPromptedRef.current) {
       autoPromptedRef.current = false;
       setIsLoginOpen(false);
     }
+    if (user) setWelcomeOpen(false);
   }, [user]);
 
   /** 论坛写入统一带上当前昵称：owner_name 为空会让所有人显示成「舞友」 */
@@ -565,6 +616,42 @@ export default function App() {
     setIsLoginOpen(true);
     return false;
   };
+
+  /** 游客选择「先开始记录」：记住这个选择，之后只靠顶部提示条轻提醒 */
+  const startAsGuest = useCallback(() => {
+    try {
+      localStorage.setItem(WELCOME_SEEN_KEY, '1');
+    } catch {
+      // 写不进去也不影响本次使用
+    }
+    setWelcomeOpen(false);
+  }, []);
+
+  const dismissGuestBar = useCallback(() => {
+    setGuestBarHidden(true);
+    try {
+      sessionStorage.setItem(GUEST_BAR_KEY, '1');
+    } catch {
+      // 忽略
+    }
+  }, []);
+
+  /**
+   * 游客点论坛帖子 / 发帖按钮：先解释「为什么这里要登录」，
+   * 而不是直接甩一个验证码弹窗。权限对比入口也在提示层里。
+   */
+  const promptForumLogin = useCallback(() => {
+    setLoginGate({
+      title: '登录后查看完整帖子',
+      description:
+        '论坛是这里的公开区：完整正文、全部回复、约练报名名单与活动群入口只对登录舞友开放，游客只能看到少量公开预览。',
+    });
+  }, []);
+
+  const openLoginFromGate = useCallback(() => {
+    setLoginGate(null);
+    setIsLoginOpen(true);
+  }, []);
 
   /** 二次确认通过后才真正退出；先把待同步的数据冲刷上云，避免退出瞬间丢改动 */
   const handleConfirmLogout = useCallback(async () => {
@@ -604,6 +691,8 @@ export default function App() {
     await storage.savePost(newPost);
     setPosts((prev) => [newPost, ...prev]);
     navigate('timeline');
+    // 游客写入成功但没上云：明确告诉他记录没丢，只是还在这台设备上
+    if (!user) setToast('已保存到本机 · 登录后会自动并入账号');
   };
 
   const handleDeletePost = async (postId: string) => {
@@ -853,6 +942,8 @@ export default function App() {
         userAvatar={userAvatar}
         userName={ready ? (user ? profile?.nickname || displayName(user) : null) : undefined}
         brandName={displayNickname}
+        isGuest={isGuest}
+        onOpenAccess={() => setAccessOpen(true)}
         onLogin={() => setIsLoginOpen(true)}
         onLogout={() => setIsLogoutConfirmOpen(true)}
         onOpenProfile={() => {
@@ -860,6 +951,16 @@ export default function App() {
           setIsProfileOpen(true);
         }}
       />
+
+      {/* 1.2 游客提示条：常驻说明「数据在本机」，登录只是可选升级 */}
+      {isGuest && !guestBarHidden && (
+        <GuestModeBar
+          localRecordCount={posts.length}
+          onLogin={() => setIsLoginOpen(true)}
+          onShowAccess={() => setAccessOpen(true)}
+          onDismiss={dismissGuestBar}
+        />
+      )}
 
       {/* 2. Interactive Jazz Metronome & Groove Bar (Collapsible) */}
       <GrooveMetronome
@@ -891,6 +992,8 @@ export default function App() {
             onDeletePost={handleDeletePost}
             onUpdatePostTags={handleUpdatePostTags}
             displayNickname={displayNickname}
+            isGuest={isGuest}
+            onLogin={() => setIsLoginOpen(true)}
           />
         )}
 
@@ -952,6 +1055,8 @@ export default function App() {
             onSelectChat={setActiveChatPeerId}
             socialActions={socialActions}
             onLoginRequired={() => setIsLoginOpen(true)}
+            onForumLocked={promptForumLogin}
+            onShowAccess={() => setAccessOpen(true)}
             />
           </>
         )}
@@ -987,12 +1092,20 @@ export default function App() {
               {brandInitial(displayNickname)}
             </span>
             <span className="font-semibold text-[#4A3E36]">{brandTitle(displayNickname)}</span>
-            <span>· 献给所有在业余时间里热爱律动的人</span>
+            <span>· 个人私密成长空间，时间线仅自己可见</span>
           </div>
-          <div className="flex items-center gap-4 text-[#A8988A]">
-            <span>论坛云端同步 · 数据跟账号走</span>
+          <div className="flex items-center gap-3 text-[#A8988A] flex-wrap justify-center">
+            <button
+              type="button"
+              onClick={() => setAccessOpen(true)}
+              className="underline underline-offset-2 hover:text-[#6B5A4D] cursor-pointer"
+            >
+              {isGuest ? '游客模式 · 数据存本机' : '云同步已开启 · 数据跟账号走'}
+            </button>
             <span>·</span>
-            <span>Keep Dancing & Groove On 💃</span>
+            <span>论坛为公开区，需登录</span>
+            <span>·</span>
+            <span>Keep Dancing &amp; Groove On 💃</span>
           </div>
         </div>
       </footer>
@@ -1002,12 +1115,48 @@ export default function App() {
         isOpen={isLoginOpen}
         onClose={() => setIsLoginOpen(false)}
         onDismiss={() => {
-          markLoginSkipped();
+          autoPromptedRef.current = false;
           setIsLoginOpen(false);
         }}
-        onSuccess={() => setToast('✨ 登录成功，欢迎加入舞友论坛！')}
+        onSuccess={() => setToast('✨ 登录成功，本机记录会自动并入你的账号')}
+        onShowAccess={() => setAccessOpen(true)}
         sendCode={sendCode}
         verifyCode={verifyCode}
+      />
+
+      {/* 6.1 首次访问：游客 / 登录 二选一 */}
+      <WelcomeModal
+        open={welcomeOpen}
+        onGuest={startAsGuest}
+        onLogin={() => {
+          startAsGuest();
+          setIsLoginOpen(true);
+        }}
+        onShowAccess={() => setAccessOpen(true)}
+        onClose={startAsGuest}
+      />
+
+      {/* 6.15 权限差异与同步机制说明 */}
+      <AccessCompareModal
+        isOpen={accessOpen}
+        onClose={() => setAccessOpen(false)}
+        isGuest={isGuest}
+        localRecordCount={posts.length}
+        onLogin={() => setIsLoginOpen(true)}
+      />
+
+      {/* 6.2 论坛等需登录功能的提示层 */}
+      <LoginGateDialog
+        open={!!loginGate}
+        title={loginGate?.title || ''}
+        description={loginGate?.description || ''}
+        benefits={loginGate?.benefits}
+        onLogin={openLoginFromGate}
+        onCancel={() => setLoginGate(null)}
+        onShowAccess={() => {
+          setLoginGate(null);
+          setAccessOpen(true);
+        }}
       />
 
       {/* 6.2 退出登录二次确认：手机上退出图标紧贴昵称按钮，必须确认才放行 */}

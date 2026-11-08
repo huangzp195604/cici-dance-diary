@@ -35,6 +35,7 @@ import {
 } from 'lucide-react';
 import { DanceBuddy, WallMessage, ForumThread, RealFriend, ForumCategory, ForumReply, DanceStage, Gender } from '../types';
 import { OnlineFriendsSection, MessagesView, UserCardModal } from './SocialViews';
+import { GuestForumPreview } from './GuestForumPreview';
 import type { SocialActions, SocialViewProps } from './SocialViews';
 import type { SocialData } from '../types';
 
@@ -104,6 +105,10 @@ interface DanceBuddiesProps {
   socialActions?: SocialActions;
   /** 打开登录弹窗（未登录点头像时引导） */
   onLoginRequired?: () => void;
+  /** 游客点论坛详情 / 发帖：打开「登录后使用」的提示层（比直接弹验证码更友好） */
+  onForumLocked?: () => void;
+  /** 打开权限对比说明 */
+  onShowAccess?: () => void;
 }
 
 export const DanceBuddies: React.FC<DanceBuddiesProps> = ({
@@ -137,6 +142,8 @@ export const DanceBuddies: React.FC<DanceBuddiesProps> = ({
   onSelectChat = () => {},
   socialActions = NOOP_SOCIAL_ACTIONS,
   onLoginRequired,
+  onForumLocked,
+  onShowAccess,
 }) => {
   /** 当前用户在本站的展示名：发帖作者、约练发起人、空间主人等处统一用它，不再写死人名 */
   const selfName = (currentUserName || '').trim() || '我';
@@ -663,7 +670,15 @@ export const DanceBuddies: React.FC<DanceBuddiesProps> = ({
       {/* ======================================================== */}
       {/* VIEW A: 舞友论坛 (FORUM BOARDS & DISCUSSIONS)           */}
       {/* ======================================================== */}
-      {activeTab === 'forum' && (
+      {activeTab === 'forum' && !isLoggedIn && (
+        <GuestForumPreview
+          threads={threads}
+          onLogin={onForumLocked || onLoginRequired || (() => {})}
+          onShowAccess={onShowAccess || (() => {})}
+        />
+      )}
+
+      {activeTab === 'forum' && isLoggedIn && (
         <div className="space-y-5">
           
           {/* Sub-bar: Category Filter & New Post Trigger */}

@@ -33,7 +33,8 @@ import {
   Tag,
   Filter,
   Edit3,
-  Smile
+  Smile,
+  Lock
 } from 'lucide-react';
 import { DancePost, DanceCategory, DanceStage, DanceBuddy } from '../types';
 import {
@@ -123,6 +124,10 @@ interface TimelineProps {
   onUpdatePostTags: (postId: string, categories: string[]) => Promise<void>;
   /** 全站统一昵称：由 App 传入，避免时间线把名字写死导致改名后不同步 */
   displayNickname?: string;
+  /** 游客态：时间线可用，但数据只在本机 */
+  isGuest?: boolean;
+  /** 游客点「登录同步」时打开登录框 */
+  onLogin?: () => void;
 }
 
 export const Timeline: React.FC<TimelineProps> = ({
@@ -138,6 +143,8 @@ export const Timeline: React.FC<TimelineProps> = ({
   onDeletePost,
   onUpdatePostTags,
   displayNickname,
+  isGuest = false,
+  onLogin,
 }) => {
   const [selectedCategory, setSelectedCategory] = useState<string>('全部');
   const [selectedStage, setSelectedStage] = useState<string>('全部');
@@ -905,6 +912,23 @@ export const Timeline: React.FC<TimelineProps> = ({
               </h2>
               <span className="shrink-0 whitespace-nowrap text-xs bg-[#FFD9D2] text-[#9E3524] px-2 py-0.5 rounded-full font-medium">
                 舞蹈爱好者 · 学习中
+              </span>
+              {/* 私密定位：时间线只有本人可见；游客额外说明「还没上云」 */}
+              <span
+                className="shrink-0 whitespace-nowrap text-[11px] bg-white/85 text-[#7A584C] border border-[#F3D9D3] px-2 py-0.5 rounded-full font-medium inline-flex items-center gap-1"
+                title={isGuest ? '记录只保存在这台设备，登录后自动同步' : '仅你自己可见，已开启云端同步'}
+              >
+                <Lock className="w-2.5 h-2.5 text-[#B87A6A]" />
+                仅自己可见
+                {isGuest && (
+                  <button
+                    type="button"
+                    onClick={() => onLogin?.()}
+                    className="text-[#B4452F] font-bold hover:underline cursor-pointer"
+                  >
+                    · 存本机
+                  </button>
+                )}
               </span>
             </div>
             {/* Clean unboxed metadata with dot separators */}

@@ -11,11 +11,13 @@ interface LoginModalProps {
   /** 用户主动关闭 / 跳过登录（与登录成功后的 onClose 区分，用于抑制自动弹出） */
   onDismiss?: () => void;
   onSuccess?: () => void;
+  /** 打开「游客 / 登录权限差异」说明 */
+  onShowAccess?: () => void;
   sendCode: (phone: string) => Promise<{ ok: boolean; message?: string }>;
   verifyCode: (phone: string, code: string) => Promise<{ ok: boolean; message?: string }>;
 }
 
-export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onDismiss, onSuccess, sendCode, verifyCode }) => {
+export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onDismiss, onSuccess, onShowAccess, sendCode, verifyCode }) => {
   const [phone, setPhone] = useState('');
   const [code, setCode] = useState('');
   const [codeSent, setCodeSent] = useState(false);
@@ -110,7 +112,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onDismi
             <Smartphone className="w-5 h-5" />
           </div>
           <div>
-            <h3 className="font-display font-extrabold text-lg text-[#292524]">登录舞友论坛</h3>
+            <h3 className="font-display font-extrabold text-lg text-[#292524]">登录，让记录跟着你</h3>
             <p className="text-xs text-[#8C7A6B]">手机验证码登录，新号码自动注册</p>
           </div>
         </div>
@@ -184,9 +186,9 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onDismi
         </form>
 
         <p className="mt-3 text-[11px] text-[#A8988A] text-center leading-relaxed">
-          登录后你的作品、打卡、发帖、约练记录会存到云端，
+          登录后作品、打卡、标签会云端同步，换设备登录同一手机号即可继续；
           <br />
-          换设备登录同一手机号即可继续使用。
+          你在游客模式记下的内容会自动并入账号，不会丢。
         </p>
 
         <button
@@ -194,8 +196,21 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onDismi
           onClick={handleDismiss}
           className="w-full mt-3 py-2 text-xs font-semibold text-[#8C7A6B] hover:text-[#574B40] hover:bg-[#F7EFE7] rounded-xl transition-colors cursor-pointer"
         >
-          先逛逛，暂不登录
+          继续用游客模式（数据存本机）
         </button>
+
+        {onShowAccess && (
+          <button
+            type="button"
+            onClick={() => {
+              onShowAccess();
+              onClose();
+            }}
+            className="w-full mt-1 text-[10.5px] text-[#A8988A] hover:text-[#6B5A4D] underline underline-offset-2 cursor-pointer"
+          >
+            查看游客 / 登录权限差异
+          </button>
+        )}
       </div>
     </div>
   );
