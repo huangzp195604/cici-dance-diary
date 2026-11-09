@@ -68,3 +68,20 @@ npm run verify      # lint + format:check + build:cloud（CI 用的就是这套�
 结构化的标题、心得、日期、封面（canvas 抽帧转 base64）本来就会上云，
 换设备后缺的只有视频本体。缺片界面上现在给一个「从这台设备重新选这支视频」，
 选中后只替换 `mediaUrl` 引用，记录本身不动——比让用户重新发一条合理。
+
+## 云端发布（别让 dev server 上线）
+
+发布必须显式指定构建 + 静态服务两步，不交给平台自动探测：
+
+- install：`npm install && npm run build:cloud`
+- start：`node server.js`
+
+原因：项目根目录有 `vite.config.ts`，平台自动探测会直接起 `vite dev`，结果线上
+变成带 `@react-refresh` 的 dev 页面，base 用 Pages 的子路径 `/cici-dance-diary/`，
+根路径被 302 过去，压缩与长缓存全部失效，源码还能被直接读到。
+
+`dist/` 在 `.gitignore` 里，所以**不能**只上传源码就指望 server.js 有东西可托管，
+构建必须放在 install 阶段跑。构建脚本也改成了 `vite build --mode cloud`：
+原来的 `DEPLOY_TARGET=cloud vite build` 是 shell 变量前缀写法，Windows cmd 下
+直接报「不是内部或外部命令」，`npm run verify` 的退出码又被管道吃掉，表现为
+「校验通过」但根本没构建。
