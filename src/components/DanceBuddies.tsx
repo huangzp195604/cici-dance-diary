@@ -31,11 +31,21 @@ import {
   Pencil,
   Lock,
   BadgeCheck,
-  Link2
+  Link2,
+  Flag,
+  ScrollText
 } from 'lucide-react';
 import { DanceBuddy, WallMessage, ForumThread, RealFriend, ForumCategory, ForumReply, DanceStage, Gender } from '../types';
 import { OnlineFriendsSection, MessagesView, UserCardModal } from './SocialViews';
 import { GuestForumPreview } from './GuestForumPreview';
+import { CommunityRules } from './CommunityRules';
+import { ReportDialog, type ReportTarget } from './ReportDialog';
+import {
+  MeetupSafetyNote,
+  MeetupSafetyConfirm,
+  hasAckedMeetupSafety,
+  ackMeetupSafety,
+} from './MeetupSafetyNote';
 import type { SocialActions, SocialViewProps } from './SocialViews';
 import type { SocialData } from '../types';
 
@@ -197,6 +207,16 @@ export const DanceBuddies: React.FC<DanceBuddiesProps> = ({
   // 报名闭环：活动群入口（仅报名者可见）与组织者身份说明
   const [newThreadGroupEntry, setNewThreadGroupEntry] = useState('');
   const [newThreadGroupNote, setNewThreadGroupNote] = useState('');
+
+  // 社区治理：举报 / 公约 / 首次约练安全确认
+  const [isRulesOpen, setIsRulesOpen] = useState(false);
+  const [reportTarget, setReportTarget] = useState<ReportTarget | null>(null);
+  /** 本机已举报的内容：立刻折叠，避免举报完还天天在列表里看到 */
+  const [reportedThreadIds, setReportedThreadIds] = useState<Record<string, boolean>>({});
+  const [revealedReportedIds, setRevealedReportedIds] = useState<Record<string, boolean>>({});
+  const [reportedReplyIds, setReportedReplyIds] = useState<Record<string, boolean>>({});
+  /** 首次报名前要先过安全确认；记下待确认的帖子 id */
+  const [safetyThreadId, setSafetyThreadId] = useState<string | null>(null);
   const [newThreadOrganizerNote, setNewThreadOrganizerNote] = useState('');
   // 疑似站外收款/拉群的帖子：默认折叠，用户可主动展开
   const [revealedOffsiteIds, setRevealedOffsiteIds] = useState<Record<string, boolean>>({});
@@ -675,6 +695,7 @@ export const DanceBuddies: React.FC<DanceBuddiesProps> = ({
           threads={threads}
           onLogin={onForumLocked || onLoginRequired || (() => {})}
           onShowAccess={onShowAccess || (() => {})}
+          onShowRules={() => setIsRulesOpen(true)}
         />
       )}
 
@@ -684,8 +705,9 @@ export const DanceBuddies: React.FC<DanceBuddiesProps> = ({
           {/* Sub-bar: Category Filter & New Post Trigger */}
           <div className="bg-white border border-[#EFE3D5] rounded-2xl p-4 shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-3">
             
-            {/* Board category chips */}
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0 scrollbar-none">
+            {/* Board category chips：窄屏换行而不是横向滚动，
+                横向滚动会把“扒舞音乐”切一半，看着像排版坏了 */}
+            <div className="flex flex-wrap items-center gap-1.5 gap-y-1.5">
               {(['全部', '舞室约练', '动作拆解', '扒舞音乐', '舞友随笔'] as ForumCategory[]).map((cat) => (
                 <button
                   key={cat}
@@ -707,6 +729,16 @@ export const DanceBuddies: React.FC<DanceBuddiesProps> = ({
 
             {/* Search & New Post Button */}
             <div className="flex items-center gap-2 self-end md:self-auto w-full md:w-auto">
+              <button
+                type="button"
+                onClick={() => setIsRulesOpen(true)}
+                title="查看社区公约：只谈舞蹈、不做生意、见面选公共场所"
+                className="flex items-center gap-1 px-2.5 py-1.5 text-[11px] font-bold text-[#7C3AED] bg-[#F3EEFF] hover:bg-[#EAE1FF] border border-[#DDD0FA] rounded-xl shrink-0 transition-colors cursor-pointer"
+              >
+                <ScrollText className="w-3.5 h-3.5" />
+                <span className="whitespace-nowrap">公约</span>
+              </button>
+
               <div className="relative flex-1 md:w-48">
                 <Search className="w-3.5 h-3.5 text-[#A8988A] absolute left-3 top-2.5" />
                 <input
@@ -723,7 +755,7 @@ export const DanceBuddies: React.FC<DanceBuddiesProps> = ({
                 className="px-4 py-2 bg-[#FF7E67] hover:bg-[#E65B47] text-white rounded-xl text-xs font-bold shadow-2xs hover:shadow-xs flex items-center gap-1.5 shrink-0 transition-all cursor-pointer"
               >
                 <Plus className="w-3.5 h-3.5 stroke-[3]" />
-                <span>发布新帖 / 发起约练</span>
+                <span className="whitespace-nowrap">发布<span className="hidden sm:inline">新帖 / 发起约练</span></span>
               </button>
             </div>
 
@@ -779,6 +811,8 @@ export const DanceBuddies: React.FC<DanceBuddiesProps> = ({
                 const canSeeGroup = hasJoined || !!thread.isOrganizer;
                 const offsiteWarning = detectOffsite(thread.content);
                 const hideContent = !!offsiteWarning && !revealedOffsiteIds[thread.id];
+                // 刚举报过：本机先折叠，眼不见为净，但保留「仍要查看」的出口，不做无声删改
+                const isReportedHidden = !!reportedThreadIds[thread.id] && !revealedReportedIds[thread.id];
 
                 return (
                   <article
@@ -787,7 +821,7 @@ export const DanceBuddies: React.FC<DanceBuddiesProps> = ({
                   >
                     {/* Header */}
                     <div className="flex items-start justify-between gap-3">
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-3 min-w-0 flex-1">
                         <button
                           type="button"
                           disabled={!thread.authorId}
@@ -838,14 +872,19 @@ export const DanceBuddies: React.FC<DanceBuddiesProps> = ({
                               </span>
                             )}
                           </div>
-                          <div className="flex items-center gap-2 text-[11px] text-[#A8988A] mt-0.5">
-                            <span className="text-[#7C3AED] font-semibold">{thread.category}</span>
-                            <span aria-hidden="true">·</span>
-                            <span title={thread.createdAtExact ? `发布于 ${thread.createdAtExact}` : undefined}>
+                          <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-[#A8988A] mt-0.5">
+                            <span className="text-[#7C3AED] font-semibold whitespace-nowrap">{thread.category}</span>
+                            {/* 分隔点挂在第二段开头，换行时跟着走，不会把孤零零一个点留在行尾 */}
+                            <span
+                              className="whitespace-nowrap"
+                              title={thread.createdAtExact ? `发布于 ${thread.createdAtExact}` : undefined}
+                            >
+                              <span aria-hidden="true" className="mr-2 text-[#CDBEB3]">
+                                ·
+                              </span>
                               {thread.createdAt}
+                              <span className="hidden sm:inline"> · {thread.views} 次浏览</span>
                             </span>
-                            <span aria-hidden="true">·</span>
-                            <span>{thread.views} 次浏览</span>
                           </div>
                         </div>
                       </div>
@@ -871,6 +910,25 @@ export const DanceBuddies: React.FC<DanceBuddiesProps> = ({
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
+                        {/* 举报：自己的帖子不显示（举报自己没意义，也容易被当成测试入口） */}
+                        {!thread.isOrganizer && (
+                          <button
+                            onClick={() =>
+                              setReportTarget({
+                                type: 'thread',
+                                id: thread.id,
+                                authorId: thread.authorId,
+                                authorName: thread.author,
+                                excerpt: `${thread.title}｜${thread.content}`.slice(0, 200),
+                              })
+                            }
+                            className="w-7 h-7 flex items-center justify-center rounded-lg text-[#B8A89A] hover:text-[#B4452F] hover:bg-[#FFF1EC] border border-transparent hover:border-[#FFD5C8] transition-all cursor-pointer"
+                            title="举报这条内容（广告、站外收款、骚扰等）"
+                            aria-label={`举报帖子 ${thread.title}`}
+                          >
+                            <Flag className="w-3.5 h-3.5" />
+                          </button>
+                        )}
                       </div>
                     </div>
 
@@ -883,7 +941,24 @@ export const DanceBuddies: React.FC<DanceBuddiesProps> = ({
                     </h3>
 
                     {/* Content snippet：疑似站外收款/拉群时默认折叠，引导走官方报名 */}
-                    {hideContent ? (
+                    {isReportedHidden ? (
+                      <div className="mt-2 bg-[#F7F4FF] border border-[#DDD0FA] rounded-2xl p-3 flex items-start gap-2">
+                        <Flag className="w-4 h-4 text-[#7C3AED] shrink-0 mt-0.5" />
+                        <div className="space-y-1 min-w-0">
+                          <p className="text-xs font-bold text-[#4C1D95]">你已举报这条内容，已在这台设备上隐藏</p>
+                          <p className="text-[11px] text-[#6D28D9] leading-relaxed">
+                            我们会在 24 小时内核实。想先看一眼原文，可以展开。
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => setRevealedReportedIds((prev) => ({ ...prev, [thread.id]: true }))}
+                            className="text-[11px] font-bold text-[#4C1D95] underline hover:no-underline cursor-pointer"
+                          >
+                            仍要查看
+                          </button>
+                        </div>
+                      </div>
+                    ) : hideContent ? (
                       <div className="mt-2 bg-[#FFFBEB] border border-[#FDE68A] rounded-2xl p-3.5 space-y-2">
                         <div className="flex items-start gap-2">
                           <AlertTriangle className="w-4 h-4 text-[#B45309] shrink-0 mt-0.5" />
@@ -945,7 +1020,14 @@ export const DanceBuddies: React.FC<DanceBuddiesProps> = ({
                             </span>
                           ) : (
                             <button
-                              onClick={() => onToggleJoinMeetup?.(thread.id)}
+                              onClick={() => {
+                                // 第一次报名先过一次安全确认；之后不再打扰
+                                if (!hasJoined && !hasAckedMeetupSafety()) {
+                                  setSafetyThreadId(thread.id);
+                                  return;
+                                }
+                                onToggleJoinMeetup?.(thread.id);
+                              }}
                               disabled={!hasJoined && isFull}
                               className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-2xs ${
                                 hasJoined
@@ -1009,6 +1091,11 @@ export const DanceBuddies: React.FC<DanceBuddiesProps> = ({
                               );
                             })}
                           </div>
+                        </div>
+
+                        {/* 安全提示：常驻一行，报名的人和不报名的人都看得到 */}
+                        <div className="pt-2 border-t border-[#F5DEC7]">
+                          <MeetupSafetyNote />
                         </div>
 
                         {/* 活动群入口：报名后才解锁（数据层由 RLS 保证，非仅前端隐藏） */}
@@ -1160,14 +1247,45 @@ export const DanceBuddies: React.FC<DanceBuddiesProps> = ({
                                     </span>
                                   )}
                                 </div>
-                                <span
-                                  className="text-[10px] text-[#A8988A] font-mono"
-                                  title={reply.createdAtExact ? `发布于 ${reply.createdAtExact}` : undefined}
-                                >
-                                  {reply.createdAtExact || reply.createdAt}
-                                </span>
+                                <div className="flex items-center gap-1 shrink-0">
+                                  <span
+                                    className="text-[10px] text-[#A8988A] font-mono"
+                                    title={reply.createdAtExact ? `发布于 ${reply.createdAtExact}` : undefined}
+                                  >
+                                    {reply.createdAtExact || reply.createdAt}
+                                  </span>
+                                  {!reply.isOwner && (
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        setReportTarget({
+                                          type: 'reply',
+                                          id: reply.id,
+                                          authorId: reply.authorId,
+                                          authorName: reply.author,
+                                          excerpt: reply.content,
+                                        })
+                                      }
+                                      title="举报这条回复"
+                                      aria-label={`举报 ${reply.author} 的回复`}
+                                      className="p-1 rounded-md text-[#C4B5A8] hover:text-[#B4452F] hover:bg-[#FFF1EC] transition-colors cursor-pointer"
+                                    >
+                                      <Flag className="w-3 h-3" />
+                                    </button>
+                                  )}
+                                </div>
                               </div>
-                              <p className="text-[#574B40] leading-relaxed">{reply.content}</p>
+                              {reportedReplyIds[reply.id] ? (
+                                <div className="flex items-start gap-1.5 rounded-lg bg-[#F7F4FF] px-2 py-1.5">
+                                  <Flag className="w-3 h-3 text-[#7C3AED] shrink-0 mt-0.5" />
+                                  <p className="text-[11px] text-[#5B21B6] leading-relaxed">
+                                    你已举报这条回复，正在进行核实。
+                                    <span className="opacity-70">（内容按原样保留，不为你单方面删除别人的话）</span>
+                                  </p>
+                                </div>
+                              ) : (
+                                <p className="text-[#574B40] leading-relaxed">{reply.content}</p>
+                              )}
                             </div>
                           ))
                         )}
@@ -1574,6 +1692,19 @@ export const DanceBuddies: React.FC<DanceBuddiesProps> = ({
                   </div>
                 )}
               </div>
+
+              {/* 发布前的公约提醒：一句话 + 可点开全文，不做强制勾选 */}
+              <p className="text-[11px] text-[#A8988A] text-center leading-relaxed">
+                {editingThreadId ? '保存即表示同意' : '发布即表示同意'}
+                <button
+                  type="button"
+                  onClick={() => setIsRulesOpen(true)}
+                  className="mx-1 text-[#7C3AED] font-bold hover:underline cursor-pointer"
+                >
+                  社区公约
+                </button>
+                ：禁广告与站外收款，约练请写清场地、时间与费用。
+              </p>
 
               {/* Action Buttons */}
               <div className="flex items-center justify-end gap-2 pt-2 border-t border-[#F1E5D8]">
@@ -2001,6 +2132,35 @@ export const DanceBuddies: React.FC<DanceBuddiesProps> = ({
           <span>{deleteFeedbackToast}</span>
         </div>
       )}
+
+      {/* ======================================================== */}
+      {/* 社区治理：公约 / 举报 / 首次约练安全确认                 */}
+      {/* ======================================================== */}
+      <CommunityRules open={isRulesOpen} onClose={() => setIsRulesOpen(false)} />
+
+      <ReportDialog
+        target={reportTarget}
+        currentUserName={currentUserName}
+        onClose={() => setReportTarget(null)}
+        onSubmitted={(t) => {
+          if (t.type === 'thread') {
+            setReportedThreadIds((prev) => ({ ...prev, [t.id]: true }));
+          } else if (t.type === 'reply') {
+            setReportedReplyIds((prev) => ({ ...prev, [t.id]: true }));
+          }
+        }}
+      />
+
+      <MeetupSafetyConfirm
+        open={!!safetyThreadId}
+        onCancel={() => setSafetyThreadId(null)}
+        onConfirm={() => {
+          ackMeetupSafety();
+          const pendingId = safetyThreadId;
+          setSafetyThreadId(null);
+          if (pendingId) onToggleJoinMeetup?.(pendingId);
+        }}
+      />
 
     </div>
   );

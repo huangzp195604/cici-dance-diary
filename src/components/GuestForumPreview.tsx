@@ -17,6 +17,8 @@ interface GuestForumPreviewProps {
   error?: string;
   onLogin: () => void;
   onShowAccess: () => void;
+  /** 打开社区公约：游客也该知道这里的规矩 */
+  onShowRules: () => void;
 }
 
 const CATEGORY_STYLE: Record<ForumThread['category'], string> = {
@@ -41,6 +43,7 @@ export const GuestForumPreview: React.FC<GuestForumPreviewProps> = ({
   error = '',
   onLogin,
   onShowAccess,
+  onShowRules,
 }) => {
   const visible = threads.slice(0, GUEST_FORUM_PREVIEW_LIMIT);
   const total = threads.length;
@@ -195,12 +198,23 @@ export const GuestForumPreview: React.FC<GuestForumPreviewProps> = ({
         </div>
       )}
 
-      <button
-        onClick={onShowAccess}
-        className="w-full text-[11px] text-[#A8988A] hover:text-[#6B5A4D] underline underline-offset-2 py-1 cursor-pointer"
-      >
-        游客和登录具体差哪些功能？查看权限对比
-      </button>
+      <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 py-1">
+        <button
+          onClick={onShowRules}
+          className="text-[11px] text-[#7C3AED] font-semibold hover:underline underline-offset-2 cursor-pointer"
+        >
+          社区公约
+        </button>
+        <span aria-hidden="true" className="text-[#D9C9BA]">
+          ·
+        </span>
+        <button
+          onClick={onShowAccess}
+          className="text-[11px] text-[#A8988A] hover:text-[#6B5A4D] underline underline-offset-2 cursor-pointer"
+        >
+          游客和登录具体差哪些功能？查看权限对比
+        </button>
+      </div>
     </div>
   );
 };
