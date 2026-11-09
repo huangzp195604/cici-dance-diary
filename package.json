@@ -13,7 +13,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "verify": "npm run lint && npm run format:check && npm run build:cloud",
-    "build:cloud": "DEPLOY_TARGET=cloud vite build"
+    "build:cloud": "vite build --mode cloud"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",

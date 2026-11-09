@@ -11,6 +11,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { X, RefreshCw, CheckCircle2, ShieldOff, Flag, Inbox, AlertCircle, MessageSquare } from 'lucide-react';
 import { REPORT_REASONS } from '../utils/community';
 import { checkIsAdmin, listReports, setReportStatus, type ReportRow } from '../services/adminApi';
+import { fetchProfiles } from '../services/userDataApi';
 
 const TARGET_LABEL: Record<string, string> = {
   thread: '帖子',
@@ -40,6 +41,8 @@ export const AdminReports: React.FC<AdminReportsProps> = ({ open, onClose }) => 
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [denied, setDenied] = useState(false);
+  /** 用户 id → 昵称：队列里只存了 id，处理时看 id 无法判断是谁 */
+  const [names, setNames] = useState<Map<string, string>>(new Map());
 
   const load = useCallback(async (status: Filter) => {
     setLoading(true);
@@ -54,6 +57,20 @@ export const AdminReports: React.FC<AdminReportsProps> = ({ open, onClose }) => 
       setDenied(false);
       const list = await listReports(status === 'all' ? 'all' : status);
       setRows(list);
+
+      // 昵称补全：举报人可能是空 owner_name，被举报作者只存了 id。
+      // 失败不影响队列主流程，兜底继续显示 id。
+      const ids = Array.from(
+        new Set(list.flatMap((r) => [r.owner_id, r.target_author_id]).filter((v): v is string => !!v))
+      );
+      if (ids.length > 0) {
+        const profiles = await fetchProfiles(ids);
+        const next = new Map<string, string>();
+        profiles.forEach((p, id) => {
+          if (p.nickname) next.set(id, p.nickname);
+        });
+        setNames(next);
+      }
     } catch (err) {
       setError(String((err as Error)?.message || err));
     } finally {
@@ -71,7 +88,13 @@ export const AdminReports: React.FC<AdminReportsProps> = ({ open, onClose }) => 
     setBusyId(String(row.id));
     try {
       await setReportStatus(row.id, status);
-      setRows((prev) => prev.map((r) => (String(r.id) === String(row.id) ? { ...r, status } : r)));
+      // 待处理 / 已处理 是互斥视图：处理完就应从这里消失，
+      // 否则队列越积越长，管理员分不清哪些还没看
+      setRows((prev) =>
+        filter === 'all'
+          ? prev.map((r) => (String(r.id) === String(row.id) ? { ...r, status } : r))
+          : prev.filter((r) => String(r.id) !== String(row.id))
+      );
     } catch (err) {
       setError(String((err as Error)?.message || err));
     } finally {
@@ -207,13 +230,15 @@ export const AdminReports: React.FC<AdminReportsProps> = ({ open, onClose }) => 
                   <div className="mt-2 flex items-center gap-2 flex-wrap text-[10.5px] text-[#A8988A]">
                     <span className="break-all">目标 {row.target_id}</span>
                     <span>·</span>
-                    <span>{row.owner_name || row.owner_id}</span>
+                    <span>{row.owner_name || names.get(row.owner_id) || row.owner_id}</span>
                     <span>·</span>
                     <span>{new Date(row.created_at).toLocaleString('zh-CN', { hour12: false })}</span>
                     {row.target_author_id && (
                       <>
                         <span>·</span>
-                        <span className="break-all">作者 {row.target_author_id}</span>
+                        <span className="break-all">
+                          作者 {names.get(row.target_author_id) || row.target_author_id}
+                        </span>
                       </>
                     )}
                   </div>

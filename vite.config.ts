@@ -3,11 +3,12 @@ import react from '@vitejs/plugin-react';
 import path from 'path';
 import { defineConfig } from 'vite';
 
-export default defineConfig(() => {
+export default defineConfig(({ mode }) => {
   return {
     // 双部署目标：GitHub Pages 走子路径，WorkBuddy 云端域名走根路径
-    // 云端构建：DEPLOY_TARGET=cloud vite build
-    base: process.env.DEPLOY_TARGET === 'cloud' ? '/' : '/cici-dance-diary/',
+    // 云端构建：vite build --mode cloud（跨平台，不依赖 shell 变量前缀，
+    // 之前 `DEPLOY_TARGET=cloud vite build` 在 Windows cmd 下直接报错、构建被静默跳过）
+    base: mode === 'cloud' || process.env.DEPLOY_TARGET === 'cloud' ? '/' : '/cici-dance-diary/',
     plugins: [react(), tailwindcss()],
     resolve: {
       alias: {

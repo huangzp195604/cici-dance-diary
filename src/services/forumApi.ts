@@ -134,6 +134,9 @@ export async function fetchForumPage(
     .select('*')
     .order('is_pinned', { ascending: false })
     .order('created_at', { ascending: false })
+    // 兜底排序键：批量导入或同一秒发帖时 created_at 会完全相同，
+    // 只靠时间排序时 range 分页在边界上可能重复或漏行，用自增 id 定序才稳定
+    .order('id', { ascending: false })
     .range(offset, offset + limit - 1);
 
   if (threadsRes.error) throw new Error(errText(threadsRes.error));
