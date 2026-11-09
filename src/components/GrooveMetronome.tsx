@@ -1,5 +1,5 @@
-import React from 'react';
-import { Play, Square, Sliders, Music } from 'lucide-react';
+import React, { useState } from 'react';
+import { Play, Square, Sliders, Music, Volume2 } from 'lucide-react';
 import { metronomeInstance } from '../utils/audio';
 
 interface GrooveMetronomeProps {
@@ -21,7 +21,17 @@ export const GrooveMetronome: React.FC<GrooveMetronomeProps> = ({
   isRunning,
   onToggle,
 }) => {
+  // 音量存在 audio 单例里（并写 localStorage），这里只是它的受控视图。
+  // hooks 必须在 `if (!isOpen) return null` 之前调用，否则打开/收起时 hook 数量变化会报错。
+  const [volume, setVolume] = useState<number>(() => Math.round(metronomeInstance.getVolume() * 100));
+
   if (!isOpen) return null;
+
+  const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = parseInt(e.target.value, 10);
+    setVolume(val);
+    metronomeInstance.setVolume(val / 100);
+  };
 
   const handleBpmChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = parseInt(e.target.value, 10);
@@ -75,7 +85,7 @@ export const GrooveMetronome: React.FC<GrooveMetronomeProps> = ({
         </div>
 
         {/* Right: Controls & BPM */}
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3">
           <div className="flex items-center gap-1.5 bg-white px-2.5 py-1 rounded-full border border-[#E7D6C5]">
             <Sliders className="w-3.5 h-3.5 text-[#8C7A6B]" />
             <input
@@ -87,6 +97,23 @@ export const GrooveMetronome: React.FC<GrooveMetronomeProps> = ({
               className="w-16 sm:w-20 accent-[#FF6B6B] cursor-pointer"
             />
             <span className="font-mono font-semibold text-xs text-[#3D3126] w-12 text-right">{bpm} BPM</span>
+          </div>
+
+          {/* 音量：手机外放普遍偏小，给一个能拉满的滑块，否则用户只能去调系统音量 */}
+          <div className="flex items-center gap-1.5 bg-white px-2.5 py-1 rounded-full border border-[#E7D6C5]">
+            <Volume2 className="w-3.5 h-3.5 text-[#8C7A6B]" />
+            <input
+              type="range"
+              min="0"
+              max="100"
+              step="5"
+              value={volume}
+              onChange={handleVolumeChange}
+              aria-label="节拍器音量"
+              title={`音量 ${volume}%`}
+              className="w-16 sm:w-20 accent-[#E65B47] cursor-pointer"
+            />
+            <span className="font-mono font-semibold text-[11px] text-[#3D3126] w-9 text-right">{volume}%</span>
           </div>
 
           <button

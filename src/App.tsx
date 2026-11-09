@@ -33,7 +33,7 @@ import {
   mergeCollections,
 } from './utils/sync';
 import { isManualSignOut } from './utils/authSession';
-import { brandTitle, brandInitial } from './utils/brand';
+import { brandTitle, brandInitial, SITE_NAME } from './utils/brand';
 import { LogoutConfirmDialog } from './components/LogoutConfirmDialog';
 import { GuestModeBar } from './components/GuestModeBar';
 import { AccessCompareModal } from './components/AccessCompareModal';
@@ -1218,6 +1218,12 @@ export default function App() {
             <span>Keep Dancing &amp; Groove On 💃</span>
           </div>
         </div>
+        {/* 版权声明：内容（图文/视频/复盘）归作者，转载搬运需授权。
+            刻意放在页脚最底、字号最小，不影响主流程，但遇到搬运时有书面依据。 */}
+        <p className="max-w-4xl mx-auto px-4 mt-5 text-[11px] leading-relaxed text-[#B3A398]">
+          © {new Date().getFullYear()} {SITE_NAME} ·
+          站内图文、视频与训练记录版权归作者所有，未经授权请勿转载、搬运或批量抓取
+        </p>
       </footer>
 
       {/* 6. 云端登录弹窗 */}
