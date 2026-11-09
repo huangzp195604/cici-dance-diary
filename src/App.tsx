@@ -39,6 +39,10 @@ import { GuestModeBar } from './components/GuestModeBar';
 import { AccessCompareModal } from './components/AccessCompareModal';
 import { LoginGateDialog } from './components/LoginGateDialog';
 import { WelcomeModal } from './components/WelcomeModal';
+import { LegalDocs } from './components/LegalDocs';
+import { AdminReports } from './components/AdminReports';
+import { FeedbackDialog } from './components/FeedbackDialog';
+import { checkIsAdmin } from './services/adminApi';
 import type { SocialData, UserProfile } from './types';
 import type { SocialActions } from './components/SocialViews';
 
@@ -130,6 +134,13 @@ export default function App() {
   const [welcomeOpen, setWelcomeOpen] = useState(false);
   /** 权限对比（游客 vs 登录）说明弹窗 */
   const [accessOpen, setAccessOpen] = useState(false);
+  /** 隐私政策 / 用户协议：null 表示关闭 */
+  const [legalDoc, setLegalDoc] = useState<'privacy' | 'terms' | null>(null);
+  /** 意见与数据请求（含删除账号） */
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
+  /** 举报处理队列：仅管理员可见入口 */
+  const [adminOpen, setAdminOpen] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
   /** 顶部游客提示条是否被本次会话收起 */
   const [guestBarHidden, setGuestBarHidden] = useState(() => {
     try {
@@ -152,6 +163,25 @@ export default function App() {
    * 会话仍在恢复（ready=false）时不判游客，避免首屏闪一下「游客模式」再变回登录态。
    */
   const isGuest = ready && !user;
+
+  /**
+   * 管理员身份：只用来决定「处理队列」入口是否出现。
+   * 真正的数据权限在数据库 RLS 里，前端这里读不到就当作没权限。
+   */
+  useEffect(() => {
+    if (!user) {
+      setIsAdmin(false);
+      return;
+    }
+    let alive = true;
+    void checkIsAdmin().then((ok) => {
+      if (alive) setIsAdmin(ok);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [user]);
+
   const [userAvatar, setUserAvatar] = useState<string | null>(() => {
     return localStorage.getItem('cici_user_avatar') || '';
   });
@@ -1108,6 +1138,42 @@ export default function App() {
             <span>·</span>
             <span>论坛为公开区，需登录</span>
             <span>·</span>
+            <button
+              type="button"
+              onClick={() => setLegalDoc('privacy')}
+              className="underline underline-offset-2 hover:text-[#6B5A4D] cursor-pointer"
+            >
+              隐私政策
+            </button>
+            <span>·</span>
+            <button
+              type="button"
+              onClick={() => setLegalDoc('terms')}
+              className="underline underline-offset-2 hover:text-[#6B5A4D] cursor-pointer"
+            >
+              用户协议
+            </button>
+            <span>·</span>
+            <button
+              type="button"
+              onClick={() => setFeedbackOpen(true)}
+              className="underline underline-offset-2 hover:text-[#6B5A4D] cursor-pointer"
+            >
+              意见与反馈
+            </button>
+            {isAdmin && (
+              <>
+                <span>·</span>
+                <button
+                  type="button"
+                  onClick={() => setAdminOpen(true)}
+                  className="font-bold text-[#B4452F] underline underline-offset-2 hover:text-[#8C2F1E] cursor-pointer"
+                >
+                  处理队列
+                </button>
+              </>
+            )}
+            <span>·</span>
             <span>Keep Dancing &amp; Groove On 💃</span>
           </div>
         </div>
@@ -1136,6 +1202,7 @@ export default function App() {
           setIsLoginOpen(true);
         }}
         onShowAccess={() => setAccessOpen(true)}
+        onShowLegal={(doc) => setLegalDoc(doc)}
         onClose={startAsGuest}
       />
 
@@ -1147,6 +1214,26 @@ export default function App() {
         localRecordCount={posts.length}
         onLogin={() => setIsLoginOpen(true)}
       />
+
+      {/* 6.16 隐私政策 / 用户协议 */}
+      <LegalDocs
+        open={!!legalDoc}
+        initialDoc={legalDoc ?? 'privacy'}
+        onClose={() => setLegalDoc(null)}
+        onOpenFeedback={() => setFeedbackOpen(true)}
+      />
+
+      {/* 6.17 意见与数据请求（含删除账号） */}
+      <FeedbackDialog
+        open={feedbackOpen}
+        onClose={() => setFeedbackOpen(false)}
+        isLoggedIn={!!user}
+        ownerName={displayNickname}
+        onLogin={() => setIsLoginOpen(true)}
+      />
+
+      {/* 6.18 举报处理队列：入口只对管理员显示 */}
+      <AdminReports open={adminOpen} onClose={() => setAdminOpen(false)} />
 
       {/* 6.2 论坛等需登录功能的提示层 */}
       <LoginGateDialog

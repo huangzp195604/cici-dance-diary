@@ -48,6 +48,14 @@ import {
 } from './MeetupSafetyNote';
 import type { SocialActions, SocialViewProps } from './SocialViews';
 import type { SocialData } from '../types';
+import {
+  validateThreadInput,
+  validateReplyInput,
+  lengthHint,
+  THREAD_TITLE_MAX,
+  THREAD_CONTENT_MAX,
+  REPLY_MAX,
+} from '../utils/contentGuard';
 
 /** 未接入社交数据时的空实现：让组件在未登录 / 加载中也能安全渲染 */
 const NOOP_SOCIAL_ACTIONS: SocialActions = {
@@ -199,6 +207,10 @@ export const DanceBuddies: React.FC<DanceBuddiesProps> = ({
   const [newThreadTitle, setNewThreadTitle] = useState('');
   const [newThreadCategory, setNewThreadCategory] = useState<'舞室约练' | '动作拆解' | '扒舞音乐' | '舞友随笔'>('舞室约练');
   const [newThreadContent, setNewThreadContent] = useState('');
+  /** 发帖校验失败时的提示（长度 / 违规词 / 刷屏），通过后清空 */
+  const [threadError, setThreadError] = useState<string | null>(null);
+  /** 回复校验失败的提示，按帖子 id 分开显示，不影响其他楼 */
+  const [replyError, setReplyError] = useState<Record<string, string>>({});
   const [newThreadStudio, setNewThreadStudio] = useState('星光舞蹈工作室 (静安店)');
   const [newThreadDate, setNewThreadDate] = useState('本周六 14:00-16:00');
   const [newThreadTargetCount, setNewThreadTargetCount] = useState(4);
@@ -320,6 +332,7 @@ export const DanceBuddies: React.FC<DanceBuddiesProps> = ({
   const openNewThreadModal = () => {
     setEditingThreadId(null);
     setNewThreadTitle('');
+    setThreadError(null);
     setNewThreadCategory('舞室约练');
     setNewThreadContent('');
     setNewThreadStudio('星光舞蹈工作室 (静安店)');
@@ -335,6 +348,7 @@ export const DanceBuddies: React.FC<DanceBuddiesProps> = ({
   // 打开帖子编辑弹窗
   const openEditThread = (thread: ForumThread) => {
     setEditingThreadId(thread.id);
+    setThreadError(null);
     setNewThreadTitle(thread.title);
     setNewThreadCategory(thread.category);
     setNewThreadContent(thread.content);
@@ -351,12 +365,19 @@ export const DanceBuddies: React.FC<DanceBuddiesProps> = ({
   const closeThreadModal = () => {
     setIsNewThreadOpen(false);
     setEditingThreadId(null);
+    setThreadError(null);
   };
 
   // Handle Thread Submission (新建或编辑)
   const handlePublishThread = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newThreadTitle.trim() || !newThreadContent.trim()) return;
+    // 第一道闸：长度上限 + 明确违规词 + 刷屏。站外收款仍由 detectOffsite 折叠提示，不在这里硬拦
+    const issue = validateThreadInput(newThreadTitle, newThreadContent);
+    if (issue) {
+      setThreadError(issue);
+      return;
+    }
+    setThreadError(null);
 
     const meetup = newThreadCategory === '舞室约练' ? {
       studio: newThreadStudio.trim(),
@@ -435,6 +456,18 @@ export const DanceBuddies: React.FC<DanceBuddiesProps> = ({
     e.preventDefault();
     const text = threadReplyText[threadId]?.trim();
     if (!text) return;
+
+    const issue = validateReplyInput(text);
+    if (issue) {
+      setReplyError((prev) => ({ ...prev, [threadId]: issue }));
+      return;
+    }
+    setReplyError((prev) => {
+      if (!prev[threadId]) return prev;
+      const next = { ...prev };
+      delete next[threadId];
+      return next;
+    });
 
     if (onAddThreadReply) {
       onAddThreadReply(threadId, text);
@@ -1291,22 +1324,50 @@ export const DanceBuddies: React.FC<DanceBuddiesProps> = ({
                         )}
 
                         {/* Inline Reply Form */}
-                        <form onSubmit={(e) => handleSubmitThreadReply(thread.id, e)} className="mt-3 flex gap-2">
-                          <input
-                            type="text"
-                            placeholder="写下你的交流想法、约练留言或求教..."
-                            value={threadReplyText[thread.id] || ''}
-                            onChange={(e) => setThreadReplyText({ ...threadReplyText, [thread.id]: e.target.value })}
-                            className="flex-1 text-xs px-3.5 py-2 rounded-xl border border-[#E8DACB] bg-white focus:outline-none focus:ring-2 focus:ring-[#7C3AED]/40"
-                          />
-                          <button
-                            type="submit"
-                            disabled={!threadReplyText[thread.id]?.trim()}
-                            className="px-4 py-2 bg-[#7C3AED] hover:bg-[#6D28D9] disabled:opacity-40 text-white rounded-xl text-xs font-bold flex items-center gap-1 transition-all cursor-pointer"
-                          >
-                            <Send className="w-3 h-3" />
-                            <span>回复</span>
-                          </button>
+                        <form onSubmit={(e) => handleSubmitThreadReply(thread.id, e)} className="mt-3">
+                          <div className="flex gap-2">
+                            <input
+                              type="text"
+                              placeholder="写下你的交流想法、约练留言或求教..."
+                              value={threadReplyText[thread.id] || ''}
+                              onChange={(e) => {
+                                setThreadReplyText({ ...threadReplyText, [thread.id]: e.target.value });
+                                if (replyError[thread.id]) {
+                                  setReplyError((prev) => {
+                                    const next = { ...prev };
+                                    delete next[thread.id];
+                                    return next;
+                                  });
+                                }
+                              }}
+                              className="flex-1 min-w-0 text-xs px-3.5 py-2 rounded-xl border border-[#E8DACB] bg-white focus:outline-none focus:ring-2 focus:ring-[#7C3AED]/40"
+                            />
+                            <button
+                              type="submit"
+                              disabled={!threadReplyText[thread.id]?.trim()}
+                              className="shrink-0 px-4 py-2 bg-[#7C3AED] hover:bg-[#6D28D9] disabled:opacity-40 text-white rounded-xl text-xs font-bold flex items-center gap-1 transition-all cursor-pointer"
+                            >
+                              <Send className="w-3 h-3" />
+                              <span>回复</span>
+                            </button>
+                          </div>
+                          {lengthHint((threadReplyText[thread.id] || '').trim().length, REPLY_MAX) && (
+                            <p
+                              className={`text-[10.5px] mt-1 text-right ${
+                                lengthHint((threadReplyText[thread.id] || '').trim().length, REPLY_MAX)!.over
+                                  ? 'text-[#C2410C] font-semibold'
+                                  : 'text-[#A8988A]'
+                              }`}
+                            >
+                              {lengthHint((threadReplyText[thread.id] || '').trim().length, REPLY_MAX)!.text}
+                            </p>
+                          )}
+                          {replyError[thread.id] && (
+                            <p className="flex items-start gap-1.5 text-[11px] text-[#991B1B] bg-[#FEF2F2] border border-[#FECACA] rounded-xl px-2.5 py-2 mt-1.5 leading-relaxed">
+                              <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                              <span>{replyError[thread.id]}</span>
+                            </p>
+                          )}
                         </form>
                       </div>
                     )}
@@ -1570,9 +1631,23 @@ export const DanceBuddies: React.FC<DanceBuddiesProps> = ({
                   required
                   placeholder="例如：【静安星光】周六下午拼大教室练胸部Roll与扒舞..."
                   value={newThreadTitle}
-                  onChange={(e) => setNewThreadTitle(e.target.value)}
+                  onChange={(e) => {
+                    setNewThreadTitle(e.target.value);
+                    if (threadError) setThreadError(null);
+                  }}
                   className="w-full text-xs sm:text-sm p-3 rounded-xl border border-[#E8DACB] bg-[#FFFDF9] focus:outline-none focus:ring-2 focus:ring-[#7C3AED]/40"
                 />
+                {lengthHint(newThreadTitle.trim().length, THREAD_TITLE_MAX) && (
+                  <p
+                    className={`text-[10.5px] mt-1 text-right ${
+                      lengthHint(newThreadTitle.trim().length, THREAD_TITLE_MAX)!.over
+                        ? 'text-[#C2410C] font-semibold'
+                        : 'text-[#A8988A]'
+                    }`}
+                  >
+                    {lengthHint(newThreadTitle.trim().length, THREAD_TITLE_MAX)!.text}
+                  </p>
+                )}
               </div>
 
               {/* If Category is 舞室约练: Additional details */}
@@ -1679,9 +1754,29 @@ export const DanceBuddies: React.FC<DanceBuddiesProps> = ({
                   required
                   placeholder="写下你想和舞友交流的内容、约练的练习重点（如前半段练隔离，后半段录成片），或者请教某段卡点的细节..."
                   value={newThreadContent}
-                  onChange={(e) => setNewThreadContent(e.target.value)}
+                  onChange={(e) => {
+                    setNewThreadContent(e.target.value);
+                    if (threadError) setThreadError(null);
+                  }}
                   className="w-full text-xs sm:text-sm p-3 rounded-2xl border border-[#E8DACB] bg-[#FFFDF9] focus:outline-none focus:ring-2 focus:ring-[#7C3AED]/40"
                 />
+                {lengthHint(newThreadContent.trim().length, THREAD_CONTENT_MAX) && (
+                  <p
+                    className={`text-[10.5px] mt-1 text-right ${
+                      lengthHint(newThreadContent.trim().length, THREAD_CONTENT_MAX)!.over
+                        ? 'text-[#C2410C] font-semibold'
+                        : 'text-[#A8988A]'
+                    }`}
+                  >
+                    {lengthHint(newThreadContent.trim().length, THREAD_CONTENT_MAX)!.text}
+                  </p>
+                )}
+                {threadError && (
+                  <div className="flex items-start gap-1.5 bg-[#FEF2F2] border border-[#FECACA] rounded-xl p-2.5 mt-2">
+                    <AlertCircle className="w-3.5 h-3.5 text-[#B91C1C] shrink-0 mt-0.5" />
+                    <span className="text-[11px] text-[#991B1B] leading-relaxed">{threadError}</span>
+                  </div>
+                )}
                 {detectOffsite(newThreadContent) && (
                   <div className="flex items-start gap-1.5 bg-[#FFFBEB] border border-[#FDE68A] rounded-xl p-2.5 mt-2">
                     <AlertTriangle className="w-3.5 h-3.5 text-[#B45309] shrink-0 mt-0.5" />

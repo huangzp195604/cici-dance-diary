@@ -15,10 +15,18 @@ interface WelcomeModalProps {
   onGuest: () => void;
   onLogin: () => void;
   onShowAccess: () => void;
+  onShowLegal: (doc: 'privacy' | 'terms') => void;
   onClose: () => void;
 }
 
-export const WelcomeModal: React.FC<WelcomeModalProps> = ({ open, onGuest, onLogin, onShowAccess, onClose }) => {
+export const WelcomeModal: React.FC<WelcomeModalProps> = ({
+  open,
+  onGuest,
+  onLogin,
+  onShowAccess,
+  onShowLegal,
+  onClose,
+}) => {
   if (!open) return null;
 
   return (
@@ -117,6 +125,25 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ open, onGuest, onLog
         >
           先看看两种状态的权限差异
         </button>
+
+        <p className="mt-2 text-center text-[10px] text-[#A8988A] leading-relaxed">
+          继续即表示同意
+          <button
+            type="button"
+            onClick={() => onShowLegal('terms')}
+            className="mx-0.5 text-[#8C7A6B] hover:text-[#6B5A4D] underline underline-offset-2 cursor-pointer"
+          >
+            《用户协议》
+          </button>
+          与
+          <button
+            type="button"
+            onClick={() => onShowLegal('privacy')}
+            className="mx-0.5 text-[#8C7A6B] hover:text-[#6B5A4D] underline underline-offset-2 cursor-pointer"
+          >
+            《隐私政策》
+          </button>
+        </p>
       </div>
     </div>
   );
