@@ -6,7 +6,6 @@ import {
   Sparkles,
   Volume2,
   VolumeX,
-  Download,
   LogIn,
   LogOut,
   UserCircle2,
@@ -221,7 +220,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           )}
         </div>
 
-        {/* Zone 3: 登录 / 资料 + 下载 + 节拍器 */}
+        {/* Zone 3: 登录 / 资料 + 节拍器 */}
         <div className="flex items-center gap-1.5 shrink-0 order-2 lg:order-3 ml-auto lg:ml-0">
           {/* 会话恢复中（userName=undefined）也保留登录按钮：自动弹窗万一没出现，
               用户仍能手动进入登录，手机上不至于完全找不到入口 */}
@@ -271,18 +270,6 @@ export const Navbar: React.FC<NavbarProps> = ({
               </button>
             </div>
           )}
-
-          {/* 手机上下载源码包意义不大，小屏隐藏以给第一行腾出空间 */}
-          <a
-            href="/cici-dance-diary-project.zip"
-            download="cici-dance-diary-project.zip"
-            title="一键下载完整项目源码包 (ZIP)"
-            className="hidden xl:flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all shadow-sm border bg-[#FFF4EC] hover:bg-[#FFEAE0] text-[#D94834] border-[#F6DCBE] whitespace-nowrap cursor-pointer"
-          >
-            <Download className="w-3.5 h-3.5" />
-            <span className="hidden lg:inline">下载项目包</span>
-            <span className="lg:hidden">下载</span>
-          </a>
 
           <button
             onClick={toggleMetronome}
