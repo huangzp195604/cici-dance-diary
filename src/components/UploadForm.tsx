@@ -1,20 +1,27 @@
 import React, { useState } from 'react';
 import { compressImageFile } from '../utils/imageCompress';
-import { LOCAL_MEDIA_PREFIX, makeLocalMediaId, saveMediaBlob } from '../utils/mediaStore';
+import {
+  MediaStorageError,
+  LOCAL_MEDIA_PREFIX,
+  hasRoomForMedia,
+  makeLocalMediaId,
+  saveMediaBlob,
+} from '../utils/mediaStore';
 import { formatDuration, probeVideo } from '../utils/videoPoster';
 import { useResolvedMedia } from '../hooks/useResolvedMedia';
 import { VIDEO_NOTE_LOCAL, VIDEO_UPLOAD_NOTICE } from '../utils/videoNotice';
-import { 
-  UploadCloud, 
-  Film, 
-  Image as ImageIcon, 
-  Calendar, 
-  Check, 
-  Sparkles, 
-  Music, 
+import { STORAGE_FULL_TIP, STORAGE_TIGHT_TIP, WECHAT_VIDEO_TIP, isWeChat } from '../utils/env';
+import {
+  UploadCloud,
+  Film,
+  Image as ImageIcon,
+  Calendar,
+  Check,
+  Sparkles,
+  Music,
   FileText,
   AlertCircle,
-  HardDrive
+  HardDrive,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { DancePost, DanceCategory, DanceStage } from '../types';
@@ -110,8 +117,7 @@ export const UploadForm: React.FC<UploadFormProps> = ({ onAddPost, onCancel, ini
     setPosterUrl(null);
     setDurationText(undefined);
     setMediaUrl('');
-    const isVid =
-      file.type.startsWith('video') || /\.(mp4|mov|m4v|webm|avi|mkv)$/i.test(file.name);
+    const isVid = file.type.startsWith('video') || /\.(mp4|mov|m4v|webm|avi|mkv)$/i.test(file.name);
     setMediaType(isVid ? 'video' : 'image');
 
     if (!title) {
@@ -122,6 +128,11 @@ export const UploadForm: React.FC<UploadFormProps> = ({ onAddPost, onCancel, ini
       // 视频体积大：Blob 存 IndexedDB，帖子只保存引用，刷新后仍能重新解析播放
       setBusy(true);
       try {
+        // 先粗判空间，别让用户等完解码才失败
+        if (!(await hasRoomForMedia())) {
+          setErrorMsg(STORAGE_TIGHT_TIP);
+          return;
+        }
         const probe = await probeVideo(file);
         const id = makeLocalMediaId();
         await saveMediaBlob(id, file);
@@ -134,11 +145,17 @@ export const UploadForm: React.FC<UploadFormProps> = ({ onAddPost, onCancel, ini
             '当前浏览器无法解码这个视频（常见于 iPhone 拍摄的 HEVC/MOV）。建议改用 MP4(H.264)，或在相册里「导出/转存」一次再上传。'
           );
         } else {
-          setMediaNotice(VIDEO_UPLOAD_NOTICE);
+          setMediaNotice(isWeChat() ? `${VIDEO_UPLOAD_NOTICE} ${WECHAT_VIDEO_TIP}` : VIDEO_UPLOAD_NOTICE);
         }
       } catch (err) {
         console.warn('视频保存失败', err);
-        setErrorMsg('视频保存失败，可能是文件太大或浏览器存储受限。请换一个较小的视频，或改传照片。');
+        if (err instanceof MediaStorageError && err.kind === 'quota') {
+          setErrorMsg(STORAGE_FULL_TIP);
+        } else if (err instanceof MediaStorageError && err.kind === 'unsupported') {
+          setErrorMsg('这个浏览器不让我们把视频存在本机（常见于隐私模式或微信限制）。换普通浏览器打开，或先改传照片。');
+        } else {
+          setErrorMsg('视频保存失败，可能是文件太大或浏览器存储受限。请换一个较小的视频，或改传照片。');
+        }
       } finally {
         setBusy(false);
       }
@@ -155,16 +172,14 @@ export const UploadForm: React.FC<UploadFormProps> = ({ onAddPost, onCancel, ini
     }
   };
 
-  const handleApplyPreset = (preset: typeof PRESET_SAMPLES[0]) => {
+  const handleApplyPreset = (preset: (typeof PRESET_SAMPLES)[0]) => {
     setMediaType(preset.type);
     setMediaUrl(preset.url);
     setPosterUrl(null);
     setDurationText(undefined);
     setErrorMsg('');
     setMediaNotice(
-      preset.type === 'video'
-        ? '这是内置示例素材，可直接保存体验完整流程；想换成自己的视频就点「重新选择」。'
-        : ''
+      preset.type === 'video' ? '这是内置示例素材，可直接保存体验完整流程；想换成自己的视频就点「重新选择」。' : ''
     );
     setTitle(preset.title);
     setStage(preset.stage);
@@ -197,7 +212,7 @@ export const UploadForm: React.FC<UploadFormProps> = ({ onAddPost, onCancel, ini
       mediaType: isTextMode ? 'text' : mediaType,
       mediaUrl: isTextMode ? '' : mediaUrl.trim(),
       // 视频封面必须是图片，不能把视频地址塞给 <img>（旧实现在这里就裂了）
-      thumbnailUrl: !isTextMode && mediaType === 'video' ? posterUrl ?? undefined : undefined,
+      thumbnailUrl: !isTextMode && mediaType === 'video' ? (posterUrl ?? undefined) : undefined,
       stage,
       categories: selectedCategories,
       notes: notes.trim(),
@@ -226,7 +241,6 @@ export const UploadForm: React.FC<UploadFormProps> = ({ onAddPost, onCancel, ini
 
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6 animate-fadeIn">
-      
       {/* Header */}
       <div className="bg-[#FFF4EC] border border-[#F6DCBE] rounded-3xl p-5 mb-6 shadow-2xs">
         <div className="flex items-center gap-3">
@@ -288,8 +302,10 @@ export const UploadForm: React.FC<UploadFormProps> = ({ onAddPost, onCancel, ini
       )}
 
       {/* Main Form */}
-      <form onSubmit={handleSubmit} className="bg-white border border-[#EDE0D2] rounded-3xl p-6 sm:p-8 shadow-xs space-y-6">
-        
+      <form
+        onSubmit={handleSubmit}
+        className="bg-white border border-[#EDE0D2] rounded-3xl p-6 sm:p-8 shadow-xs space-y-6"
+      >
         {/* 1. Media Upload / Preset Selector */}
         <div className={isTextMode ? 'hidden' : ''}>
           <label className="block text-xs font-bold text-[#574B40] uppercase tracking-wider mb-2">
@@ -354,9 +370,7 @@ export const UploadForm: React.FC<UploadFormProps> = ({ onAddPost, onCancel, ini
                 <div className="w-12 h-12 rounded-full bg-[#FFEAE0] text-[#FF7E67] flex items-center justify-center mb-3">
                   <UploadCloud className="w-6 h-6" />
                 </div>
-                <p className="text-sm font-semibold text-[#292524]">
-                  拖拽或点击上传本地视频 / 照片
-                </p>
+                <p className="text-sm font-semibold text-[#292524]">拖拽或点击上传本地视频 / 照片</p>
                 <p className="text-xs text-[#8C7A6B] mt-1 leading-relaxed">
                   支持 MP4 / MOV / WEBM 视频或 JPG / PNG 图片
                   <br className="sm:hidden" />
@@ -515,9 +529,7 @@ export const UploadForm: React.FC<UploadFormProps> = ({ onAddPost, onCancel, ini
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-[#66564A] mb-1">
-              节奏速度 (BPM)
-            </label>
+            <label className="block text-xs font-semibold text-[#66564A] mb-1">节奏速度 (BPM)</label>
             <input
               type="number"
               min="50"
@@ -564,9 +576,7 @@ export const UploadForm: React.FC<UploadFormProps> = ({ onAddPost, onCancel, ini
             <span>{isTextMode ? '保存这条记录' : '保存到成长日记'}</span>
           </button>
         </div>
-
       </form>
-
     </div>
   );
 };

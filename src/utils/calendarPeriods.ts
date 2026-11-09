@@ -9,8 +9,18 @@
  */
 
 export const CN_MONTHS = [
-  '一月', '二月', '三月', '四月', '五月', '六月',
-  '七月', '八月', '九月', '十月', '十一月', '十二月',
+  '一月',
+  '二月',
+  '三月',
+  '四月',
+  '五月',
+  '六月',
+  '七月',
+  '八月',
+  '九月',
+  '十月',
+  '十一月',
+  '十二月',
 ] as const;
 
 export const CN_WEEK_ORDINALS = ['第一', '第二', '第三', '第四', '第五', '第六'] as const;
@@ -23,8 +33,7 @@ const pad2 = (value: number) => String(value).padStart(2, '0');
 export const toDateKey = (date: Date): string =>
   `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
 
-export const toMonthDay = (date: Date): string =>
-  `${pad2(date.getMonth() + 1)}.${pad2(date.getDate())}`;
+export const toMonthDay = (date: Date): string => `${pad2(date.getMonth() + 1)}.${pad2(date.getDate())}`;
 
 export interface CalendarDay {
   /** YYYY-MM-DD，字典序等同于时间序，可直接做区间过滤 */

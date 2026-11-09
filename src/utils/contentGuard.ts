@@ -99,9 +99,7 @@ const SPAM_REPEAT = /(.)\1{29,}/;
 const LINK_RE = /https?:\/\/[^\s]+/g;
 const MAX_LINKS = 3;
 
-function firstBlockTerm(
-  text: string
-): { match: string; pattern?: RegExp; label: string; advice: string } | null {
+function firstBlockTerm(text: string): { match: string; pattern?: RegExp; label: string; advice: string } | null {
   const lower = text.toLowerCase();
   for (const item of BLOCK_TERMS) {
     if (item.pattern) {

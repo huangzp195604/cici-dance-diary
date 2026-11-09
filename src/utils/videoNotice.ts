@@ -15,8 +15,7 @@
 export const VIDEO_BADGE_LOCAL = '仅存本机';
 
 /** 视频区域常驻备注（播放器下方、上传预览下方共用） */
-export const VIDEO_NOTE_LOCAL =
-  '视频原片仅保存在这台设备，换设备后无法播放；封面、日期和笔记仍会照常同步。';
+export const VIDEO_NOTE_LOCAL = '视频原片仅保存在这台设备，换设备后无法播放；封面、日期和笔记仍会照常同步。';
 
 /** 选好视频 / 保存完成后的提示：在用户以为「已经上云」之前就说清楚 */
 export const VIDEO_UPLOAD_NOTICE =
@@ -25,8 +24,7 @@ export const VIDEO_UPLOAD_NOTICE =
 /** 换设备点开、本机没有原片时的致歉（标题 + 正文 + 建议） */
 export const VIDEO_MISSING_TITLE = '这段视频还在原来那台设备上';
 
-export const VIDEO_MISSING_BODY =
-  '很抱歉，视频原片没能跟着账号一起过来。它比笔记大得多，我们暂时还搬不动它。';
+export const VIDEO_MISSING_BODY = '很抱歉，视频原片没能跟着账号一起过来。它比笔记大得多，我们暂时还搬不动它。';
 
 export const VIDEO_MISSING_TIP =
   '记录的其他内容都已同步，只有视频要回原设备才能打开。想现在看，可以回原设备打开，或在这里重新上传。';

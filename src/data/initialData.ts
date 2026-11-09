@@ -15,7 +15,8 @@ export const LEGACY_DEMO_POSTS: DancePost[] = [
     thumbnailUrl: '/assets/aistudio/image_70723755.png',
     stage: '入门',
     categories: ['Jazz'],
-    notes: '终于不用脑子卡顿了！之前老师教的时候总是顾了手忘了脚，今天下课后在舞室多留了半小时，跟着慢速音乐顺了5遍，第4遍终于完整跟下来了！虽然核心力量还不够稳，但是能完整跳完超级有成就感💃',
+    notes:
+      '终于不用脑子卡顿了！之前老师教的时候总是顾了手忘了脚，今天下课后在舞室多留了半小时，跟着慢速音乐顺了5遍，第4遍终于完整跟下来了！虽然核心力量还不够稳，但是能完整跳完超级有成就感💃',
     likes: 8,
     isLiked: false,
     duration: '00:15',
@@ -55,7 +56,8 @@ export const LEGACY_DEMO_POSTS: DancePost[] = [
     thumbnailUrl: '/assets/aistudio/image_f83d6670.png',
     stage: '进阶',
     categories: ['编舞', 'Jazz'],
-    notes: '这期学的是情绪流的抒情Jazz，音乐一出来汗毛都竖起来了。老师说眼神要有对视感，抓拍到了这张！感觉自己的身体线条比三个月前舒展多了，不再那么拘谨。',
+    notes:
+      '这期学的是情绪流的抒情Jazz，音乐一出来汗毛都竖起来了。老师说眼神要有对视感，抓拍到了这张！感觉自己的身体线条比三个月前舒展多了，不再那么拘谨。',
     likes: 15,
     isLiked: true,
     bpm: 84,
@@ -86,7 +88,8 @@ export const LEGACY_DEMO_POSTS: DancePost[] = [
     thumbnailUrl: '/assets/aistudio/image_0ee7e0ef.png',
     stage: '入门',
     categories: ['基础练习'],
-    notes: '业余爱好者的痛：胸部Roll真的好难！总是不自觉耸肩。今天试了靠墙练习法，先固定盆骨，好像找到了一点分离感。每天打卡20分钟，肌肉记忆正在慢慢长出来。',
+    notes:
+      '业余爱好者的痛：胸部Roll真的好难！总是不自觉耸肩。今天试了靠墙练习法，先固定盆骨，好像找到了一点分离感。每天打卡20分钟，肌肉记忆正在慢慢长出来。',
     likes: 12,
     isLiked: false,
     duration: '00:15',
@@ -111,7 +114,8 @@ export const LEGACY_DEMO_POSTS: DancePost[] = [
     thumbnailUrl: '/assets/aistudio/image_70723755.png',
     stage: '进阶',
     categories: ['韩舞', 'Jazz'],
-    notes: '速度真的很快！第一遍跳完心率直接飙到160。虽然很多细节卡点不够干脆，但大汗淋漓的感觉太爽了。业余跳舞不求完美，开心和动起来最重要！',
+    notes:
+      '速度真的很快！第一遍跳完心率直接飙到160。虽然很多细节卡点不够干脆，但大汗淋漓的感觉太爽了。业余跳舞不求完美，开心和动起来最重要！',
     likes: 22,
     isLiked: true,
     duration: '00:15',
@@ -136,7 +140,8 @@ export const LEGACY_DEMO_POSTS: DancePost[] = [
     thumbnailUrl: '/assets/aistudio/image_0ee7e0ef.png',
     stage: '挑战',
     categories: ['Jazz', '其他'],
-    notes: '穿了7cm粗跟！上课前以为会摔成狗，结果老师一直在鼓励我们"自信是最好的重心"。脚踝有点酸，但是走起路来真的觉得自己太飒了✨',
+    notes:
+      '穿了7cm粗跟！上课前以为会摔成狗，结果老师一直在鼓励我们"自信是最好的重心"。脚踝有点酸，但是走起路来真的觉得自己太飒了✨',
     likes: 34,
     isLiked: false,
     bpm: 95,
@@ -409,7 +414,8 @@ export const LEGACY_DEMO_THREADS: import('../types').ForumThread[] = [
       isJoined: true,
       costNote: '场地费平摊，人均约 35 元 / 2 小时',
     },
-    content: '已经订好周六下午 2 点到 4 点的星光静安店 2 号大教室（带落地大镜子与蓝牙专业音响）。前半小时大家一起跟着 8-Count 节拍器做胸部Roll、头肩隔离基础热身，后一个半小时各练各的或互相用三脚架录视频复盘！目前我和 小满 已经确认加入，还差 2 位喜欢 Jazz 的姐妹一起拼场～',
+    content:
+      '已经订好周六下午 2 点到 4 点的星光静安店 2 号大教室（带落地大镜子与蓝牙专业音响）。前半小时大家一起跟着 8-Count 节拍器做胸部Roll、头肩隔离基础热身，后一个半小时各练各的或互相用三脚架录视频复盘！目前我和 小满 已经确认加入，还差 2 位喜欢 Jazz 的姐妹一起拼场～',
     replies: [
       {
         id: 'rep-1',
@@ -446,14 +452,16 @@ export const LEGACY_DEMO_THREADS: import('../types').ForumThread[] = [
     isLiked: true,
     views: 142,
     tags: ['胸部Roll', '隔离基础', '动作纠错'],
-    content: '每次老师喊 5-6-7-8 转到侧面和后方的时候，我总觉得自己是在拿脖子去使劲甩，第二天斜方肌酸痛得不行。看 小满 和阿澈的练习视频感觉动作为什么那么松弛舒展？求问各位同好平时自己在家练习有什么关键发力点吗？',
+    content:
+      '每次老师喊 5-6-7-8 转到侧面和后方的时候，我总觉得自己是在拿脖子去使劲甩，第二天斜方肌酸痛得不行。看 小满 和阿澈的练习视频感觉动作为什么那么松弛舒展？求问各位同好平时自己在家练习有什么关键发力点吗？',
     replies: [
       {
         id: 'rep-3',
         author: '阿澈_Groove',
         authorRole: '资深舞友',
         avatarBg: 'bg-indigo-100 text-indigo-700',
-        content: '记住口诀：“胸推天花板，下巴微微收”！后仰时千万不要后折颈椎，而是通过胸腔向上延展把肋骨带上去，双肩往下沉锁住背阔肌。你可以试着靠墙站立，先只做前后单一维度的隔离，再慢慢把四点连成圆～',
+        content:
+          '记住口诀：“胸推天花板，下巴微微收”！后仰时千万不要后折颈椎，而是通过胸腔向上延展把肋骨带上去，双肩往下沉锁住背阔肌。你可以试着靠墙站立，先只做前后单一维度的隔离，再慢慢把四点连成圆～',
         createdAt: '昨天 21:05',
         likes: 9,
         isLiked: true,
@@ -463,7 +471,8 @@ export const LEGACY_DEMO_THREADS: import('../types').ForumThread[] = [
         author: '小满',
         authorRole: '小满',
         avatarBg: 'bg-orange-100 text-orange-700',
-        content: 'Kiki 加油！我前两周也死磕这个，后来发现在网站里把节拍器开到 80 BPM 慢速走，吸气顶胸、吐气含胸，顺着呼吸练比硬使劲有效果得多！',
+        content:
+          'Kiki 加油！我前两周也死磕这个，后来发现在网站里把节拍器开到 80 BPM 慢速走，吸气顶胸、吐气含胸，顺着呼吸练比硬使劲有效果得多！',
         createdAt: '昨天 21:30',
         likes: 7,
         isLiked: true,
@@ -483,7 +492,8 @@ export const LEGACY_DEMO_THREADS: import('../types').ForumThread[] = [
     isLiked: false,
     views: 215,
     tags: ['Jazz歌单', '切分音卡点', '新手推荐'],
-    content: '很多刚学 Jazz 的舞友常常抱怨听不出重音落在第几拍。其实选歌很关键！我把平常常用的 5 首曲目放在帖子里（《Feeling Good》、《Seven Nation Army》Jazz版等），BPM 都在 85-98 左右，鼓点清晰，建议配合播放器的 0.75x 慢放模式练习，效率翻倍！',
+    content:
+      '很多刚学 Jazz 的舞友常常抱怨听不出重音落在第几拍。其实选歌很关键！我把平常常用的 5 首曲目放在帖子里（《Feeling Good》、《Seven Nation Army》Jazz版等），BPM 都在 85-98 左右，鼓点清晰，建议配合播放器的 0.75x 慢放模式练习，效率翻倍！',
     replies: [
       {
         id: 'rep-5',
@@ -509,7 +519,8 @@ export const LEGACY_DEMO_THREADS: import('../types').ForumThread[] = [
     isLiked: true,
     views: 310,
     tags: ['新手心路', '治愈日常', '彼此陪伴'],
-    content: '今天练完走出舞室，晚风一吹整个人格外舒畅。想起 86 天前第一次踏进舞室角落，连镜子里的自己都不敢正眼看。现在虽然有时候还是会同手同脚，但能完整跳完一段甚至在论坛里约到志同道合的搭子，真的很庆幸自己坚持了下来。送给所有业余跳舞的朋友们：享受音乐，享受放飞自我的每一秒！❤️',
+    content:
+      '今天练完走出舞室，晚风一吹整个人格外舒畅。想起 86 天前第一次踏进舞室角落，连镜子里的自己都不敢正眼看。现在虽然有时候还是会同手同脚，但能完整跳完一段甚至在论坛里约到志同道合的搭子，真的很庆幸自己坚持了下来。送给所有业余跳舞的朋友们：享受音乐，享受放飞自我的每一秒！❤️',
     replies: [
       {
         id: 'rep-6',
@@ -575,4 +586,3 @@ export const LEGACY_DEMO_REAL_FRIENDS: import('../types').RealFriend[] = [
     recentTopic: '约好下周二晚上继续冲刺第 4 个八拍',
   },
 ];
-

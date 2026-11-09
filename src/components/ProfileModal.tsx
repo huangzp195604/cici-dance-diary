@@ -180,9 +180,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
           </div>
 
           {error && (
-            <p className="text-xs text-[#D94834] bg-[#FFF1EC] border border-[#FFD5C8] rounded-xl px-3 py-2">
-              {error}
-            </p>
+            <p className="text-xs text-[#D94834] bg-[#FFF1EC] border border-[#FFD5C8] rounded-xl px-3 py-2">{error}</p>
           )}
 
           <button

@@ -6,6 +6,7 @@
 ## 一、清空的数据结构
 
 ### 1. 舞友论坛帖子（ForumThread）
+
 - 数量：4 条（ID：`thread-1` ~ `thread-4`）
 - 关联回复：6 条（`rep-1` ~ `rep-6`）
 - 字段：`id`、`title`、`content`、`category`、`author`、`authorRole`、`avatarBg`、`createdAt`、`likes`、`isLiked`、`views`、`replies`（回复数组）、`meetup`（约练信息：`studio`、`date`、`targetCount`、`joinedBuddies`、`isJoined`、`costNote`）、`isPinned`、`tags`
@@ -13,21 +14,25 @@
 - 涉及演示约练活动：`thread-1`（静安星光 2 号教室，joinedBuddies：小桃_JazzChore、Cici）、`thread-2`（胸部 Roll 求助帖）
 
 ### 2. 真实舞友管理数据（RealFriend）
+
 - 数量：4 条（ID：`friend-1` ~ `friend-4`）
 - 演示对象：小桃 (静安星光)、阿澈 (徐汇Vibe)、米娅 (韩舞翻跳)、婷婷 (同班闺蜜)
 - 字段：`id`、`name`、`contact`（微信号/联系方式）、`studio`、`danceStyle`、`notes`、`avatarBg`、`status`（在线 / 练舞中 / 空闲）、`recentTopic`
 
 ### 3. 舞伴名册（DanceBuddy）
+
 - 数量：5 条（ID：`buddy-1` ~ `buddy-5`）
 - 演示对象：小桃_JazzChore、阿澈_Groove、米娅_韩舞控、Kiki_慢热萌新、Leo_转圈苦练中
 - 字段：`id`、`name`、`avatarBg`、`initials`、`style`、`stage`（入门 / 进阶 / 挑战）、`bio`、`studio`、`frequency`、`followersCount`、`isFollowed`、`currentPractice`、`recentTrack`
 
 ### 4. 舞友墙留言（WallMessage，论坛历史数据）
+
 - 数量：4 条（ID：`msg-1` ~ `msg-4`）
 - 关联回复：4 条（`r-1` ~ `r-4`）
 - 字段：`id`、`author`、`avatarBg`、`type`（约练 / 打气 / 找队友 / 动作拆解 / 随笔）、`content`、`studioLocation`、`createdAt`、`likes`、`isLiked`、`replies`
 
 ### 5. 舞蹈作品（DancePost，此前已清理）
+
 - 数量：6 条（ID：`post-1` ~ `post-6`）
 - 状态：上一轮已从展示区清空，数组保留为 `LEGACY_DEMO_POSTS`，仅用于识别并清理旧版本落库数据。
 

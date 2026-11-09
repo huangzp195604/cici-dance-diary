@@ -54,9 +54,7 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({
             <Sprout className="w-5 h-5" />
           </div>
           <div className="pr-6">
-            <h3 className="font-display font-extrabold text-lg text-[#292524] leading-tight">
-              你的舞蹈成长日记
-            </h3>
+            <h3 className="font-display font-extrabold text-lg text-[#292524] leading-tight">你的舞蹈成长日记</h3>
             <p className="text-[11px] text-[#8C7A6B] mt-0.5">一个只属于你的私密记录空间</p>
           </div>
         </div>
@@ -75,13 +73,10 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({
               <HardDrive className="w-4 h-4" />
               先以游客身份开始
             </span>
-            <span className="text-[10px] font-bold bg-[#FFE0D1] text-[#B4452F] px-1.5 py-0.5 rounded-full">
-              零门槛
-            </span>
+            <span className="text-[10px] font-bold bg-[#FFE0D1] text-[#B4452F] px-1.5 py-0.5 rounded-full">零门槛</span>
           </div>
           <p className="text-[11px] text-[#7A584C] mt-1.5 leading-relaxed">
-            不用手机号，马上记录。数据只存在这台设备，只有你能看到；
-            以后登录，这些记录会自动并入你的账号。
+            不用手机号，马上记录。数据只存在这台设备，只有你能看到； 以后登录，这些记录会自动并入你的账号。
           </p>
           <span className="inline-flex items-center gap-1 text-[11px] font-bold text-[#E05A45] mt-2 group-hover:gap-2 transition-all">
             直接开始记录 <ArrowRight className="w-3 h-3" />

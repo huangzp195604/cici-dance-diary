@@ -1,10 +1,6 @@
 import React, { useEffect } from 'react';
 import { ShieldAlert, X, HandHeart, MapPin, Users, Wallet } from 'lucide-react';
-import {
-  MEETUP_SAFETY_SHORT,
-  MEETUP_SAFETY_CHECKS,
-  MEETUP_SAFETY_CONFIRM,
-} from '../utils/community';
+import { MEETUP_SAFETY_SHORT, MEETUP_SAFETY_CHECKS, MEETUP_SAFETY_CONFIRM } from '../utils/community';
 
 /**
  * 约练安全提示
@@ -106,7 +102,10 @@ export const MeetupSafetyConfirm: React.FC<ConfirmProps> = ({ open, onCancel, on
           {MEETUP_SAFETY_CHECKS.map((item, idx) => {
             const Icon = CHECK_ICONS[idx] || MapPin;
             return (
-              <div key={item.title} className="flex items-start gap-3 bg-[#FFFCF8] border border-[#F3E5D7] rounded-2xl p-3">
+              <div
+                key={item.title}
+                className="flex items-start gap-3 bg-[#FFFCF8] border border-[#F3E5D7] rounded-2xl p-3"
+              >
                 <div className="w-8 h-8 rounded-xl bg-[#FFF1EC] text-[#E65B47] flex items-center justify-center shrink-0">
                   <Icon className="w-4 h-4" />
                 </div>

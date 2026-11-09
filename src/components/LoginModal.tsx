@@ -17,7 +17,15 @@ interface LoginModalProps {
   verifyCode: (phone: string, code: string) => Promise<{ ok: boolean; message?: string }>;
 }
 
-export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onDismiss, onSuccess, onShowAccess, sendCode, verifyCode }) => {
+export const LoginModal: React.FC<LoginModalProps> = ({
+  isOpen,
+  onClose,
+  onDismiss,
+  onSuccess,
+  onShowAccess,
+  sendCode,
+  verifyCode,
+}) => {
   const [phone, setPhone] = useState('');
   const [code, setCode] = useState('');
   const [codeSent, setCodeSent] = useState(false);
@@ -94,7 +102,10 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onDismi
   };
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-start sm:items-center justify-center p-4 py-8 overflow-y-auto bg-black/40 backdrop-blur-sm" onClick={handleDismiss}>
+    <div
+      className="fixed inset-0 z-[60] flex items-start sm:items-center justify-center p-4 py-8 overflow-y-auto bg-black/40 backdrop-blur-sm"
+      onClick={handleDismiss}
+    >
       <div
         className="w-full max-w-sm my-auto rounded-3xl bg-[#FFFDF9] border border-[#F1E5D8] shadow-2xl p-5 sm:p-6 relative animate-[fadeIn_.2s_ease-out]"
         onClick={(e) => e.stopPropagation()}

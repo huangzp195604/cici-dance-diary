@@ -14,11 +14,7 @@ interface LogoutConfirmDialogProps {
  * 把「继续浏览」做成最大的主按钮并默认聚焦，让误触的代价降到最低。
  * 遮罩 / X / Esc 都等价于取消，只有明确点「确认退出」才会真的登出。
  */
-export const LogoutConfirmDialog: React.FC<LogoutConfirmDialogProps> = ({
-  isOpen,
-  onCancel,
-  onConfirm,
-}) => {
+export const LogoutConfirmDialog: React.FC<LogoutConfirmDialogProps> = ({ isOpen, onCancel, onConfirm }) => {
   const stayRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {

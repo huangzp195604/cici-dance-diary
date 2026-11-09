@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { X, Flag, Check, AlertTriangle, Loader2 } from 'lucide-react';
 import { REPORT_REASONS, REPORT_RECEIVED_TIP } from '../utils/community';
 import { submitReport, type ReportTargetType } from '../services/reportApi';
@@ -29,26 +29,24 @@ interface ReportDialogProps {
  * 2. 明确告知「被举报者不会收到通知、举报人信息只有平台可见」，否则没人敢点。
  * 3. 提交后立刻在本机隐藏该内容，给一个即时结果；同时如实说明是否已上云。
  */
-export const ReportDialog: React.FC<ReportDialogProps> = ({
-  target,
-  currentUserName,
-  onClose,
-  onSubmitted,
-}) => {
+export const ReportDialog: React.FC<ReportDialogProps> = ({ target, currentUserName, onClose, onSubmitted }) => {
   const [reason, setReason] = useState('');
   const [detail, setDetail] = useState('');
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<{ synced: boolean; message: string } | null>(null);
 
-  // 每次换目标都清空，避免把上一条的补充说明带到下一条
+  // 每次换目标都清空，避免把上一条的补充说明带到下一条。
+  // 用 type+id 作为身份判断：同一目标内部重渲染不该清空用户已写的内容。
+  const targetKey = target ? `${target.type}:${target.id}` : '';
+  const lastTargetKey = useRef('');
   useEffect(() => {
-    if (target) {
-      setReason('');
-      setDetail('');
-      setBusy(false);
-      setResult(null);
-    }
-  }, [target?.type, target?.id]);
+    if (!target || lastTargetKey.current === targetKey) return;
+    lastTargetKey.current = targetKey;
+    setReason('');
+    setDetail('');
+    setBusy(false);
+    setResult(null);
+  }, [target, targetKey]);
 
   useEffect(() => {
     if (!target) return;
@@ -131,7 +129,9 @@ export const ReportDialog: React.FC<ReportDialogProps> = ({
             </div>
             <p className="text-sm font-bold text-[#292524]">{result.message}</p>
             <p className="text-xs text-[#78695C] leading-relaxed max-w-xs mx-auto">
-              {result.synced ? REPORT_RECEIVED_TIP : '网络或登录状态出了点问题，这条举报先存在你本机，登录后会自动补传。'}
+              {result.synced
+                ? REPORT_RECEIVED_TIP
+                : '网络或登录状态出了点问题，这条举报先存在你本机，登录后会自动补传。'}
             </p>
             <button
               type="button"
@@ -145,9 +145,7 @@ export const ReportDialog: React.FC<ReportDialogProps> = ({
           <>
             {/* 举报原因 */}
             <div className="flex-1 overflow-y-auto px-5 py-4 space-y-1.5">
-              <p className="text-[11px] font-bold text-[#8C7A6B] uppercase tracking-wider mb-2">
-                选择原因（必选）
-              </p>
+              <p className="text-[11px] font-bold text-[#8C7A6B] uppercase tracking-wider mb-2">选择原因（必选）</p>
               {REPORT_REASONS.map((r) => {
                 const active = reason === r.key;
                 return (
@@ -171,9 +169,7 @@ export const ReportDialog: React.FC<ReportDialogProps> = ({
                       </span>
                       <div className="min-w-0">
                         <p className="text-xs font-bold text-[#3F352D] leading-snug">{r.label}</p>
-                        {r.hint && (
-                          <p className="text-[10.5px] text-[#A8988A] leading-snug mt-0.5">{r.hint}</p>
-                        )}
+                        {r.hint && <p className="text-[10.5px] text-[#A8988A] leading-snug mt-0.5">{r.hint}</p>}
                       </div>
                     </div>
                   </button>

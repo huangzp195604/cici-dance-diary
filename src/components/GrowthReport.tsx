@@ -28,13 +28,7 @@ import {
   TrendingDown,
   TrendingUp,
 } from 'lucide-react';
-import {
-  SKILL_DATA_EVENT,
-  computeGrowthStats,
-  computeSkillStates,
-  loadCheckIns,
-  loadSkills,
-} from '../utils/skillData';
+import { SKILL_DATA_EVENT, computeGrowthStats, computeSkillStates, loadCheckIns, loadSkills } from '../utils/skillData';
 import { getPracticeStartDate, PRACTICE_UPDATE_EVENT } from '../utils/practice';
 import { downloadGrowthCard } from '../utils/growthCard';
 import { DEMO_SKILLS, buildDemoCheckIns } from '../data/demoGrowth';
@@ -84,7 +78,10 @@ const StatCard: React.FC<{
 }> = ({ icon, value, unit, label, hint, accent }) => (
   <div className="rounded-2xl border border-[#F1E5D8] bg-white p-4 flex flex-col gap-2">
     <div className="flex items-center justify-between">
-      <span className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ backgroundColor: `${accent}1A`, color: accent }}>
+      <span
+        className="w-8 h-8 rounded-xl flex items-center justify-center"
+        style={{ backgroundColor: `${accent}1A`, color: accent }}
+      >
         {icon}
       </span>
       {hint && <span className="text-[10px] font-semibold text-[#B8A697]">{hint}</span>}
@@ -147,13 +144,7 @@ export const GrowthReport: React.FC<GrowthReportProps> = ({ onGoCheckIn, display
   const sourceCheckIns = demoMode ? demoCheckIns : checkIns;
 
   const stats = useMemo(
-    () =>
-      computeGrowthStats(
-        sourceSkills,
-        sourceCheckIns,
-        demoMode ? null : getPracticeStartDate(),
-        now
-      ),
+    () => computeGrowthStats(sourceSkills, sourceCheckIns, demoMode ? null : getPracticeStartDate(), now),
     [sourceSkills, sourceCheckIns, demoMode, now]
   );
 
@@ -196,9 +187,7 @@ export const GrowthReport: React.FC<GrowthReportProps> = ({ onGoCheckIn, display
       {/* 示例预览提示 */}
       {demoMode && (
         <div className="rounded-2xl border border-[#F5DFC4] bg-[#FFF8EC] px-4 py-2.5 flex items-center justify-between gap-3">
-          <span className="text-xs text-[#8C7A6B]">
-            示例数据预览中：以下数字仅用于展示效果，不会写入你的打卡记录。
-          </span>
+          <span className="text-xs text-[#8C7A6B]">示例数据预览中：以下数字仅用于展示效果，不会写入你的打卡记录。</span>
           <button
             onClick={toggleDemo}
             className="text-xs font-bold text-[#B45309] hover:underline shrink-0 cursor-pointer"
@@ -245,7 +234,10 @@ export const GrowthReport: React.FC<GrowthReportProps> = ({ onGoCheckIn, display
           </button>
           {exportError && <span className="text-[11px] text-[#D94834]">{exportError}</span>}
           {!demoMode && stats.totalCheckIns === 0 && (
-            <button onClick={toggleDemo} className="text-[11px] font-semibold text-[#B45309] hover:underline cursor-pointer">
+            <button
+              onClick={toggleDemo}
+              className="text-[11px] font-semibold text-[#B45309] hover:underline cursor-pointer"
+            >
               先看看示例报告 →
             </button>
           )}
@@ -310,16 +302,18 @@ export const GrowthReport: React.FC<GrowthReportProps> = ({ onGoCheckIn, display
       {/* 成长曲线 + 雷达 */}
       <div className="grid lg:grid-cols-5 gap-5">
         <div className="lg:col-span-3">
-          <SectionCard
-            title="成长曲线"
-            subtitle="柱状为当月打卡次数，曲线为累计掌握动作数"
-          >
+          <SectionCard title="成长曲线" subtitle="柱状为当月打卡次数，曲线为累计掌握动作数">
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
                 <ComposedChart data={stats.monthly} margin={{ top: 8, right: 8, bottom: 0, left: -18 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#F1E5D8" vertical={false} />
                   <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#A8988A' }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 11, fill: '#A8988A' }} axisLine={false} tickLine={false} allowDecimals={false} />
+                  <YAxis
+                    tick={{ fontSize: 11, fill: '#A8988A' }}
+                    axisLine={false}
+                    tickLine={false}
+                    allowDecimals={false}
+                  />
                   <Tooltip
                     contentStyle={{
                       borderRadius: 12,
@@ -439,7 +433,11 @@ export const GrowthReport: React.FC<GrowthReportProps> = ({ onGoCheckIn, display
                   trend > 0 ? 'text-emerald-600' : trend < 0 ? 'text-[#D94834]' : 'text-[#A8988A]'
                 }`}
               >
-                {trend > 0 ? <TrendingUp className="w-3.5 h-3.5" /> : trend < 0 ? <TrendingDown className="w-3.5 h-3.5" /> : null}
+                {trend > 0 ? (
+                  <TrendingUp className="w-3.5 h-3.5" />
+                ) : trend < 0 ? (
+                  <TrendingDown className="w-3.5 h-3.5" />
+                ) : null}
                 {trend > 0 ? `+${trend}%` : `${trend}%`} 练习强度
               </span>
             </div>
@@ -490,7 +488,9 @@ export const GrowthReport: React.FC<GrowthReportProps> = ({ onGoCheckIn, display
         <div className="rounded-2xl border border-emerald-100 bg-emerald-50/60 p-4">
           <div className="text-[11px] font-bold text-emerald-700 mb-1">最强项</div>
           <div className="font-display text-base font-extrabold text-[#292524]">
-            {stats.strongestCategory && stats.strongestCategory.mastered > 0 ? stats.strongestCategory.category : '待发现'}
+            {stats.strongestCategory && stats.strongestCategory.mastered > 0
+              ? stats.strongestCategory.category
+              : '待发现'}
           </div>
           <p className="text-[11px] text-[#8C7A6B] mt-1">
             {stats.strongestCategory && stats.strongestCategory.mastered > 0
@@ -550,7 +550,9 @@ export const GrowthReport: React.FC<GrowthReportProps> = ({ onGoCheckIn, display
                   </span>
                 )}
               </div>
-              <div className={`mt-2 text-xs font-extrabold ${milestone.unlocked ? 'text-[#292524]' : 'text-[#A8988A]'}`}>
+              <div
+                className={`mt-2 text-xs font-extrabold ${milestone.unlocked ? 'text-[#292524]' : 'text-[#A8988A]'}`}
+              >
                 {milestone.title}
               </div>
               <p className="text-[10px] text-[#B8A697] mt-0.5 leading-snug">{milestone.description}</p>

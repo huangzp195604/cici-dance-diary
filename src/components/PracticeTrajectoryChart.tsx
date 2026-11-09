@@ -17,6 +17,46 @@ interface MonthlyData {
   milestoneNote?: string;
 }
 
+// 根据真实打卡作品的标题与内容，生成当月阶段小结
+const stageMeta: Record<string, { emoji: string; label: string }> = {
+  入门: { emoji: '🌱', label: '入门起步' },
+  进阶: { emoji: '🌿', label: '进阶突破' },
+  挑战: { emoji: '🔥', label: '挑战尝试' },
+};
+
+const buildMonthSummary = (monthPosts: DancePost[]) => {
+  if (monthPosts.length === 0) {
+    return {
+      milestoneTitle: '🌙 本月暂无打卡',
+      milestoneNote: '本月还没有上传作品，上传后会自动根据标题与内容生成小结。',
+    };
+  }
+
+  const stageCounts: Record<string, number> = { 入门: 0, 进阶: 0, 挑战: 0 };
+  const categoryCounts: Record<string, number> = {};
+  monthPosts.forEach((post) => {
+    stageCounts[post.stage] = (stageCounts[post.stage] ?? 0) + 1;
+    post.categories.forEach((category) => {
+      categoryCounts[category] = (categoryCounts[category] ?? 0) + 1;
+    });
+  });
+
+  const topStage = Object.keys(stageCounts).reduce((a, b) => (stageCounts[a] >= stageCounts[b] ? a : b));
+  const topCategory = Object.keys(categoryCounts).sort((a, b) => categoryCounts[b] - categoryCounts[a])[0] ?? '舞蹈';
+  const meta = stageMeta[topStage] ?? { emoji: '💃', label: '持续练习' };
+
+  const latest = [...monthPosts].sort((a, b) => a.date.localeCompare(b.date)).slice(-1)[0];
+  const rawNote = (latest.notes ?? '').replace(/\s+/g, ' ').trim();
+  const excerpt = rawNote.length > 32 ? `${rawNote.slice(0, 32)}…` : rawNote;
+
+  return {
+    milestoneTitle: `${meta.emoji} ${meta.label} · ${topCategory}`,
+    milestoneNote: `《${latest.title}》${excerpt ? `：${excerpt}` : ''}${
+      monthPosts.length > 1 ? `（本月共 ${monthPosts.length} 篇打卡）` : ''
+    }`,
+  };
+};
+
 export const PracticeTrajectoryChart: React.FC<PracticeTrajectoryChartProps> = ({ posts }) => {
   const [chartMode, setChartMode] = useState<'trend' | 'heatmap'>('trend');
   const [hoveredMonth, setHoveredMonth] = useState<MonthlyData | null>(null);
@@ -24,49 +64,6 @@ export const PracticeTrajectoryChart: React.FC<PracticeTrajectoryChartProps> = (
 
   // Persisted practice days: 0 by default, auto-increments after the user sets a start date
   const practiceDays = usePracticeDays();
-
-  // 根据真实打卡作品的标题与内容，生成当月阶段小结
-  const stageMeta: Record<string, { emoji: string; label: string }> = {
-    入门: { emoji: '🌱', label: '入门起步' },
-    进阶: { emoji: '🌿', label: '进阶突破' },
-    挑战: { emoji: '🔥', label: '挑战尝试' },
-  };
-
-  const buildMonthSummary = (monthPosts: DancePost[]) => {
-    if (monthPosts.length === 0) {
-      return {
-        milestoneTitle: '🌙 本月暂无打卡',
-        milestoneNote: '本月还没有上传作品，上传后会自动根据标题与内容生成小结。',
-      };
-    }
-
-    const stageCounts: Record<string, number> = { 入门: 0, 进阶: 0, 挑战: 0 };
-    const categoryCounts: Record<string, number> = {};
-    monthPosts.forEach((post) => {
-      stageCounts[post.stage] = (stageCounts[post.stage] ?? 0) + 1;
-      post.categories.forEach((category) => {
-        categoryCounts[category] = (categoryCounts[category] ?? 0) + 1;
-      });
-    });
-
-    const topStage = Object.keys(stageCounts).reduce((a, b) =>
-      stageCounts[a] >= stageCounts[b] ? a : b
-    );
-    const topCategory =
-      Object.keys(categoryCounts).sort((a, b) => categoryCounts[b] - categoryCounts[a])[0] ?? '舞蹈';
-    const meta = stageMeta[topStage] ?? { emoji: '💃', label: '持续练习' };
-
-    const latest = [...monthPosts].sort((a, b) => a.date.localeCompare(b.date)).slice(-1)[0];
-    const rawNote = (latest.notes ?? '').replace(/\s+/g, ' ').trim();
-    const excerpt = rawNote.length > 32 ? `${rawNote.slice(0, 32)}…` : rawNote;
-
-    return {
-      milestoneTitle: `${meta.emoji} ${meta.label} · ${topCategory}`,
-      milestoneNote: `《${latest.title}》${excerpt ? `：${excerpt}` : ''}${
-        monthPosts.length > 1 ? `（本月共 ${monthPosts.length} 篇打卡）` : ''
-      }`,
-    };
-  };
 
   // 1. Process Monthly Aggregation for Trend Line（近 4 个自然月，只统计真实打卡记录）
   const monthlyData = useMemo<MonthlyData[]>(() => {
@@ -134,10 +131,7 @@ export const PracticeTrajectoryChart: React.FC<PracticeTrajectoryChartProps> = (
   }, [posts]);
 
   // 近 16 周真实打卡总量与周均
-  const heatmapTotalSessions = useMemo(
-    () => heatmapData.reduce((sum, day) => sum + day.count, 0),
-    [heatmapData]
-  );
+  const heatmapTotalSessions = useMemo(() => heatmapData.reduce((sum, day) => sum + day.count, 0), [heatmapData]);
   const heatmapWeeklyAvg = heatmapTotalSessions > 0 ? (heatmapTotalSessions / 16).toFixed(1) : null;
 
   // 底部轨迹小结：完全由用户真实打卡的标题与内容生成
@@ -185,13 +179,13 @@ export const PracticeTrajectoryChart: React.FC<PracticeTrajectoryChartProps> = (
   }, '');
 
   // Fill area path (closed polygon)
-  const areaD = points.length > 0 
-    ? `${pathD} L ${points[points.length - 1].x} ${chartHeight - paddingBottom} L ${points[0].x} ${chartHeight - paddingBottom} Z`
-    : '';
+  const areaD =
+    points.length > 0
+      ? `${pathD} L ${points[points.length - 1].x} ${chartHeight - paddingBottom} L ${points[0].x} ${chartHeight - paddingBottom} Z`
+      : '';
 
   return (
     <section className="bg-white border border-[#EFE3D5] rounded-3xl p-6 sm:p-7 shadow-xs space-y-6">
-      
       {/* 1. Header with Mode Switcher */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
@@ -214,9 +208,7 @@ export const PracticeTrajectoryChart: React.FC<PracticeTrajectoryChartProps> = (
           <button
             onClick={() => setChartMode('trend')}
             className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-xl transition-all cursor-pointer ${
-              chartMode === 'trend'
-                ? 'bg-white text-[#E65B47] shadow-2xs'
-                : 'text-[#78695C] hover:text-[#292524]'
+              chartMode === 'trend' ? 'bg-white text-[#E65B47] shadow-2xs' : 'text-[#78695C] hover:text-[#292524]'
             }`}
           >
             <TrendingUp className="w-3.5 h-3.5" />
@@ -226,9 +218,7 @@ export const PracticeTrajectoryChart: React.FC<PracticeTrajectoryChartProps> = (
           <button
             onClick={() => setChartMode('heatmap')}
             className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-xl transition-all cursor-pointer ${
-              chartMode === 'heatmap'
-                ? 'bg-white text-[#E65B47] shadow-2xs'
-                : 'text-[#78695C] hover:text-[#292524]'
+              chartMode === 'heatmap' ? 'bg-white text-[#E65B47] shadow-2xs' : 'text-[#78695C] hover:text-[#292524]'
             }`}
           >
             <Calendar className="w-3.5 h-3.5" />
@@ -240,13 +230,9 @@ export const PracticeTrajectoryChart: React.FC<PracticeTrajectoryChartProps> = (
       {/* 2. MODE A: TREND LINE & BREAKTHROUGH CURVE */}
       {chartMode === 'trend' && (
         <div className="space-y-4">
-          
           {/* SVG Chart Container */}
           <div className="bg-[#FFFDFB] border border-[#F2E5D8] rounded-2xl p-4 sm:p-5 relative overflow-hidden">
-            <svg
-              viewBox={`0 0 ${chartWidth} ${chartHeight}`}
-              className="w-full h-48 sm:h-64 overflow-visible"
-            >
+            <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} className="w-full h-48 sm:h-64 overflow-visible">
               <defs>
                 <linearGradient id="coralAreaGrad" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stopColor="#FF7E67" stopOpacity="0.32" />
@@ -261,7 +247,8 @@ export const PracticeTrajectoryChart: React.FC<PracticeTrajectoryChartProps> = (
 
               {/* Horizontal Reference Grid lines */}
               {[0, 1, 2, 3, 4].map((gridVal) => {
-                const y = chartHeight - paddingBottom - (gridVal / maxCount) * (chartHeight - paddingTop - paddingBottom);
+                const y =
+                  chartHeight - paddingBottom - (gridVal / maxCount) * (chartHeight - paddingTop - paddingBottom);
                 return (
                   <g key={gridVal}>
                     <line
@@ -312,12 +299,7 @@ export const PracticeTrajectoryChart: React.FC<PracticeTrajectoryChartProps> = (
                   >
                     {/* Pulsing ring for latest point */}
                     {idx === points.length - 1 && (
-                      <circle
-                        cx={pt.x}
-                        cy={pt.y}
-                        r="10"
-                        className="fill-[#FF7E67]/20 animate-ping"
-                      />
+                      <circle cx={pt.x} cy={pt.y} r="10" className="fill-[#FF7E67]/20 animate-ping" />
                     )}
 
                     {/* Outer circle */}
@@ -352,17 +334,13 @@ export const PracticeTrajectoryChart: React.FC<PracticeTrajectoryChartProps> = (
                           width="64"
                           height="18"
                           rx="9"
-                          className={`${
-                            isHovered ? 'fill-[#E65B47]' : 'fill-[#FFEBE2]'
-                          } transition-colors`}
+                          className={`${isHovered ? 'fill-[#E65B47]' : 'fill-[#FFEBE2]'} transition-colors`}
                         />
                         <text
                           x="0"
                           y="3"
                           textAnchor="middle"
-                          className={`text-[9px] font-semibold ${
-                            isHovered ? 'fill-white' : 'fill-[#A63C29]'
-                          }`}
+                          className={`text-[9px] font-semibold ${isHovered ? 'fill-white' : 'fill-[#A63C29]'}`}
                         >
                           {pt.data.count} 篇作品
                         </text>
@@ -411,7 +389,6 @@ export const PracticeTrajectoryChart: React.FC<PracticeTrajectoryChartProps> = (
               </div>
             ))}
           </div>
-
         </div>
       )}
 
@@ -420,10 +397,8 @@ export const PracticeTrajectoryChart: React.FC<PracticeTrajectoryChartProps> = (
         <div className="space-y-4">
           <div className="bg-[#FFFDF9] border border-[#F2E5D8] rounded-2xl p-4 sm:p-5 overflow-x-auto">
             <div className="min-w-[620px]">
-              
               {/* Day of Week Labels + Matrix Grid */}
               <div className="flex gap-2">
-                
                 {/* Y-axis days */}
                 <div className="flex flex-col justify-between py-1 text-[10px] text-[#A8988A] font-medium w-8 shrink-0">
                   <span>周一</span>
@@ -437,7 +412,7 @@ export const PracticeTrajectoryChart: React.FC<PracticeTrajectoryChartProps> = (
                   {heatmapData.map((cell, idx) => {
                     const isPracticed = cell.count > 0;
                     const hasWork = cell.titles.length > 0;
-                    
+
                     let bgClass = 'bg-[#F5ECE3] hover:ring-2 hover:ring-[#E8DACB]';
                     if (cell.count === 1) bgClass = 'bg-[#FED6C7] hover:ring-2 hover:ring-[#FF9A84]';
                     else if (cell.count === 2) bgClass = 'bg-[#FF9A84] hover:ring-2 hover:ring-[#E65B47]';
@@ -449,13 +424,14 @@ export const PracticeTrajectoryChart: React.FC<PracticeTrajectoryChartProps> = (
                         className={`w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-md transition-all cursor-pointer ${bgClass} ${
                           hasWork ? 'ring-1.5 ring-[#E65B47]/80 ring-offset-1' : ''
                         }`}
-                        onMouseEnter={() => setHoveredDay({ date: cell.dateStr, count: cell.count, titles: cell.titles })}
+                        onMouseEnter={() =>
+                          setHoveredDay({ date: cell.dateStr, count: cell.count, titles: cell.titles })
+                        }
                         onMouseLeave={() => setHoveredDay(null)}
                       />
                     );
                   })}
                 </div>
-
               </div>
 
               {/* Heatmap Legend */}
@@ -475,7 +451,6 @@ export const PracticeTrajectoryChart: React.FC<PracticeTrajectoryChartProps> = (
                   <span>高频练习</span>
                 </div>
               </div>
-
             </div>
           </div>
 
@@ -488,9 +463,7 @@ export const PracticeTrajectoryChart: React.FC<PracticeTrajectoryChartProps> = (
                   <strong>{hoveredDay.date}</strong>：
                   {hoveredDay.count > 0 ? `练习打卡 ${hoveredDay.count} 次` : '休息放松日'}
                   {hoveredDay.titles.length > 0 && (
-                    <span className="text-[#E65B47] font-semibold ml-1">
-                      （作品: {hoveredDay.titles.join('、')}）
-                    </span>
+                    <span className="text-[#E65B47] font-semibold ml-1">（作品: {hoveredDay.titles.join('、')}）</span>
                   )}
                 </span>
               </div>
@@ -507,7 +480,6 @@ export const PracticeTrajectoryChart: React.FC<PracticeTrajectoryChartProps> = (
                 : '近16周暂无打卡记录'}
             </div>
           </div>
-
         </div>
       )}
 
@@ -516,11 +488,11 @@ export const PracticeTrajectoryChart: React.FC<PracticeTrajectoryChartProps> = (
         <div className="flex items-center gap-2">
           <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
           <span>
-            <strong>努力轨迹小结：</strong>{progressionSummary}
+            <strong>努力轨迹小结：</strong>
+            {progressionSummary}
           </span>
         </div>
       </div>
-
     </section>
   );
 };

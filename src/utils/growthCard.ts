@@ -8,14 +8,7 @@ const W = 900;
 const H = 1280;
 const FONT_STACK = '"PingFang SC", "Microsoft YaHei", "Hiragino Sans GB", "Helvetica Neue", Arial, sans-serif';
 
-const roundRect = (
-  ctx: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  w: number,
-  h: number,
-  r: number
-) => {
+const roundRect = (ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) => {
   ctx.beginPath();
   ctx.moveTo(x + r, y);
   ctx.arcTo(x + w, y, x + w, y + h, r);
@@ -56,10 +49,7 @@ const drawStat = (
   ctx.fillText(label, x + w / 2, y + 106);
 };
 
-export async function downloadGrowthCard(
-  stats: GrowthStats,
-  options: { name?: string } = {}
-): Promise<void> {
+export async function downloadGrowthCard(stats: GrowthStats, options: { name?: string } = {}): Promise<void> {
   const canvas = document.createElement('canvas');
   canvas.width = W;
   canvas.height = H;

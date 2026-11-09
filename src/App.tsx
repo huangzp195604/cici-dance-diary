@@ -117,6 +117,8 @@ export default function App() {
   const [selectedPost, setSelectedPost] = useState<DancePost | null>(null);
   const [forumError, setForumError] = useState('');
   const [forumLoading, setForumLoading] = useState(true);
+  const [forumLoadingMore, setForumLoadingMore] = useState(false);
+  const [forumHasMore, setForumHasMore] = useState(false);
   /** 好友关系 / 私信 / 会话：只在登录后从云端拉取 */
   const [social, setSocial] = useState<SocialData | null>(null);
   const [socialLoading, setSocialLoading] = useState(false);
@@ -451,9 +453,10 @@ export default function App() {
     async function loadForum() {
       setForumLoading(true);
       try {
-        const cloudThreads = await forumApi.fetchForum(user ?? null);
+        const page = await forumApi.fetchForumPage(user ?? null, { offset: 0 });
         if (!cancelled) {
-          setThreads(cloudThreads);
+          setThreads(page.threads);
+          setForumHasMore(page.hasMore);
           setForumError('');
         }
       } catch (err: any) {
@@ -470,23 +473,26 @@ export default function App() {
   }, [ready, user]);
 
   // ---- 好友与私信：登录后拉取，停留在论坛页时轻量轮询 ----
-  const refreshSocial = useCallback(async (silent = false) => {
-    if (!user) {
-      setSocial(null);
-      setSocialError('');
-      return;
-    }
-    if (!silent) setSocialLoading(true);
-    try {
-      const data = await socialApi.fetchSocial(user);
-      setSocial(data);
-      setSocialError('');
-    } catch (err: any) {
-      setSocialError(err.message || '好友数据加载失败');
-    } finally {
-      if (!silent) setSocialLoading(false);
-    }
-  }, [user]);
+  const refreshSocial = useCallback(
+    async (silent = false) => {
+      if (!user) {
+        setSocial(null);
+        setSocialError('');
+        return;
+      }
+      if (!silent) setSocialLoading(true);
+      try {
+        const data = await socialApi.fetchSocial(user);
+        setSocial(data);
+        setSocialError('');
+      } catch (err: any) {
+        setSocialError(err.message || '好友数据加载失败');
+      } finally {
+        if (!silent) setSocialLoading(false);
+      }
+    },
+    [user]
+  );
 
   useEffect(() => {
     if (!ready || !user) {
@@ -703,11 +709,30 @@ export default function App() {
 
   const refreshForum = async () => {
     try {
-      const cloudThreads = await forumApi.fetchForum(user ?? null);
-      setThreads(cloudThreads);
+      const page = await forumApi.fetchForumPage(user ?? null, { offset: 0 });
+      setThreads(page.threads);
+      setForumHasMore(page.hasMore);
       setForumError('');
     } catch (err: any) {
       setForumError(err.message || '论坛刷新失败');
+    }
+  };
+
+  /** 论坛翻页：按已加载条数作 offset，新帖排前面也不会重复插入 */
+  const handleLoadMoreThreads = async () => {
+    if (forumLoadingMore || !forumHasMore) return;
+    setForumLoadingMore(true);
+    try {
+      const page = await forumApi.fetchForumPage(user ?? null, { offset: threads.length });
+      setThreads((prev) => {
+        const seen = new Set(prev.map((t) => t.id));
+        return [...prev, ...page.threads.filter((t) => !seen.has(t.id))];
+      });
+      setForumHasMore(page.hasMore);
+    } catch (err: any) {
+      setForumError(err.message || '加载更多失败，请稍后重试');
+    } finally {
+      setForumLoadingMore(false);
     }
   };
 
@@ -749,6 +774,23 @@ export default function App() {
     const post = posts.find((p) => p.id === postId);
     if (!post) throw new Error('作品不存在或已被删除');
     const updated: DancePost = { ...post, categories };
+    await storage.savePost(updated);
+    setPosts((prev) => prev.map((p) => (p.id === postId ? updated : p)));
+    if (selectedPost?.id === postId) {
+      setSelectedPost(updated);
+    }
+  };
+
+  /** 换设备后补回原片：只替换视频引用与封面，标题、心得、日期都沿用云端那份 */
+  const handleReattachMedia = async (postId: string, mediaUrl: string, thumbnailUrl?: string) => {
+    const post = posts.find((p) => p.id === postId);
+    if (!post) throw new Error('作品不存在或已被删除');
+    const updated: DancePost = {
+      ...post,
+      mediaType: 'video',
+      mediaUrl,
+      thumbnailUrl: thumbnailUrl ?? post.thumbnailUrl,
+    };
     await storage.savePost(updated);
     setPosts((prev) => prev.map((p) => (p.id === postId ? updated : p)));
     if (selectedPost?.id === postId) {
@@ -964,7 +1006,6 @@ export default function App() {
 
   return (
     <div className="min-h-screen flex flex-col bg-[#FFFDF9] bg-cream-grid selection:bg-[#FFE4D6] selection:text-[#C84B31]">
-      
       {/* 1. Sticky Navigation Bar */}
       <Navbar
         activeTab={activeTab}
@@ -1031,11 +1072,7 @@ export default function App() {
         )}
 
         {activeTab === 'upload' && (
-          <UploadForm
-            onAddPost={handleAddPost}
-            onCancel={() => navigate('timeline')}
-            initialMode={uploadMode}
-          />
+          <UploadForm onAddPost={handleAddPost} onCancel={() => navigate('timeline')} initialMode={uploadMode} />
         )}
 
         {activeTab === 'buddies' && (
@@ -1058,38 +1095,41 @@ export default function App() {
               </div>
             )}
             <DanceBuddies
-            buddies={buddies}
-            messages={messages}
-            threads={threads}
-            realFriends={realFriends}
-            onToggleFollow={handleToggleFollow}
-            onAddBuddy={handleAddBuddy}
-            onUpdateBuddy={handleUpdateBuddy}
-            onDeleteBuddy={handleDeleteBuddy}
-            onAddMessage={handleAddMessage}
-            onToggleMessageLike={handleToggleMessageLike}
-            onAddReply={handleAddReply}
-            onCreateThread={handleCreateThread}
-            onUpdateThread={handleUpdateThread}
-            onDeleteThread={handleDeleteThread}
-            onToggleThreadLike={handleToggleThreadLike}
-            onAddThreadReply={handleAddThreadReply}
-            onToggleJoinMeetup={handleToggleJoinMeetup}
-            onAddRealFriend={handleAddRealFriend}
-            onUpdateRealFriend={handleUpdateRealFriend}
-            onDeleteRealFriend={handleDeleteRealFriend}
-            currentUserName={profile?.nickname || user?.name}
-            social={social}
-            socialLoading={socialLoading}
-            socialError={socialError}
-            currentUserId={user?.id}
-            isLoggedIn={!!user}
-            activeChatPeerId={activeChatPeerId}
-            onSelectChat={setActiveChatPeerId}
-            socialActions={socialActions}
-            onLoginRequired={() => setIsLoginOpen(true)}
-            onForumLocked={promptForumLogin}
-            onShowAccess={() => setAccessOpen(true)}
+              buddies={buddies}
+              messages={messages}
+              threads={threads}
+              realFriends={realFriends}
+              onToggleFollow={handleToggleFollow}
+              onAddBuddy={handleAddBuddy}
+              onUpdateBuddy={handleUpdateBuddy}
+              onDeleteBuddy={handleDeleteBuddy}
+              onAddMessage={handleAddMessage}
+              onToggleMessageLike={handleToggleMessageLike}
+              onAddReply={handleAddReply}
+              onCreateThread={handleCreateThread}
+              onUpdateThread={handleUpdateThread}
+              onDeleteThread={handleDeleteThread}
+              onToggleThreadLike={handleToggleThreadLike}
+              onAddThreadReply={handleAddThreadReply}
+              onToggleJoinMeetup={handleToggleJoinMeetup}
+              onAddRealFriend={handleAddRealFriend}
+              onUpdateRealFriend={handleUpdateRealFriend}
+              onDeleteRealFriend={handleDeleteRealFriend}
+              currentUserName={profile?.nickname || user?.name}
+              social={social}
+              socialLoading={socialLoading}
+              socialError={socialError}
+              currentUserId={user?.id}
+              isLoggedIn={!!user}
+              activeChatPeerId={activeChatPeerId}
+              onSelectChat={setActiveChatPeerId}
+              socialActions={socialActions}
+              onLoginRequired={() => setIsLoginOpen(true)}
+              onForumLocked={promptForumLogin}
+              onShowAccess={() => setAccessOpen(true)}
+              hasMoreThreads={forumHasMore}
+              loadingMoreThreads={forumLoadingMore}
+              onLoadMoreThreads={handleLoadMoreThreads}
             />
           </>
         )}
@@ -1115,6 +1155,7 @@ export default function App() {
         onClose={() => setSelectedPost(null)}
         onToggleLike={handleToggleLike}
         onAddComment={handleAddComment}
+        onReattachMedia={handleReattachMedia}
       />
 
       {/* 5. Quiet, warm footer */}
@@ -1283,7 +1324,6 @@ export default function App() {
           {toast}
         </div>
       )}
-
     </div>
   );
 }

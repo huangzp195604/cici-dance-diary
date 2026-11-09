@@ -10,9 +10,10 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 const dayKey = (offsetFromToday: number, today = new Date()): string => {
   const date = new Date(today.getFullYear(), today.getMonth(), today.getDate());
   const target = new Date(date.getTime() - offsetFromToday * DAY_MS);
-  return `${target.getFullYear()}-${String(target.getMonth() + 1).padStart(2, '0')}-${String(
-    target.getDate()
-  ).padStart(2, '0')}`;
+  return `${target.getFullYear()}-${String(target.getMonth() + 1).padStart(2, '0')}-${String(target.getDate()).padStart(
+    2,
+    '0'
+  )}`;
 };
 
 /** 生成一份"练了约 10 周"的示例打卡记录 */

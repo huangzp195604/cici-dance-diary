@@ -108,9 +108,7 @@ export const AdminReports: React.FC<AdminReportsProps> = ({ open, onClose }) => 
             </div>
             <div className="min-w-0">
               <h3 className="font-display font-extrabold text-base text-[#292524] leading-tight">举报与反馈</h3>
-              <p className="text-[10.5px] text-[#A8988A] mt-0.5">
-                承诺 24 小时内核实 · 处理完在这里点一下标记
-              </p>
+              <p className="text-[10.5px] text-[#A8988A] mt-0.5">承诺 24 小时内核实 · 处理完在这里点一下标记</p>
             </div>
           </div>
 

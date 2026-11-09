@@ -1,13 +1,13 @@
 import React, { useEffect, useState } from 'react';
-import { 
-  Users, 
-  UserCheck, 
-  UserPlus, 
-  MapPin, 
-  MessageSquare, 
-  Heart, 
-  Send, 
-  Sparkles, 
+import {
+  Users,
+  UserCheck,
+  UserPlus,
+  MapPin,
+  MessageSquare,
+  Heart,
+  Send,
+  Sparkles,
   Calendar,
   Flame,
   Plus,
@@ -33,19 +33,23 @@ import {
   BadgeCheck,
   Link2,
   Flag,
-  ScrollText
+  ScrollText,
 } from 'lucide-react';
-import { DanceBuddy, WallMessage, ForumThread, RealFriend, ForumCategory, ForumReply, DanceStage, Gender } from '../types';
+import {
+  DanceBuddy,
+  WallMessage,
+  ForumThread,
+  RealFriend,
+  ForumCategory,
+  ForumReply,
+  DanceStage,
+  Gender,
+} from '../types';
 import { OnlineFriendsSection, MessagesView, UserCardModal } from './SocialViews';
 import { GuestForumPreview } from './GuestForumPreview';
 import { CommunityRules } from './CommunityRules';
 import { ReportDialog, type ReportTarget } from './ReportDialog';
-import {
-  MeetupSafetyNote,
-  MeetupSafetyConfirm,
-  hasAckedMeetupSafety,
-  ackMeetupSafety,
-} from './MeetupSafetyNote';
+import { MeetupSafetyNote, MeetupSafetyConfirm, hasAckedMeetupSafety, ackMeetupSafety } from './MeetupSafetyNote';
 import type { SocialActions, SocialViewProps } from './SocialViews';
 import type { SocialData } from '../types';
 import {
@@ -127,6 +131,10 @@ interface DanceBuddiesProps {
   onForumLocked?: () => void;
   /** 打开权限对比说明 */
   onShowAccess?: () => void;
+  /** 论坛分页：还有更早的帖子可加载 / 正在加载 / 触发加载 */
+  hasMoreThreads?: boolean;
+  loadingMoreThreads?: boolean;
+  onLoadMoreThreads?: () => void;
 }
 
 export const DanceBuddies: React.FC<DanceBuddiesProps> = ({
@@ -162,6 +170,9 @@ export const DanceBuddies: React.FC<DanceBuddiesProps> = ({
   onLoginRequired,
   onForumLocked,
   onShowAccess,
+  hasMoreThreads = false,
+  loadingMoreThreads = false,
+  onLoadMoreThreads,
 }) => {
   /** 当前用户在本站的展示名：发帖作者、约练发起人、空间主人等处统一用它，不再写死人名 */
   const selfName = (currentUserName || '').trim() || '我';
@@ -197,7 +208,7 @@ export const DanceBuddies: React.FC<DanceBuddiesProps> = ({
   }, [activeChatPeerId]);
   const [selectedCategory, setSelectedCategory] = useState<ForumCategory>('全部');
   const [searchQuery, setSearchQuery] = useState('');
-  
+
   // Thread Expansion & Reply State
   const [expandedThreadId, setExpandedThreadId] = useState<string | null>(null);
   const [threadReplyText, setThreadReplyText] = useState<Record<string, string>>({});
@@ -205,7 +216,9 @@ export const DanceBuddies: React.FC<DanceBuddiesProps> = ({
   // New Thread Modal
   const [isNewThreadOpen, setIsNewThreadOpen] = useState(false);
   const [newThreadTitle, setNewThreadTitle] = useState('');
-  const [newThreadCategory, setNewThreadCategory] = useState<'舞室约练' | '动作拆解' | '扒舞音乐' | '舞友随笔'>('舞室约练');
+  const [newThreadCategory, setNewThreadCategory] = useState<'舞室约练' | '动作拆解' | '扒舞音乐' | '舞友随笔'>(
+    '舞室约练'
+  );
   const [newThreadContent, setNewThreadContent] = useState('');
   /** 发帖校验失败时的提示（长度 / 违规词 / 刷屏），通过后清空 */
   const [threadError, setThreadError] = useState<string | null>(null);
@@ -311,7 +324,11 @@ export const DanceBuddies: React.FC<DanceBuddiesProps> = ({
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
   };
 
-  const realFriendNames = realFriends.slice(0, 3).map((f) => f.name).join('、') + (realFriends.length > 3 ? ' 等' : '');
+  const realFriendNames =
+    realFriends
+      .slice(0, 3)
+      .map((f) => f.name)
+      .join('、') + (realFriends.length > 3 ? ' 等' : '');
 
   // Filter Threads
   const filteredThreads = threads.filter((t) => {
@@ -379,17 +396,20 @@ export const DanceBuddies: React.FC<DanceBuddiesProps> = ({
     }
     setThreadError(null);
 
-    const meetup = newThreadCategory === '舞室约练' ? {
-      studio: newThreadStudio.trim(),
-      date: newThreadDate.trim(),
-      targetCount: newThreadTargetCount,
-      joinedBuddies: [selfName],
-      isJoined: true,
-      costNote: newThreadCost.trim() || undefined,
-      organizerNote: newThreadOrganizerNote.trim() || undefined,
-      groupEntry: newThreadGroupEntry.trim() || undefined,
-      groupNote: newThreadGroupNote.trim() || undefined,
-    } : undefined;
+    const meetup =
+      newThreadCategory === '舞室约练'
+        ? {
+            studio: newThreadStudio.trim(),
+            date: newThreadDate.trim(),
+            targetCount: newThreadTargetCount,
+            joinedBuddies: [selfName],
+            isJoined: true,
+            costNote: newThreadCost.trim() || undefined,
+            organizerNote: newThreadOrganizerNote.trim() || undefined,
+            groupEntry: newThreadGroupEntry.trim() || undefined,
+            groupNote: newThreadGroupNote.trim() || undefined,
+          }
+        : undefined;
 
     if (editingThreadId) {
       const original = threads.find((t) => t.id === editingThreadId);
@@ -399,9 +419,15 @@ export const DanceBuddies: React.FC<DanceBuddiesProps> = ({
           title: newThreadTitle.trim(),
           category: newThreadCategory,
           content: newThreadContent.trim(),
-          tags: original.tags?.length ? [newThreadCategory, ...original.tags.slice(1)] : [newThreadCategory, `${selfName}发帖`],
+          tags: original.tags?.length
+            ? [newThreadCategory, ...original.tags.slice(1)]
+            : [newThreadCategory, `${selfName}发帖`],
           meetup: meetup
-            ? { ...meetup, joinedBuddies: original.meetup?.joinedBuddies ?? [selfName], isJoined: original.meetup?.isJoined ?? true }
+            ? {
+                ...meetup,
+                joinedBuddies: original.meetup?.joinedBuddies ?? [selfName],
+                isJoined: original.meetup?.isJoined ?? true,
+              }
             : undefined,
         };
         onUpdateThread?.(updated);
@@ -646,7 +672,6 @@ export const DanceBuddies: React.FC<DanceBuddiesProps> = ({
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 space-y-6 animate-fadeIn">
-      
       {/* 1. Community Forum Header Banner */}
       <section className="bg-gradient-to-r from-[#F3EEFF] via-[#F8EEFF] to-[#FFF0EC] border border-[#E3D7FE] rounded-3xl p-5 sm:p-6 shadow-2xs">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -674,9 +699,7 @@ export const DanceBuddies: React.FC<DanceBuddiesProps> = ({
             <button
               onClick={() => setActiveTab('forum')}
               className={`flex items-center gap-1.5 px-3 sm:px-3.5 py-1.5 text-xs font-bold rounded-xl transition-all cursor-pointer ${
-                activeTab === 'forum'
-                  ? 'bg-[#7C3AED] text-white shadow-2xs'
-                  : 'text-[#6D28D9] hover:bg-[#EFEBFF]'
+                activeTab === 'forum' ? 'bg-[#7C3AED] text-white shadow-2xs' : 'text-[#6D28D9] hover:bg-[#EFEBFF]'
               }`}
             >
               <MessageSquare className="w-3.5 h-3.5" />
@@ -686,9 +709,7 @@ export const DanceBuddies: React.FC<DanceBuddiesProps> = ({
             <button
               onClick={() => setActiveTab('friends')}
               className={`flex items-center gap-1.5 px-3 sm:px-3.5 py-1.5 text-xs font-bold rounded-xl transition-all cursor-pointer ${
-                activeTab === 'friends'
-                  ? 'bg-[#7C3AED] text-white shadow-2xs'
-                  : 'text-[#6D28D9] hover:bg-[#EFEBFF]'
+                activeTab === 'friends' ? 'bg-[#7C3AED] text-white shadow-2xs' : 'text-[#6D28D9] hover:bg-[#EFEBFF]'
               }`}
             >
               <UserCheck2 className="w-3.5 h-3.5" />
@@ -703,9 +724,7 @@ export const DanceBuddies: React.FC<DanceBuddiesProps> = ({
             <button
               onClick={() => setActiveTab('messages')}
               className={`flex items-center gap-1.5 px-3 sm:px-3.5 py-1.5 text-xs font-bold rounded-xl transition-all cursor-pointer ${
-                activeTab === 'messages'
-                  ? 'bg-[#7C3AED] text-white shadow-2xs'
-                  : 'text-[#6D28D9] hover:bg-[#EFEBFF]'
+                activeTab === 'messages' ? 'bg-[#7C3AED] text-white shadow-2xs' : 'text-[#6D28D9] hover:bg-[#EFEBFF]'
               }`}
             >
               <MessageCircle className="w-3.5 h-3.5" />
@@ -734,10 +753,8 @@ export const DanceBuddies: React.FC<DanceBuddiesProps> = ({
 
       {activeTab === 'forum' && isLoggedIn && (
         <div className="space-y-5">
-          
           {/* Sub-bar: Category Filter & New Post Trigger */}
           <div className="bg-white border border-[#EFE3D5] rounded-2xl p-4 shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-3">
-            
             {/* Board category chips：窄屏换行而不是横向滚动，
                 横向滚动会把“扒舞音乐”切一半，看着像排版坏了 */}
             <div className="flex flex-wrap items-center gap-1.5 gap-y-1.5">
@@ -788,10 +805,11 @@ export const DanceBuddies: React.FC<DanceBuddiesProps> = ({
                 className="px-4 py-2 bg-[#FF7E67] hover:bg-[#E65B47] text-white rounded-xl text-xs font-bold shadow-2xs hover:shadow-xs flex items-center gap-1.5 shrink-0 transition-all cursor-pointer"
               >
                 <Plus className="w-3.5 h-3.5 stroke-[3]" />
-                <span className="whitespace-nowrap">发布<span className="hidden sm:inline">新帖 / 发起约练</span></span>
+                <span className="whitespace-nowrap">
+                  发布<span className="hidden sm:inline">新帖 / 发起约练</span>
+                </span>
               </button>
             </div>
-
           </div>
 
           {/* Quick Notice about Real Friends connection */}
@@ -800,7 +818,10 @@ export const DanceBuddies: React.FC<DanceBuddiesProps> = ({
               <Sparkles className="w-4 h-4 text-[#FF7E67] shrink-0" />
               <span>
                 {realFriends.length > 0 ? (
-                  <>你已关联 <strong>{realFriends.length}</strong> 位现实舞友{realFriendNames ? `（${realFriendNames}）` : ''}。发布约练帖会即时记录到你的舞友圈。</>
+                  <>
+                    你已关联 <strong>{realFriends.length}</strong> 位现实舞友
+                    {realFriendNames ? `（${realFriendNames}）` : ''}。发布约练帖会即时记录到你的舞友圈。
+                  </>
                 ) : (
                   <>暂无现实舞友档案。添加第一位线下舞伴后，即可在这里一键发帖约练。</>
                 )}
@@ -835,7 +856,7 @@ export const DanceBuddies: React.FC<DanceBuddiesProps> = ({
                 const meetup = thread.meetup;
                 // 是否已报名：云端给出 isJoined，本地演示数据回退到昵称匹配
                 const hasJoined = meetup
-                  ? meetup.isJoined ?? (!!currentUserName && meetup.joinedBuddies.includes(currentUserName))
+                  ? (meetup.isJoined ?? (!!currentUserName && meetup.joinedBuddies.includes(currentUserName)))
                   : false;
                 const joinedCount = meetup?.joinedBuddies.length ?? 0;
                 const capacity = meetup?.targetCount ?? 0;
@@ -1004,9 +1025,7 @@ export const DanceBuddies: React.FC<DanceBuddiesProps> = ({
                         </div>
                         <button
                           type="button"
-                          onClick={() =>
-                            setRevealedOffsiteIds((prev) => ({ ...prev, [thread.id]: true }))
-                          }
+                          onClick={() => setRevealedOffsiteIds((prev) => ({ ...prev, [thread.id]: true }))}
                           className="text-[11px] font-bold text-[#92400E] underline hover:no-underline cursor-pointer"
                         >
                           仍要查看帖子原文
@@ -1029,7 +1048,9 @@ export const DanceBuddies: React.FC<DanceBuddiesProps> = ({
                             </div>
                             <div className="flex items-center gap-2 text-xs text-[#78695C] flex-wrap">
                               <Calendar className="w-3.5 h-3.5 text-[#7C3AED]" />
-                              <span>时间: <strong>{meetup.date}</strong></span>
+                              <span>
+                                时间: <strong>{meetup.date}</strong>
+                              </span>
                               {meetup.costNote && (
                                 <>
                                   <span aria-hidden="true">·</span>
@@ -1040,7 +1061,9 @@ export const DanceBuddies: React.FC<DanceBuddiesProps> = ({
                             {meetup.organizerNote && (
                               <div className="flex items-center gap-1 text-[11px] text-[#8C7A6B]">
                                 <ShieldCheck className="w-3 h-3 text-[#15803D]" />
-                                <span>组织者：{thread.author} · {meetup.organizerNote}</span>
+                                <span>
+                                  组织者：{thread.author} · {meetup.organizerNote}
+                                </span>
                               </div>
                             )}
                           </div>
@@ -1066,8 +1089,8 @@ export const DanceBuddies: React.FC<DanceBuddiesProps> = ({
                                 hasJoined
                                   ? 'bg-emerald-100 hover:bg-emerald-200 text-emerald-800 border border-emerald-300 cursor-pointer'
                                   : isFull
-                                  ? 'bg-[#F5EDE4] text-[#A8988A] border border-[#E8DACB] cursor-not-allowed'
-                                  : 'bg-[#FF7E67] hover:bg-[#E65B47] text-white cursor-pointer'
+                                    ? 'bg-[#F5EDE4] text-[#A8988A] border border-[#E8DACB] cursor-not-allowed'
+                                    : 'bg-[#FF7E67] hover:bg-[#E65B47] text-white cursor-pointer'
                               }`}
                             >
                               <CheckCircle2 className="w-3.5 h-3.5" />
@@ -1081,7 +1104,9 @@ export const DanceBuddies: React.FC<DanceBuddiesProps> = ({
                           <div className="flex items-center justify-between text-[11px]">
                             <span className="text-[#8C7A6B]">
                               报名进度{' '}
-                              <strong className="text-[#A63C29] font-mono">{joinedCount}/{capacity}</strong>
+                              <strong className="text-[#A63C29] font-mono">
+                                {joinedCount}/{capacity}
+                              </strong>
                               {thread.isOrganizer && joinedCount > 0 && (
                                 <span className="ml-1 text-[#15803D] font-semibold">（名单见下方）</span>
                               )}
@@ -1161,9 +1186,7 @@ export const DanceBuddies: React.FC<DanceBuddiesProps> = ({
                               <p className="text-xs font-mono text-[#292524] break-all bg-[#F7FEF9] rounded-lg px-2 py-1.5">
                                 {meetup.groupEntry}
                               </p>
-                              {meetup.groupNote && (
-                                <p className="text-[11px] text-[#8C7A6B]">{meetup.groupNote}</p>
-                              )}
+                              {meetup.groupNote && <p className="text-[11px] text-[#8C7A6B]">{meetup.groupNote}</p>}
                               {!thread.isOrganizer && (
                                 <p className="text-[10px] text-[#A8988A]">
                                   提示：这是组织者提供的联系方式，交易请自行确认，平台仅提供报名记录
@@ -1236,7 +1259,10 @@ export const DanceBuddies: React.FC<DanceBuddiesProps> = ({
                           </p>
                         ) : (
                           thread.replies.map((reply) => (
-                            <div key={reply.id} className="bg-white p-3 rounded-2xl border border-[#F0E4D8] text-xs space-y-1">
+                            <div
+                              key={reply.id}
+                              className="bg-white p-3 rounded-2xl border border-[#F0E4D8] text-xs space-y-1"
+                            >
                               <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-1.5">
                                   <button
@@ -1371,13 +1397,26 @@ export const DanceBuddies: React.FC<DanceBuddiesProps> = ({
                         </form>
                       </div>
                     )}
-
                   </article>
                 );
               })
             )}
-          </div>
 
+            {/* 分页：只加载最近 20 条，翻到底再取下一页，
+                避免帖子一多就把整表塞进内存、移动端滚动掉帧 */}
+            {onLoadMoreThreads && (hasMoreThreads || loadingMoreThreads) && (
+              <div className="pt-1 pb-2">
+                <button
+                  type="button"
+                  onClick={onLoadMoreThreads}
+                  disabled={loadingMoreThreads}
+                  className="w-full py-2.5 rounded-2xl border border-[#EADCCE] bg-[#FFFDF9] hover:bg-[#FFF4EA] disabled:opacity-60 text-xs font-semibold text-[#8C6A55] transition-colors cursor-pointer"
+                >
+                  {loadingMoreThreads ? '正在加载更早的帖子…' : '加载更早的帖子'}
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
@@ -1442,28 +1481,40 @@ export const DanceBuddies: React.FC<DanceBuddiesProps> = ({
                   <div>
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex items-center gap-3">
-                        <div className={`w-12 h-12 rounded-2xl ${friend.avatarBg} font-display font-bold text-lg flex items-center justify-center shrink-0 border border-black/5`}>
+                        <div
+                          className={`w-12 h-12 rounded-2xl ${friend.avatarBg} font-display font-bold text-lg flex items-center justify-center shrink-0 border border-black/5`}
+                        >
                           {friend.name.slice(0, 1)}
                         </div>
                         <div>
                           <div className="flex items-center gap-2">
                             <h4 className="text-sm font-bold text-[#292524]">{friend.name}</h4>
-                            <span className={`inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full font-medium ${
-                              friend.status === '在线'
-                                ? 'bg-emerald-50 text-emerald-700'
-                                : friend.status === '练舞中'
-                                ? 'bg-amber-50 text-amber-700'
-                                : 'bg-slate-100 text-slate-600'
-                            }`}>
-                              <span className={`w-1.5 h-1.5 rounded-full ${
-                                friend.status === '在线' ? 'bg-emerald-500' : friend.status === '练舞中' ? 'bg-amber-500' : 'bg-slate-400'
-                              }`} />
+                            <span
+                              className={`inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full font-medium ${
+                                friend.status === '在线'
+                                  ? 'bg-emerald-50 text-emerald-700'
+                                  : friend.status === '练舞中'
+                                    ? 'bg-amber-50 text-amber-700'
+                                    : 'bg-slate-100 text-slate-600'
+                              }`}
+                            >
+                              <span
+                                className={`w-1.5 h-1.5 rounded-full ${
+                                  friend.status === '在线'
+                                    ? 'bg-emerald-500'
+                                    : friend.status === '练舞中'
+                                      ? 'bg-amber-500'
+                                      : 'bg-slate-400'
+                                }`}
+                              />
                               {friend.status}
                             </span>
                           </div>
                           <p className="text-[11px] text-[#8C7A6B] mt-0.5">{friend.danceStyle}</p>
                           {friend.createdAt && (
-                            <p className="text-[10px] text-[#B0A090] mt-0.5">记录于 {formatRecordDate(friend.createdAt)}</p>
+                            <p className="text-[10px] text-[#B0A090] mt-0.5">
+                              记录于 {formatRecordDate(friend.createdAt)}
+                            </p>
                           )}
                         </div>
                       </div>
@@ -1491,68 +1542,69 @@ export const DanceBuddies: React.FC<DanceBuddiesProps> = ({
                       </div>
                     </div>
 
-                  {/* Studio & Contact */}
-                  <div className="mt-3.5 space-y-2">
-                    <div className="flex items-center gap-1.5 text-xs text-[#5C4D42] bg-[#FAF2EB] p-2.5 rounded-xl">
-                      <MapPin className="w-3.5 h-3.5 text-[#FF7E67] shrink-0" />
-                      <span className="truncate">常去舞室: <strong>{friend.studio}</strong></span>
-                    </div>
-
-                    {/* WeChat Contact Box with One-Click Copy */}
-                    <div className="flex items-center justify-between text-xs bg-[#FFF8F3] border border-[#F6DCBE] px-3 py-2 rounded-xl">
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-[#8C7A6B]">微信号:</span>
-                        <code className="font-mono font-bold text-[#292524]">{friend.contact}</code>
+                    {/* Studio & Contact */}
+                    <div className="mt-3.5 space-y-2">
+                      <div className="flex items-center gap-1.5 text-xs text-[#5C4D42] bg-[#FAF2EB] p-2.5 rounded-xl">
+                        <MapPin className="w-3.5 h-3.5 text-[#FF7E67] shrink-0" />
+                        <span className="truncate">
+                          常去舞室: <strong>{friend.studio}</strong>
+                        </span>
                       </div>
-                      <button
-                        onClick={() => handleCopyContact(friend.id, friend.contact)}
-                        className={`flex items-center gap-1 text-[11px] font-semibold px-2 py-1 rounded-lg transition-all ${
-                          copiedFriendId === friend.id
-                            ? 'bg-emerald-600 text-white'
-                            : 'bg-white text-[#7C3AED] border border-[#E2D5FE] hover:bg-[#F3EEFF]'
-                        }`}
-                      >
-                        {copiedFriendId === friend.id ? (
-                          <>
-                            <Check className="w-3 h-3" />
-                            <span>已复制!</span>
-                          </>
-                        ) : (
-                          <>
-                            <Copy className="w-3 h-3" />
-                            <span>复制</span>
-                          </>
-                        )}
-                      </button>
-                    </div>
 
-                    {/* Notes */}
-                    {friend.notes && (
-                      <p className="text-xs text-[#78695C] bg-[#FFFDF9] border border-[#F2E5D8] p-2.5 rounded-xl leading-relaxed">
-                        📝 <strong>舞伴备忘:</strong> {friend.notes}
-                      </p>
-                    )}
+                      {/* WeChat Contact Box with One-Click Copy */}
+                      <div className="flex items-center justify-between text-xs bg-[#FFF8F3] border border-[#F6DCBE] px-3 py-2 rounded-xl">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[#8C7A6B]">微信号:</span>
+                          <code className="font-mono font-bold text-[#292524]">{friend.contact}</code>
+                        </div>
+                        <button
+                          onClick={() => handleCopyContact(friend.id, friend.contact)}
+                          className={`flex items-center gap-1 text-[11px] font-semibold px-2 py-1 rounded-lg transition-all ${
+                            copiedFriendId === friend.id
+                              ? 'bg-emerald-600 text-white'
+                              : 'bg-white text-[#7C3AED] border border-[#E2D5FE] hover:bg-[#F3EEFF]'
+                          }`}
+                        >
+                          {copiedFriendId === friend.id ? (
+                            <>
+                              <Check className="w-3 h-3" />
+                              <span>已复制!</span>
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="w-3 h-3" />
+                              <span>复制</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
+
+                      {/* Notes */}
+                      {friend.notes && (
+                        <p className="text-xs text-[#78695C] bg-[#FFFDF9] border border-[#F2E5D8] p-2.5 rounded-xl leading-relaxed">
+                          📝 <strong>舞伴备忘:</strong> {friend.notes}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Bottom Action: Invite / Post to forum */}
+                  <div className="mt-4 pt-3 border-t border-[#F5ECE1] flex items-center justify-between">
+                    <span className="text-[11px] text-[#A8988A] truncate max-w-[180px]">
+                      {friend.recentTopic || '近期有练舞动态'}
+                    </span>
+                    <button
+                      onClick={() => openComposerWithFriend(friend.name, friend.studio)}
+                      className="px-3 py-1.5 bg-[#EDE9FE] hover:bg-[#DDD0FA] text-[#6D28D9] rounded-xl text-xs font-bold flex items-center gap-1 transition-all cursor-pointer"
+                    >
+                      <MessageSquare className="w-3 h-3" />
+                      <span>在论坛发帖约Ta</span>
+                    </button>
                   </div>
                 </div>
-
-                {/* Bottom Action: Invite / Post to forum */}
-                <div className="mt-4 pt-3 border-t border-[#F5ECE1] flex items-center justify-between">
-                  <span className="text-[11px] text-[#A8988A] truncate max-w-[180px]">
-                    {friend.recentTopic || '近期有练舞动态'}
-                  </span>
-                  <button
-                    onClick={() => openComposerWithFriend(friend.name, friend.studio)}
-                    className="px-3 py-1.5 bg-[#EDE9FE] hover:bg-[#DDD0FA] text-[#6D28D9] rounded-xl text-xs font-bold flex items-center gap-1 transition-all cursor-pointer"
-                  >
-                    <MessageSquare className="w-3 h-3" />
-                    <span>在论坛发帖约Ta</span>
-                  </button>
-                </div>
-
-              </div>
-            )))}
+              ))
+            )}
           </div>
-
         </div>
       )}
 
@@ -1582,22 +1634,21 @@ export const DanceBuddies: React.FC<DanceBuddiesProps> = ({
       {isNewThreadOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
           <div className="bg-white rounded-3xl p-6 sm:p-7 max-w-lg w-full shadow-2xl border border-[#EADCCE] max-h-[92vh] overflow-y-auto space-y-4">
-            
             <div className="flex items-center justify-between pb-3 border-b border-[#F1E5D8]">
               <h3 className="text-base sm:text-lg font-bold text-[#292524] flex items-center gap-2">
-                {editingThreadId ? <Pencil className="w-5 h-5 text-[#7C3AED]" /> : <MessageSquare className="w-5 h-5 text-[#7C3AED]" />}
+                {editingThreadId ? (
+                  <Pencil className="w-5 h-5 text-[#7C3AED]" />
+                ) : (
+                  <MessageSquare className="w-5 h-5 text-[#7C3AED]" />
+                )}
                 <span>{editingThreadId ? '编辑论坛帖子' : '发布论坛帖子 / 舞室约练'}</span>
               </h3>
-              <button
-                onClick={closeThreadModal}
-                className="text-sm text-[#8C7A6B] hover:text-[#292524] p-1"
-              >
+              <button onClick={closeThreadModal} className="text-sm text-[#8C7A6B] hover:text-[#292524] p-1">
                 ✕
               </button>
             </div>
 
             <form onSubmit={handlePublishThread} className="space-y-4">
-              
               {/* Category selector */}
               <div>
                 <label className="block text-xs font-bold text-[#574B40] uppercase tracking-wider mb-1.5">
@@ -1818,9 +1869,7 @@ export const DanceBuddies: React.FC<DanceBuddiesProps> = ({
                   {editingThreadId ? '保存修改' : '确认发布'}
                 </button>
               </div>
-
             </form>
-
           </div>
         </div>
       )}
@@ -1831,10 +1880,13 @@ export const DanceBuddies: React.FC<DanceBuddiesProps> = ({
       {isAddFriendOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
           <div className="bg-white rounded-3xl p-6 sm:p-7 max-w-md w-full shadow-2xl border border-[#EADCCE] space-y-4">
-            
             <div className="flex items-center justify-between pb-3 border-b border-[#F1E5D8]">
               <h3 className="text-base font-bold text-[#292524] flex items-center gap-2">
-                {editingFriendId ? <Pencil className="w-5 h-5 text-[#E65B47]" /> : <UserPlus className="w-5 h-5 text-[#E65B47]" />}
+                {editingFriendId ? (
+                  <Pencil className="w-5 h-5 text-[#E65B47]" />
+                ) : (
+                  <UserPlus className="w-5 h-5 text-[#E65B47]" />
+                )}
                 <span>{editingFriendId ? '编辑真实舞友档案' : '添加现实中的舞友'}</span>
               </h3>
               <button
@@ -1975,7 +2027,6 @@ export const DanceBuddies: React.FC<DanceBuddiesProps> = ({
                 </button>
               </div>
             </form>
-
           </div>
         </div>
       )}
@@ -1988,30 +2039,29 @@ export const DanceBuddies: React.FC<DanceBuddiesProps> = ({
               <h3 className="text-base font-bold text-[#292524] flex items-center gap-2">
                 <span>💬 发送约练邀请</span>
               </h3>
-              <button
-                onClick={() => setInvitedBuddy(null)}
-                className="text-xs text-[#8C7A6B] hover:text-[#292524] p-1"
-              >
+              <button onClick={() => setInvitedBuddy(null)} className="text-xs text-[#8C7A6B] hover:text-[#292524] p-1">
                 ✕
               </button>
             </div>
 
             <div className="bg-[#FAF2EB] p-3 rounded-2xl flex items-center gap-3">
-              <div className={`w-10 h-10 rounded-full ${invitedBuddy.avatarBg} font-bold flex items-center justify-center`}>
+              <div
+                className={`w-10 h-10 rounded-full ${invitedBuddy.avatarBg} font-bold flex items-center justify-center`}
+              >
                 {invitedBuddy.initials}
               </div>
               <div>
                 <span className="font-bold text-xs text-[#292524]">{invitedBuddy.name}</span>
-                <p className="text-[11px] text-[#78695C]">{invitedBuddy.studio} · {invitedBuddy.style}</p>
+                <p className="text-[11px] text-[#78695C]">
+                  {invitedBuddy.studio} · {invitedBuddy.style}
+                </p>
               </div>
             </div>
 
             {inviteSent ? (
               <div className="text-center py-4 bg-emerald-50 rounded-2xl border border-emerald-200">
                 <span className="text-sm font-bold text-emerald-800">🎉 约练邀请已同步发至论坛！</span>
-                <p className="text-xs text-emerald-700 mt-1">
-                  舞友与同伴都将在论坛约练板块中看到你的组队信息～
-                </p>
+                <p className="text-xs text-emerald-700 mt-1">舞友与同伴都将在论坛约练板块中看到你的组队信息～</p>
                 <button
                   onClick={() => setInvitedBuddy(null)}
                   className="mt-3 px-4 py-1.5 bg-emerald-600 text-white rounded-full text-xs font-semibold"
@@ -2021,11 +2071,10 @@ export const DanceBuddies: React.FC<DanceBuddiesProps> = ({
               </div>
             ) : (
               <div className="space-y-3">
-                <p className="text-xs text-[#574B40] leading-relaxed">
-                  系统已为你准备了友好的约练招呼语：
-                </p>
+                <p className="text-xs text-[#574B40] leading-relaxed">系统已为你准备了友好的约练招呼语：</p>
                 <div className="bg-[#FFFDF9] border border-[#E8DACB] p-3 rounded-xl text-xs text-[#6B5A4D]">
-                  &quot;嗨 {invitedBuddy.name}！在「舞蹈成长日记」里看到你常在 {invitedBuddy.studio} 练舞，我也在练舞，这周末要不要一起拼个教室练基础或者扒个舞？互相拍视频纠动作～&quot;
+                  &quot;嗨 {invitedBuddy.name}！在「舞蹈成长日记」里看到你常在 {invitedBuddy.studio}{' '}
+                  练舞，我也在练舞，这周末要不要一起拼个教室练基础或者扒个舞？互相拍视频纠动作～&quot;
                 </div>
                 <div className="flex justify-end gap-2 pt-2">
                   <button
@@ -2087,7 +2136,6 @@ export const DanceBuddies: React.FC<DanceBuddiesProps> = ({
       {friendToDelete && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-fadeIn">
           <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-rose-200/60 flex flex-col gap-5 max-h-[92vh] overflow-y-auto animate-scaleUp">
-            
             {/* Modal Header */}
             <div className="flex items-start justify-between gap-3">
               <div className="flex items-center gap-3">
@@ -2096,16 +2144,12 @@ export const DanceBuddies: React.FC<DanceBuddiesProps> = ({
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
-                    <h3 className="text-base sm:text-lg font-bold text-stone-900">
-                      永久彻底删除舞友记录
-                    </h3>
+                    <h3 className="text-base sm:text-lg font-bold text-stone-900">永久彻底删除舞友记录</h3>
                     <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-100 text-rose-700 border border-rose-200">
                       不可逆物理抹除
                     </span>
                   </div>
-                  <p className="text-xs text-stone-500 mt-0.5">
-                    从本地数据存储中永久销毁，并级联清理关联引用
-                  </p>
+                  <p className="text-xs text-stone-500 mt-0.5">从本地数据存储中永久销毁，并级联清理关联引用</p>
                 </div>
               </div>
               <button
@@ -2126,12 +2170,16 @@ export const DanceBuddies: React.FC<DanceBuddiesProps> = ({
             {/* Target Friend Summary Card */}
             <div className="p-3.5 bg-stone-50 border border-stone-200 rounded-2xl flex items-center justify-between gap-3">
               <div className="flex items-center gap-3">
-                <div className={`w-10 h-10 rounded-xl ${friendToDelete.avatarBg} font-display font-bold text-sm flex items-center justify-center shrink-0 border border-black/5`}>
+                <div
+                  className={`w-10 h-10 rounded-xl ${friendToDelete.avatarBg} font-display font-bold text-sm flex items-center justify-center shrink-0 border border-black/5`}
+                >
                   {friendToDelete.name.slice(0, 1)}
                 </div>
                 <div>
                   <h4 className="text-sm font-bold text-stone-900">{friendToDelete.name}</h4>
-                  <p className="text-[11px] text-stone-500">{friendToDelete.danceStyle} · {friendToDelete.studio}</p>
+                  <p className="text-[11px] text-stone-500">
+                    {friendToDelete.danceStyle} · {friendToDelete.studio}
+                  </p>
                 </div>
               </div>
               <span className="text-xs font-mono text-stone-600 bg-white px-2.5 py-1 rounded-lg border border-stone-200">
@@ -2147,10 +2195,13 @@ export const DanceBuddies: React.FC<DanceBuddiesProps> = ({
               </div>
               <ul className="list-disc list-inside space-y-1.5 text-[11px] text-rose-900/90 pl-1">
                 <li>
-                  <strong>物理抹除</strong>：该舞友数据将从本地 IndexedDB 与永久数据仓库中<strong>永久物理删除</strong>，并非软删除或状态标记，删除后无法找回或恢复。
+                  <strong>物理抹除</strong>：该舞友数据将从本地 IndexedDB 与永久数据仓库中<strong>永久物理删除</strong>
+                  ，并非软删除或状态标记，删除后无法找回或恢复。
                 </li>
                 <li>
-                  <strong>关联引用清理</strong>：系统将全面排查所有论坛约练活动（如已报名的拼舞室名单），自动移除该舞伴的姓名引用，<strong>彻底防止产生孤儿脏数据</strong>。
+                  <strong>关联引用清理</strong>
+                  ：系统将全面排查所有论坛约练活动（如已报名的拼舞室名单），自动移除该舞伴的姓名引用，
+                  <strong>彻底防止产生孤儿脏数据</strong>。
                 </li>
               </ul>
             </div>
@@ -2215,7 +2266,6 @@ export const DanceBuddies: React.FC<DanceBuddiesProps> = ({
                 )}
               </button>
             </div>
-
           </div>
         </div>
       )}
@@ -2256,7 +2306,6 @@ export const DanceBuddies: React.FC<DanceBuddiesProps> = ({
           if (pendingId) onToggleJoinMeetup?.(pendingId);
         }}
       />
-
     </div>
   );
 };

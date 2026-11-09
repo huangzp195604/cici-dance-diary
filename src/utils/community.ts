@@ -68,8 +68,7 @@ export const REPORT_RECEIVED_TIP =
   '举报已收到。我们会在 24 小时内核实，处理结果包含删除内容或限制账号；涉及转账、骚扰的会优先处理。这条内容已在这台设备上先隐藏。';
 
 /** 约练卡片上的常驻安全提示（一句，不打断浏览） */
-export const MEETUP_SAFETY_SHORT =
-  '首次见面请选营业中的舞室等公共场所，并把时间地点告诉一位朋友。';
+export const MEETUP_SAFETY_SHORT = '首次见面请选营业中的舞室等公共场所，并把时间地点告诉一位朋友。';
 
 /** 首次报名前的确认：三条可执行的动作，不是免责声明 */
 export const MEETUP_SAFETY_CHECKS: CommunityRule[] = [

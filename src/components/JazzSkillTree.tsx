@@ -49,11 +49,26 @@ export type {
 export { SKILL_CATEGORIES, DEFAULT_JAZZ_SKILLS } from '../utils/skillData';
 
 const LEVEL_META: Record<SkillLevel, { title: string; chip: string; cardBg: string; cardBorder: string }> = {
-  1: { title: '入门基础', chip: 'bg-emerald-100 text-emerald-700', cardBg: 'bg-emerald-50/60', cardBorder: 'border-emerald-200' },
+  1: {
+    title: '入门基础',
+    chip: 'bg-emerald-100 text-emerald-700',
+    cardBg: 'bg-emerald-50/60',
+    cardBorder: 'border-emerald-200',
+  },
   2: { title: '基础组合', chip: 'bg-sky-100 text-sky-700', cardBg: 'bg-sky-50/60', cardBorder: 'border-sky-200' },
-  3: { title: '进阶技巧', chip: 'bg-amber-100 text-amber-700', cardBg: 'bg-amber-50/60', cardBorder: 'border-amber-200' },
+  3: {
+    title: '进阶技巧',
+    chip: 'bg-amber-100 text-amber-700',
+    cardBg: 'bg-amber-50/60',
+    cardBorder: 'border-amber-200',
+  },
   4: { title: '高阶组合', chip: 'bg-rose-100 text-rose-700', cardBg: 'bg-rose-50/60', cardBorder: 'border-rose-200' },
-  5: { title: '舞台与创作', chip: 'bg-violet-100 text-violet-700', cardBg: 'bg-violet-50/60', cardBorder: 'border-violet-200' },
+  5: {
+    title: '舞台与创作',
+    chip: 'bg-violet-100 text-violet-700',
+    cardBg: 'bg-violet-50/60',
+    cardBorder: 'border-violet-200',
+  },
 };
 
 const STATUS_META: Record<SkillStateStatus, { label: string; badge: string }> = {
@@ -65,18 +80,16 @@ const STATUS_META: Record<SkillStateStatus, { label: string; badge: string }> = 
 
 const todayString = () => {
   const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(
-    now.getDate()
-  ).padStart(2, '0')}`;
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(
+    2,
+    '0'
+  )}`;
 };
 
 const StarRating: React.FC<{ value: number; size?: string }> = ({ value, size = 'w-3 h-3' }) => (
   <span className="inline-flex items-center gap-0.5 shrink-0" aria-label={`难度 ${value} 星`}>
     {[1, 2, 3, 4, 5].map((level) => (
-      <Star
-        key={level}
-        className={`${size} ${level <= value ? 'fill-[#F59E0B] text-[#F59E0B]' : 'text-[#D9C4B4]'}`}
-      />
+      <Star key={level} className={`${size} ${level <= value ? 'fill-[#F59E0B] text-[#F59E0B]' : 'text-[#D9C4B4]'}`} />
     ))}
   </span>
 );
@@ -147,10 +160,7 @@ export const JazzSkillTree: React.FC = () => {
   }, [isLibraryOpen]);
 
   // 状态派生交给 utils/skillData —— 与成长报告共用同一套规则，避免两处口径不一致
-  const skillStates = useMemo<SkillWithState[]>(
-    () => computeSkillStates(skills, checkIns),
-    [skills, checkIns]
-  );
+  const skillStates = useMemo<SkillWithState[]>(() => computeSkillStates(skills, checkIns), [skills, checkIns]);
 
   const stateById = useMemo(() => {
     const map = new Map<string, SkillWithState>();
@@ -175,9 +185,7 @@ export const JazzSkillTree: React.FC = () => {
   const sortedHistory = useMemo(
     () =>
       [...checkIns]
-        .sort((a, b) =>
-          a.date === b.date ? b.id.localeCompare(a.id) : b.date.localeCompare(a.date)
-        )
+        .sort((a, b) => (a.date === b.date ? b.id.localeCompare(a.id) : b.date.localeCompare(a.date)))
         .map((record) => ({
           record,
           skill: skills.find((item) => item.id === record.skillId),
@@ -206,9 +214,7 @@ export const JazzSkillTree: React.FC = () => {
   const toggleSelect = (skillId: string) => {
     const state = stateById.get(skillId);
     if (!state || state.locked) return;
-    setSelectedIds((prev) =>
-      prev.includes(skillId) ? prev.filter((id) => id !== skillId) : [...prev, skillId]
-    );
+    setSelectedIds((prev) => (prev.includes(skillId) ? prev.filter((id) => id !== skillId) : [...prev, skillId]));
   };
 
   const handleSaveCheckIn = () => {
@@ -228,9 +234,7 @@ export const JazzSkillTree: React.FC = () => {
     setCheckIns((prev) => {
       const next = [...prev];
       validIds.forEach((skillId, index) => {
-        const existingIndex = next.findIndex(
-          (record) => record.skillId === skillId && record.date === checkInDate
-        );
+        const existingIndex = next.findIndex((record) => record.skillId === skillId && record.date === checkInDate);
         if (existingIndex >= 0) {
           // 同一技能同一天只保留一条记录，重复保存视为更新完成状态，避免重复计数
           next[existingIndex] = { ...next[existingIndex], status: checkInStatus };
@@ -248,9 +252,7 @@ export const JazzSkillTree: React.FC = () => {
 
     setSelectedIds([]);
     setToast(
-      `已记录 ${checkInDate} 的 ${validIds.length} 个技能打卡（${
-        checkInStatus === 'mastered' ? '已掌握' : '练习中'
-      }）`
+      `已记录 ${checkInDate} 的 ${validIds.length} 个技能打卡（${checkInStatus === 'mastered' ? '已掌握' : '练习中'}）`
     );
   };
 
@@ -304,15 +306,10 @@ export const JazzSkillTree: React.FC = () => {
     };
 
     if (form.id) {
-      setSkills((prev) =>
-        prev.map((skill) => (skill.id === form.id ? { ...skill, ...payload } : skill))
-      );
+      setSkills((prev) => prev.map((skill) => (skill.id === form.id ? { ...skill, ...payload } : skill)));
       setToast('技能动作已更新');
     } else {
-      setSkills((prev) => [
-        ...prev,
-        { id: `skill-${Date.now()}`, ...payload, isCustom: true },
-      ]);
+      setSkills((prev) => [...prev, { id: `skill-${Date.now()}`, ...payload, isCustom: true }]);
       setToast('新技能动作已添加到技能库');
     }
 
@@ -368,9 +365,21 @@ export const JazzSkillTree: React.FC = () => {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
         {[
           { label: '技能总数', value: skills.length, sub: '技能库动作', icon: Award, tone: 'text-[#8B5CF6]' },
-          { label: '已掌握', value: masteredCount, sub: `总进度 ${skills.length ? Math.round((masteredCount / skills.length) * 100) : 0}%`, icon: CheckCircle2, tone: 'text-emerald-600' },
+          {
+            label: '已掌握',
+            value: masteredCount,
+            sub: `总进度 ${skills.length ? Math.round((masteredCount / skills.length) * 100) : 0}%`,
+            icon: CheckCircle2,
+            tone: 'text-emerald-600',
+          },
           { label: '练习中', value: practicingCount, sub: '尚未标记掌握', icon: Sparkles, tone: 'text-[#E67E22]' },
-          { label: '累计打卡', value: checkIns.length, sub: `${practiceDayCount} 个练习日`, icon: Calendar, tone: 'text-[#E65B47]' },
+          {
+            label: '累计打卡',
+            value: checkIns.length,
+            sub: `${practiceDayCount} 个练习日`,
+            icon: Calendar,
+            tone: 'text-[#E65B47]',
+          },
         ].map((item) => {
           const Icon = item.icon;
           return (
@@ -379,9 +388,7 @@ export const JazzSkillTree: React.FC = () => {
                 <Icon className={`w-3 h-3 ${item.tone}`} />
                 <span>{item.label}</span>
               </div>
-              <span className="text-lg font-mono font-bold text-[#292524] block leading-tight mt-1">
-                {item.value}
-              </span>
+              <span className="text-lg font-mono font-bold text-[#292524] block leading-tight mt-1">{item.value}</span>
               <span className="text-[10px] text-[#A89888] block">{item.sub}</span>
             </div>
           );
@@ -428,9 +435,7 @@ export const JazzSkillTree: React.FC = () => {
                 type="button"
                 onClick={() => setCheckInStatus(status)}
                 className={`px-2.5 py-1 text-[11px] font-bold rounded-md transition-colors cursor-pointer ${
-                  checkInStatus === status
-                    ? 'bg-[#FF7E67] text-white'
-                    : 'text-[#78695C] hover:text-[#292524]'
+                  checkInStatus === status ? 'bg-[#FF7E67] text-white' : 'text-[#78695C] hover:text-[#292524]'
                 }`}
               >
                 {status === 'mastered' ? '已掌握' : '练习中'}
@@ -461,8 +466,7 @@ export const JazzSkillTree: React.FC = () => {
         {levelGroups.map(({ level, items }) => {
           const meta = LEVEL_META[level];
           const levelMastered = items.filter((item) => item.status === 'mastered').length;
-          const unlockHint =
-            level === 1 ? '默认解锁' : `掌握任意 1 个 ${level - 1} 星技能后解锁`;
+          const unlockHint = level === 1 ? '默认解锁' : `掌握任意 1 个 ${level - 1} 星技能后解锁`;
           return (
             <div key={level}>
               {level > 1 && (
@@ -473,9 +477,7 @@ export const JazzSkillTree: React.FC = () => {
               <div className={`rounded-2xl border ${meta.cardBorder} ${meta.cardBg} p-3 space-y-2`}>
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
-                    <span className={`text-[11px] font-bold px-2 py-0.5 rounded-lg ${meta.chip}`}>
-                      Lv.{level}
-                    </span>
+                    <span className={`text-[11px] font-bold px-2 py-0.5 rounded-lg ${meta.chip}`}>Lv.{level}</span>
                     <span className="text-xs font-bold text-[#3D3126]">{meta.title}</span>
                     <StarRating value={level} size="w-2.5 h-2.5" />
                   </div>
@@ -500,16 +502,14 @@ export const JazzSkillTree: React.FC = () => {
                           state.locked
                             ? 'bg-[#F9F7F5] border-[#EADCCE] opacity-60 cursor-not-allowed'
                             : selected
-                            ? 'bg-white border-[#E65B47] ring-2 ring-[#FF7E67]/30 shadow-xs cursor-pointer'
-                            : 'bg-white/80 border-[#EFE3D5] hover:border-[#FFB39E] hover:shadow-xs cursor-pointer'
+                              ? 'bg-white border-[#E65B47] ring-2 ring-[#FF7E67]/30 shadow-xs cursor-pointer'
+                              : 'bg-white/80 border-[#EFE3D5] hover:border-[#FFB39E] hover:shadow-xs cursor-pointer'
                         }`}
                       >
                         <div className="flex items-start gap-2">
                           <span
                             className={`mt-0.5 w-4 h-4 rounded-[5px] border flex items-center justify-center shrink-0 ${
-                              selected
-                                ? 'bg-[#FF7E67] border-[#E65B47]'
-                                : 'bg-white border-[#D9C4B4]'
+                              selected ? 'bg-[#FF7E67] border-[#E65B47]' : 'bg-white border-[#D9C4B4]'
                             }`}
                           >
                             {selected ? (
@@ -521,9 +521,7 @@ export const JazzSkillTree: React.FC = () => {
 
                           <div className="min-w-0 flex-1">
                             <div className="flex items-center justify-between gap-1.5">
-                              <span className="text-[11px] font-bold text-[#292524] truncate">
-                                {state.skill.name}
-                              </span>
+                              <span className="text-[11px] font-bold text-[#292524] truncate">{state.skill.name}</span>
                               <StarRating value={state.skill.difficulty} size="w-2.5 h-2.5" />
                             </div>
                             <p className="text-[10px] text-[#78695C] mt-0.5 line-clamp-2 leading-snug">
@@ -537,9 +535,7 @@ export const JazzSkillTree: React.FC = () => {
                                 {metaStatus.label}
                               </span>
                               {state.records.length > 0 && (
-                                <span className="text-[9px] text-[#A89888] font-mono">
-                                  {state.records.length} 次
-                                </span>
+                                <span className="text-[9px] text-[#A89888] font-mono">{state.records.length} 次</span>
                               )}
                             </div>
                           </div>
@@ -568,9 +564,7 @@ export const JazzSkillTree: React.FC = () => {
               共 {checkIns.length} 条 · {practiceDayCount} 天
             </span>
           </span>
-          <span className="text-[11px] text-[#A89888]">
-            {isHistoryOpen ? '收起' : '展开'}
-          </span>
+          <span className="text-[11px] text-[#A89888]">{isHistoryOpen ? '收起' : '展开'}</span>
         </button>
 
         {isHistoryOpen && (
@@ -586,20 +580,14 @@ export const JazzSkillTree: React.FC = () => {
                   className="flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg bg-[#FFFDFB] border border-[#F2E5D8]"
                 >
                   <div className="min-w-0 flex items-center gap-2">
-                    <span className="text-[10px] font-mono text-[#8C7A6B] shrink-0">
-                      {record.date}
-                    </span>
-                    <span className="text-[11px] font-semibold text-[#292524] truncate">
-                      {skill?.name}
-                    </span>
+                    <span className="text-[10px] font-mono text-[#8C7A6B] shrink-0">{record.date}</span>
+                    <span className="text-[11px] font-semibold text-[#292524] truncate">{skill?.name}</span>
                     <span className="text-[9px] text-[#A89888] shrink-0">{skill?.category}</span>
                   </div>
                   <div className="flex items-center gap-1.5 shrink-0">
                     <span
                       className={`text-[9px] px-1.5 py-0.5 rounded font-semibold ${
-                        record.status === 'mastered'
-                          ? 'bg-emerald-50 text-emerald-700'
-                          : 'bg-amber-50 text-[#B45309]'
+                        record.status === 'mastered' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-[#B45309]'
                       }`}
                     >
                       {record.status === 'mastered' ? '已掌握' : '练习中'}
@@ -740,9 +728,7 @@ export const JazzSkillTree: React.FC = () => {
                     />
                     <select
                       value={form.category}
-                      onChange={(e) =>
-                        setForm({ ...form, category: e.target.value as SkillCategory })
-                      }
+                      onChange={(e) => setForm({ ...form, category: e.target.value as SkillCategory })}
                       className="text-xs px-2.5 py-1.5 rounded-lg border border-[#E3D4C5] bg-white focus:outline-none"
                     >
                       {SKILL_CATEGORIES.map((category) => (
@@ -766,9 +752,7 @@ export const JazzSkillTree: React.FC = () => {
                         >
                           <Star
                             className={`w-4 h-4 ${
-                              level <= form.difficulty
-                                ? 'fill-[#F59E0B] text-[#F59E0B]'
-                                : 'text-[#D9C4B4]'
+                              level <= form.difficulty ? 'fill-[#F59E0B] text-[#F59E0B]' : 'text-[#D9C4B4]'
                             }`}
                           />
                         </button>
@@ -785,9 +769,7 @@ export const JazzSkillTree: React.FC = () => {
                     className="w-full text-xs px-2.5 py-1.5 rounded-lg border border-[#E3D4C5] bg-white focus:outline-none resize-none"
                   />
 
-                  {formError && (
-                    <p className="text-[11px] text-[#DC2626] font-medium">{formError}</p>
-                  )}
+                  {formError && <p className="text-[11px] text-[#DC2626] font-medium">{formError}</p>}
 
                   <div className="flex items-center justify-end gap-2">
                     <button
@@ -814,9 +796,7 @@ export const JazzSkillTree: React.FC = () => {
             {/* Modal list */}
             <div className="flex-1 overflow-y-auto px-5 sm:px-6 py-4">
               {filteredSkills.length === 0 ? (
-                <p className="text-xs text-[#A89888] py-8 text-center">
-                  没有符合条件的技能，试试调整搜索或筛选条件。
-                </p>
+                <p className="text-xs text-[#A89888] py-8 text-center">没有符合条件的技能，试试调整搜索或筛选条件。</p>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   {filteredSkills.map((state) => {
@@ -876,9 +856,7 @@ export const JazzSkillTree: React.FC = () => {
             </div>
 
             <div className="px-5 sm:px-6 py-3 border-t border-[#F1E5D8] bg-[#FFFDFB] flex items-center justify-between text-[10px] text-[#A89888]">
-              <span>
-                当前筛选 {filteredSkills.length} 个 · 难度按 1-5 星真实分级
-              </span>
+              <span>当前筛选 {filteredSkills.length} 个 · 难度按 1-5 星真实分级</span>
               <button
                 type="button"
                 onClick={() => setIsLibraryOpen(false)}
@@ -894,11 +872,7 @@ export const JazzSkillTree: React.FC = () => {
       {/* 8. Delete confirmation */}
       <ConfirmDialog
         open={!!pendingConfirm}
-        title={
-          pendingConfirm?.type === 'delete-skill'
-            ? '确认删除该技能动作？'
-            : '确认删除这条打卡记录？'
-        }
+        title={pendingConfirm?.type === 'delete-skill' ? '确认删除该技能动作？' : '确认删除这条打卡记录？'}
         description={
           pendingConfirm?.type === 'delete-skill'
             ? '删除后，该技能及其全部打卡记录都会被移除，无法恢复。'
@@ -909,17 +883,15 @@ export const JazzSkillTree: React.FC = () => {
             ? [
                 `技能：${pendingConfirm.skill.name}`,
                 `分类：${pendingConfirm.skill.category} · 难度 ${pendingConfirm.skill.difficulty} 星`,
-                `关联打卡记录：${
-                  checkIns.filter((record) => record.skillId === pendingConfirm.skill.id).length
-                } 条`,
+                `关联打卡记录：${checkIns.filter((record) => record.skillId === pendingConfirm.skill.id).length} 条`,
               ]
             : pendingConfirm?.type === 'delete-checkin'
-            ? [
-                `日期：${pendingConfirm.record.date}`,
-                `技能：${pendingConfirm.skillName}`,
-                `完成情况：${pendingConfirm.record.status === 'mastered' ? '已掌握' : '练习中'}`,
-              ]
-            : undefined
+              ? [
+                  `日期：${pendingConfirm.record.date}`,
+                  `技能：${pendingConfirm.skillName}`,
+                  `完成情况：${pendingConfirm.record.status === 'mastered' ? '已掌握' : '练习中'}`,
+                ]
+              : undefined
         }
         confirmLabel={pendingConfirm?.type === 'delete-skill' ? '确认删除技能' : '确认删除记录'}
         onCancel={() => setPendingConfirm(null)}

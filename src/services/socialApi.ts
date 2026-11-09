@@ -10,13 +10,7 @@
  */
 import { cloud, CloudUser } from './cloud';
 import { fetchProfiles } from './userDataApi';
-import type {
-  Conversation,
-  DirectMessage,
-  Friendship,
-  SocialData,
-  SocialPeer,
-} from '../types';
+import type { Conversation, DirectMessage, Friendship, SocialData, SocialPeer } from '../types';
 
 const db = cloud.database as any;
 
@@ -85,8 +79,7 @@ export async function fetchSocial(user: CloudUser): Promise<SocialData> {
       age: p?.age ?? null,
     });
   });
-  const peerOf = (id: string): SocialPeer =>
-    profiles.get(id) || { id, nickname: '舞友', gender: null, age: null };
+  const peerOf = (id: string): SocialPeer => profiles.get(id) || { id, nickname: '舞友', gender: null, age: null };
 
   const friendships: Friendship[] = friendRows.map((f) => {
     const outgoing = f.requester_id === user.id;
@@ -123,9 +116,7 @@ export async function fetchSocial(user: CloudUser): Promise<SocialData> {
   });
   const conversations = Array.from(convMap.values());
   conversations.forEach((c) => {
-    const accepted = friendships.find(
-      (f) => f.status === 'accepted' && f.peer.id === c.peerId
-    );
+    const accepted = friendships.find((f) => f.status === 'accepted' && f.peer.id === c.peerId);
     if (accepted) c.peer = accepted.peer;
   });
 
@@ -164,11 +155,7 @@ async function findPair(peerId: string, user: CloudUser): Promise<FriendRow | un
  * 加好友：无关系则发申请；对方已向我申请则直接互相成为好友；
  * 之前被拒绝过则清理旧行重新申请（唯一索引保证一对用户只有一条关系）。
  */
-export async function sendFriendRequest(
-  peerId: string,
-  note: string,
-  user: CloudUser
-): Promise<'sent' | 'accepted'> {
+export async function sendFriendRequest(peerId: string, note: string, user: CloudUser): Promise<'sent' | 'accepted'> {
   if (!peerId) throw new Error('找不到这位舞友的账号');
   if (peerId === user.id) throw new Error('不能加自己为好友');
 
@@ -201,11 +188,7 @@ export async function sendFriendRequest(
 }
 
 /** 同意 / 拒绝好友申请（只有被申请人能操作，RLS 兜底） */
-export async function respondFriendRequest(
-  relationId: string,
-  accept: boolean,
-  user: CloudUser
-): Promise<void> {
+export async function respondFriendRequest(relationId: string, accept: boolean, user: CloudUser): Promise<void> {
   const res = await db
     .from('friendships')
     .update({
@@ -223,36 +206,22 @@ export async function respondFriendRequest(
 
 /** 删除好友 / 撤回申请（双方都可删） */
 export async function removeFriendship(relationId: string): Promise<void> {
-  const res = await db
-    .from('friendships')
-    .delete()
-    .eq('id', Number(relationId))
-    .select();
+  const res = await db.from('friendships').delete().eq('id', Number(relationId)).select();
   if (res.error) throw new Error(errText(res.error));
 }
 
 /** 发私信：非好友会被数据库 INSERT 策略拒绝 */
-export async function sendDirectMessage(
-  peerId: string,
-  content: string,
-  user: CloudUser
-): Promise<void> {
+export async function sendDirectMessage(peerId: string, content: string, user: CloudUser): Promise<void> {
   const text = content.trim();
   if (!text) throw new Error('消息不能为空');
   if (text.length > 1000) throw new Error('消息最多 1000 字');
   if (!peerId || peerId === user.id) throw new Error('不能给自己发私信');
-  const res = await db
-    .from('direct_messages')
-    .insert({ recipient_id: peerId, content: text })
-    .select();
+  const res = await db.from('direct_messages').insert({ recipient_id: peerId, content: text }).select();
   if (res.error) throw new Error(errText(res.error));
 }
 
 /** 把某会话中对方发来的消息标记为已读 */
-export async function markConversationRead(
-  peerId: string,
-  user: CloudUser
-): Promise<void> {
+export async function markConversationRead(peerId: string, user: CloudUser): Promise<void> {
   const res = await db
     .from('direct_messages')
     .update({ read_at: new Date().toISOString() })

@@ -85,9 +85,7 @@ export const CommunityRules: React.FC<CommunityRulesProps> = ({ open, onClose })
 
         {/* Footer */}
         <div className="px-5 py-3.5 border-t border-[#F1E5D8] bg-[#FFFDFB] flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-          <p className="text-[11px] text-[#A8988A]">
-            举报入口在每条帖子和回复的右上角，举报人信息只有我们能看到。
-          </p>
+          <p className="text-[11px] text-[#A8988A]">举报入口在每条帖子和回复的右上角，举报人信息只有我们能看到。</p>
           <button
             type="button"
             onClick={onClose}

@@ -32,7 +32,6 @@ export const GrooveMetronome: React.FC<GrooveMetronomeProps> = ({
   return (
     <div className="bg-[#FFF4EC] border-b border-[#F7DFC8] px-4 py-3 shadow-inner transition-all">
       <div className="max-w-4xl mx-auto flex flex-col md:flex-row items-center justify-between gap-3 text-xs sm:text-sm">
-        
         {/* Left: Info */}
         <div className="flex items-center gap-2">
           <div className="w-7 h-7 rounded-lg bg-[#FFE0D1] flex items-center justify-center text-[#E65B47]">
@@ -60,8 +59,8 @@ export const GrooveMetronome: React.FC<GrooveMetronomeProps> = ({
                       ? 'bg-[#FF6B6B] text-white scale-110 shadow-md ring-2 ring-[#FF6B6B]/40'
                       : 'bg-[#FF9F43] text-white scale-105 shadow-sm'
                     : isAccent
-                    ? 'bg-[#FFE2D4] text-[#A64B2A] border border-[#F5C7B5]'
-                    : 'bg-white/80 text-[#8C7A6B] border border-[#EADBCE]'
+                      ? 'bg-[#FFE2D4] text-[#A64B2A] border border-[#F5C7B5]'
+                      : 'bg-white/80 text-[#8C7A6B] border border-[#EADBCE]'
                 }`}
               >
                 <span className="text-xs sm:text-sm">{count}</span>
@@ -87,17 +86,13 @@ export const GrooveMetronome: React.FC<GrooveMetronomeProps> = ({
               onChange={handleBpmChange}
               className="w-16 sm:w-20 accent-[#FF6B6B] cursor-pointer"
             />
-            <span className="font-mono font-semibold text-xs text-[#3D3126] w-12 text-right">
-              {bpm} BPM
-            </span>
+            <span className="font-mono font-semibold text-xs text-[#3D3126] w-12 text-right">{bpm} BPM</span>
           </div>
 
           <button
             onClick={onToggle}
             className={`flex items-center gap-1 px-3 py-1 rounded-full font-semibold text-xs transition-all shadow-sm ${
-              isRunning
-                ? 'bg-[#E65B47] hover:bg-[#D94C37] text-white'
-                : 'bg-[#10B981] hover:bg-[#059669] text-white'
+              isRunning ? 'bg-[#E65B47] hover:bg-[#D94C37] text-white' : 'bg-[#10B981] hover:bg-[#059669] text-white'
             }`}
           >
             {isRunning ? (
@@ -121,7 +116,6 @@ export const GrooveMetronome: React.FC<GrooveMetronomeProps> = ({
             ✕
           </button>
         </div>
-
       </div>
     </div>
   );

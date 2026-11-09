@@ -1,16 +1,6 @@
 import { syncRemoveItem, syncSetItem } from '../utils/sync';
 import React, { useEffect, useMemo, useState } from 'react';
-import {
-  ShoppingBag,
-  AlertTriangle,
-  Plus,
-  Pin,
-  PinOff,
-  Trash2,
-  X,
-  CheckCircle2,
-  AlertCircle,
-} from 'lucide-react';
+import { ShoppingBag, AlertTriangle, Plus, Pin, PinOff, Trash2, X, CheckCircle2, AlertCircle } from 'lucide-react';
 import { ConfirmDialog } from './ConfirmDialog';
 
 type TipCategory = '百宝箱' | '避坑经验';
@@ -109,9 +99,7 @@ export const BeginnerTips: React.FC = () => {
     () =>
       tips
         .map((tip, index) => ({ tip, index }))
-        .sort(
-          (a, b) => Number(b.tip.pinned) - Number(a.tip.pinned) || a.index - b.index
-        )
+        .sort((a, b) => Number(b.tip.pinned) - Number(a.tip.pinned) || a.index - b.index)
         .map((entry) => entry.tip),
     [tips]
   );
@@ -168,9 +156,7 @@ export const BeginnerTips: React.FC = () => {
   };
 
   const handleTogglePin = (tip: BeginnerTip) => {
-    setTips((prev) =>
-      prev.map((item) => (item.id === tip.id ? { ...item, pinned: !item.pinned } : item))
-    );
+    setTips((prev) => prev.map((item) => (item.id === tip.id ? { ...item, pinned: !item.pinned } : item)));
     setToast({
       type: 'success',
       message: tip.pinned ? '已取消置顶' : '已置顶该条目',
@@ -222,9 +208,7 @@ export const BeginnerTips: React.FC = () => {
                   type="button"
                   onClick={() => setFormCategory(category)}
                   className={`px-2.5 py-1 text-[11px] font-bold rounded-md transition-colors cursor-pointer ${
-                    formCategory === category
-                      ? 'bg-[#E67E22] text-white'
-                      : 'text-[#78695C] hover:text-[#292524]'
+                    formCategory === category ? 'bg-[#E67E22] text-white' : 'text-[#78695C] hover:text-[#292524]'
                   }`}
                 >
                   {category}
@@ -338,7 +322,9 @@ export const BeginnerTips: React.FC = () => {
                 <p className="text-[11px] text-[#78695C] leading-relaxed">{tip.content}</p>
 
                 <div className="flex flex-wrap items-center gap-1.5 mt-2">
-                  <span className={`text-[9px] px-1.5 py-0.5 rounded font-semibold inline-flex items-center gap-1 ${meta.badge}`}>
+                  <span
+                    className={`text-[9px] px-1.5 py-0.5 rounded font-semibold inline-flex items-center gap-1 ${meta.badge}`}
+                  >
                     <CategoryIcon className="w-2.5 h-2.5" />
                     {tip.category}
                   </span>
@@ -382,11 +368,7 @@ export const BeginnerTips: React.FC = () => {
         open={!!pendingDelete}
         title="确认删除这条内容？"
         description="删除后该条目会从百宝箱和本地数据中永久移除，无法恢复。"
-        details={
-          pendingDelete
-            ? [`标题：${pendingDelete.title}`, `分类：${pendingDelete.category}`]
-            : undefined
-        }
+        details={pendingDelete ? [`标题：${pendingDelete.title}`, `分类：${pendingDelete.category}`] : undefined}
         confirmLabel="确认删除"
         onCancel={() => setPendingDelete(null)}
         onConfirm={handleConfirmDelete}

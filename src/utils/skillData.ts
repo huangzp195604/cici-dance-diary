@@ -59,58 +59,322 @@ export const LEVEL_TITLES: Record<SkillLevel, string> = {
  */
 export const DEFAULT_JAZZ_SKILLS: JazzSkill[] = [
   // ---------- 1 星：入门基础 ----------
-  { id: 'skill-groove-bounce', name: '基础律动 Bounce（Down/Up Beat）', category: '基础律动', difficulty: 1, description: '跟随 80-100 BPM 稳定完成上下律动，膝盖放松、重心有弹性。' },
-  { id: 'skill-head-isolation', name: '头部前后左右隔离 Head Isolation', category: '隔离控制', difficulty: 1, description: '头部单独完成前后左右出点，肩颈不跟随晃动。' },
-  { id: 'skill-shoulder-isolation', name: '肩部前后左右隔离 Shoulder Isolation', category: '隔离控制', difficulty: 1, description: '左右肩交替前后转动，胸腔与胯部保持稳定。' },
-  { id: 'skill-chest-isolation', name: '胸腔前后左右隔离 Chest Isolation', category: '隔离控制', difficulty: 1, description: '胸腔四方向出点清晰，下半身不代偿。' },
-  { id: 'skill-hip-isolation', name: '胯部左右前后隔离 Hip Isolation', category: '隔离控制', difficulty: 1, description: '胯部单方向出点，上半身尽量保持正对前方。' },
-  { id: 'skill-jazz-hands', name: 'Jazz 手位与手臂延伸', category: '基础律动', difficulty: 1, description: '掌握基础手位，手臂线条有延伸感，发力不耸肩。' },
-  { id: 'skill-weight-shift', name: '重心转移与左右换重心', category: '脚步与重心', difficulty: 1, description: '左右重心干净切换，脚掌与脚踝保持稳定。' },
-  { id: 'skill-step-touch', name: 'Step Touch / Kick Ball Change', category: '脚步与重心', difficulty: 1, description: '基础步伐与踢换步，节奏清楚，落点稳定。' },
-  { id: 'skill-eight-count', name: '8-Count 数拍与基础组合', category: '音乐性', difficulty: 1, description: '能听清 8 拍结构，并把基础动作放进拍子里完成。' },
-  { id: 'skill-posture-line', name: '身体站姿与直线控制 Posture & Line', category: '身体开发', difficulty: 1, description: '脊柱延展、肩胯对齐，静态线条干净。' },
+  {
+    id: 'skill-groove-bounce',
+    name: '基础律动 Bounce（Down/Up Beat）',
+    category: '基础律动',
+    difficulty: 1,
+    description: '跟随 80-100 BPM 稳定完成上下律动，膝盖放松、重心有弹性。',
+  },
+  {
+    id: 'skill-head-isolation',
+    name: '头部前后左右隔离 Head Isolation',
+    category: '隔离控制',
+    difficulty: 1,
+    description: '头部单独完成前后左右出点，肩颈不跟随晃动。',
+  },
+  {
+    id: 'skill-shoulder-isolation',
+    name: '肩部前后左右隔离 Shoulder Isolation',
+    category: '隔离控制',
+    difficulty: 1,
+    description: '左右肩交替前后转动，胸腔与胯部保持稳定。',
+  },
+  {
+    id: 'skill-chest-isolation',
+    name: '胸腔前后左右隔离 Chest Isolation',
+    category: '隔离控制',
+    difficulty: 1,
+    description: '胸腔四方向出点清晰，下半身不代偿。',
+  },
+  {
+    id: 'skill-hip-isolation',
+    name: '胯部左右前后隔离 Hip Isolation',
+    category: '隔离控制',
+    difficulty: 1,
+    description: '胯部单方向出点，上半身尽量保持正对前方。',
+  },
+  {
+    id: 'skill-jazz-hands',
+    name: 'Jazz 手位与手臂延伸',
+    category: '基础律动',
+    difficulty: 1,
+    description: '掌握基础手位，手臂线条有延伸感，发力不耸肩。',
+  },
+  {
+    id: 'skill-weight-shift',
+    name: '重心转移与左右换重心',
+    category: '脚步与重心',
+    difficulty: 1,
+    description: '左右重心干净切换，脚掌与脚踝保持稳定。',
+  },
+  {
+    id: 'skill-step-touch',
+    name: 'Step Touch / Kick Ball Change',
+    category: '脚步与重心',
+    difficulty: 1,
+    description: '基础步伐与踢换步，节奏清楚，落点稳定。',
+  },
+  {
+    id: 'skill-eight-count',
+    name: '8-Count 数拍与基础组合',
+    category: '音乐性',
+    difficulty: 1,
+    description: '能听清 8 拍结构，并把基础动作放进拍子里完成。',
+  },
+  {
+    id: 'skill-posture-line',
+    name: '身体站姿与直线控制 Posture & Line',
+    category: '身体开发',
+    difficulty: 1,
+    description: '脊柱延展、肩胯对齐，静态线条干净。',
+  },
 
   // ---------- 2 星：基础组合 ----------
-  { id: 'skill-chest-roll', name: '胸部四周滚动 Chest Roll', category: '身体开发', difficulty: 2, description: '胸腔完成前后左右连贯绕环，靠墙练习后能找到分离感。' },
-  { id: 'skill-body-wave', name: '身体波浪 Body Wave', category: '身体开发', difficulty: 2, description: '从头到胯连贯传导波浪，胸腹不塌腰。' },
-  { id: 'skill-side-wave', name: '侧身波浪 Side Wave', category: '身体开发', difficulty: 2, description: '侧向完成身体波浪，肋骨与胯部依次传导。' },
-  { id: 'skill-hip-roll', name: '胯部绕环 Hip Roll', category: '身体开发', difficulty: 2, description: '胯部完成水平绕环，上下身分离稳定。' },
-  { id: 'skill-jazz-walk', name: 'Jazz Walk 与爵士步伐', category: '脚步与重心', difficulty: 2, description: '带延伸和态度的行走步伐，能配合音乐切换方向。' },
-  { id: 'skill-pivot-turn', name: 'Pivot Turn 基础转体', category: '旋转技巧', difficulty: 2, description: '半圈或一圈转体，留头与收势稳定。' },
-  { id: 'skill-pose-hit', name: '定点 Pose 与 Hit', category: '表现力', difficulty: 2, description: '卡点上定点成形，动作干净有停顿感。' },
-  { id: 'skill-on-beat', name: '基础音乐卡点 On Beat Hit', category: '音乐性', difficulty: 2, description: '能在重拍上准确发力，动作与鼓点同步。' },
-  { id: 'skill-freestyle-start', name: '即兴起步 Freestyle Basics', category: '编舞与创作', difficulty: 2, description: '用 3-5 个熟悉动作跟随音乐完成简单即兴。' },
-  { id: 'skill-isolation-combo', name: '多部位隔离组合', category: '隔离控制', difficulty: 2, description: '头、肩、胸、胯按顺序或同时完成隔离组合。' },
-  { id: 'skill-contraction', name: '身体延展与收缩 Contraction & Release', category: '身体开发', difficulty: 2, description: '脊柱的收缩与释放有控制，呼吸配合动作。' },
+  {
+    id: 'skill-chest-roll',
+    name: '胸部四周滚动 Chest Roll',
+    category: '身体开发',
+    difficulty: 2,
+    description: '胸腔完成前后左右连贯绕环，靠墙练习后能找到分离感。',
+  },
+  {
+    id: 'skill-body-wave',
+    name: '身体波浪 Body Wave',
+    category: '身体开发',
+    difficulty: 2,
+    description: '从头到胯连贯传导波浪，胸腹不塌腰。',
+  },
+  {
+    id: 'skill-side-wave',
+    name: '侧身波浪 Side Wave',
+    category: '身体开发',
+    difficulty: 2,
+    description: '侧向完成身体波浪，肋骨与胯部依次传导。',
+  },
+  {
+    id: 'skill-hip-roll',
+    name: '胯部绕环 Hip Roll',
+    category: '身体开发',
+    difficulty: 2,
+    description: '胯部完成水平绕环，上下身分离稳定。',
+  },
+  {
+    id: 'skill-jazz-walk',
+    name: 'Jazz Walk 与爵士步伐',
+    category: '脚步与重心',
+    difficulty: 2,
+    description: '带延伸和态度的行走步伐，能配合音乐切换方向。',
+  },
+  {
+    id: 'skill-pivot-turn',
+    name: 'Pivot Turn 基础转体',
+    category: '旋转技巧',
+    difficulty: 2,
+    description: '半圈或一圈转体，留头与收势稳定。',
+  },
+  {
+    id: 'skill-pose-hit',
+    name: '定点 Pose 与 Hit',
+    category: '表现力',
+    difficulty: 2,
+    description: '卡点上定点成形，动作干净有停顿感。',
+  },
+  {
+    id: 'skill-on-beat',
+    name: '基础音乐卡点 On Beat Hit',
+    category: '音乐性',
+    difficulty: 2,
+    description: '能在重拍上准确发力，动作与鼓点同步。',
+  },
+  {
+    id: 'skill-freestyle-start',
+    name: '即兴起步 Freestyle Basics',
+    category: '编舞与创作',
+    difficulty: 2,
+    description: '用 3-5 个熟悉动作跟随音乐完成简单即兴。',
+  },
+  {
+    id: 'skill-isolation-combo',
+    name: '多部位隔离组合',
+    category: '隔离控制',
+    difficulty: 2,
+    description: '头、肩、胸、胯按顺序或同时完成隔离组合。',
+  },
+  {
+    id: 'skill-contraction',
+    name: '身体延展与收缩 Contraction & Release',
+    category: '身体开发',
+    difficulty: 2,
+    description: '脊柱的收缩与释放有控制，呼吸配合动作。',
+  },
 
   // ---------- 3 星：进阶技巧 ----------
-  { id: 'skill-spotting-turn', name: '二位转留头留眼 Spotting Turn', category: '旋转技巧', difficulty: 3, description: '完成一圈以上定点转，视线留头、身体不晃。' },
-  { id: 'skill-pas-de-bourree', name: '三连步 Pas de Bourrée', category: '脚步与重心', difficulty: 3, description: '三步换重心衔接转体或步伐，脚下干净。' },
-  { id: 'skill-hair-whip', name: '甩头与发丝控制 Hair Whip', category: '表现力', difficulty: 3, description: '甩头借助身体发力，颈部安全且线条利落。' },
-  { id: 'skill-floorwork-basic', name: '地面起身与滚地基础 Floorwork', category: '地面技巧', difficulty: 3, description: '安全完成落地、滚地与起身，动作衔接流畅。' },
-  { id: 'skill-core-hit', name: '中段核心爆发 Core Hit', category: '隔离控制', difficulty: 3, description: '核心瞬间收紧带动胸腔出点，力量集中不外散。' },
-  { id: 'skill-syncopation', name: '快歌切分音卡点 Syncopation', category: '音乐性', difficulty: 3, description: '在切分音与弱拍上完成发力，节奏层次清楚。' },
-  { id: 'skill-heels-walk', name: '高跟基础行走与重心', category: '高跟 Jazz', difficulty: 3, description: '穿粗跟稳定行走、转身，脚踝与膝盖保持安全。' },
-  { id: 'skill-choreo-short', name: '短句编舞记忆与复现', category: '编舞与创作', difficulty: 3, description: '快速记住 4 个 8 拍以内的短句并完整复现。' },
-  { id: 'skill-emotion-face', name: '面部情绪与眼神表达', category: '表现力', difficulty: 3, description: '动作中加入情绪变化与眼神方向，表达不空。' },
-  { id: 'skill-layering', name: '身体层次与轻重对比 Layering', category: '身体开发', difficulty: 3, description: '同一动作做出快慢、轻重与大小的层次变化。' },
+  {
+    id: 'skill-spotting-turn',
+    name: '二位转留头留眼 Spotting Turn',
+    category: '旋转技巧',
+    difficulty: 3,
+    description: '完成一圈以上定点转，视线留头、身体不晃。',
+  },
+  {
+    id: 'skill-pas-de-bourree',
+    name: '三连步 Pas de Bourrée',
+    category: '脚步与重心',
+    difficulty: 3,
+    description: '三步换重心衔接转体或步伐，脚下干净。',
+  },
+  {
+    id: 'skill-hair-whip',
+    name: '甩头与发丝控制 Hair Whip',
+    category: '表现力',
+    difficulty: 3,
+    description: '甩头借助身体发力，颈部安全且线条利落。',
+  },
+  {
+    id: 'skill-floorwork-basic',
+    name: '地面起身与滚地基础 Floorwork',
+    category: '地面技巧',
+    difficulty: 3,
+    description: '安全完成落地、滚地与起身，动作衔接流畅。',
+  },
+  {
+    id: 'skill-core-hit',
+    name: '中段核心爆发 Core Hit',
+    category: '隔离控制',
+    difficulty: 3,
+    description: '核心瞬间收紧带动胸腔出点，力量集中不外散。',
+  },
+  {
+    id: 'skill-syncopation',
+    name: '快歌切分音卡点 Syncopation',
+    category: '音乐性',
+    difficulty: 3,
+    description: '在切分音与弱拍上完成发力，节奏层次清楚。',
+  },
+  {
+    id: 'skill-heels-walk',
+    name: '高跟基础行走与重心',
+    category: '高跟 Jazz',
+    difficulty: 3,
+    description: '穿粗跟稳定行走、转身，脚踝与膝盖保持安全。',
+  },
+  {
+    id: 'skill-choreo-short',
+    name: '短句编舞记忆与复现',
+    category: '编舞与创作',
+    difficulty: 3,
+    description: '快速记住 4 个 8 拍以内的短句并完整复现。',
+  },
+  {
+    id: 'skill-emotion-face',
+    name: '面部情绪与眼神表达',
+    category: '表现力',
+    difficulty: 3,
+    description: '动作中加入情绪变化与眼神方向，表达不空。',
+  },
+  {
+    id: 'skill-layering',
+    name: '身体层次与轻重对比 Layering',
+    category: '身体开发',
+    difficulty: 3,
+    description: '同一动作做出快慢、轻重与大小的层次变化。',
+  },
 
   // ---------- 4 星：高阶组合 ----------
-  { id: 'skill-double-spin', name: '连续双圈旋转 Double Spotting', category: '旋转技巧', difficulty: 4, description: '稳定完成两圈以上定点转，收势不抢拍。' },
-  { id: 'skill-heels-balance', name: '细跟平衡与 Move', category: '高跟 Jazz', difficulty: 4, description: '细跟状态下完成移动、转体与定点，重心稳定。' },
-  { id: 'skill-floor-drop', name: '地面 Drop / Slide 过渡', category: '地面技巧', difficulty: 4, description: '安全完成下坠、滑步与地面过渡，保护膝盖。' },
-  { id: 'skill-dynamics', name: '爆发力层次 Dynamics Layering', category: '表现力', difficulty: 4, description: '同一组合中实现强弱、快慢、收放的明显对比。' },
-  { id: 'skill-fast-choreo', name: '大段编舞快速学习（8×8）', category: '编舞与创作', difficulty: 4, description: '一节课内掌握 8 个 8 拍以上的编舞并顺完。' },
-  { id: 'skill-group-sync', name: '群舞同步与走位', category: '编舞与创作', difficulty: 4, description: '多人队形中保持动作同步、间距与走位准确。' },
-  { id: 'skill-improv-solo', name: '即兴 Solo 音乐性编排', category: '音乐性', difficulty: 4, description: '根据音乐结构自主组织 30 秒以上即兴 Solo。' },
-  { id: 'skill-heels-combo', name: '高跟爵士组合 Heels Combo', category: '高跟 Jazz', difficulty: 4, description: '完整完成一段高跟爵士组合，兼顾力量与线条。' },
+  {
+    id: 'skill-double-spin',
+    name: '连续双圈旋转 Double Spotting',
+    category: '旋转技巧',
+    difficulty: 4,
+    description: '稳定完成两圈以上定点转，收势不抢拍。',
+  },
+  {
+    id: 'skill-heels-balance',
+    name: '细跟平衡与 Move',
+    category: '高跟 Jazz',
+    difficulty: 4,
+    description: '细跟状态下完成移动、转体与定点，重心稳定。',
+  },
+  {
+    id: 'skill-floor-drop',
+    name: '地面 Drop / Slide 过渡',
+    category: '地面技巧',
+    difficulty: 4,
+    description: '安全完成下坠、滑步与地面过渡，保护膝盖。',
+  },
+  {
+    id: 'skill-dynamics',
+    name: '爆发力层次 Dynamics Layering',
+    category: '表现力',
+    difficulty: 4,
+    description: '同一组合中实现强弱、快慢、收放的明显对比。',
+  },
+  {
+    id: 'skill-fast-choreo',
+    name: '大段编舞快速学习（8×8）',
+    category: '编舞与创作',
+    difficulty: 4,
+    description: '一节课内掌握 8 个 8 拍以上的编舞并顺完。',
+  },
+  {
+    id: 'skill-group-sync',
+    name: '群舞同步与走位',
+    category: '编舞与创作',
+    difficulty: 4,
+    description: '多人队形中保持动作同步、间距与走位准确。',
+  },
+  {
+    id: 'skill-improv-solo',
+    name: '即兴 Solo 音乐性编排',
+    category: '音乐性',
+    difficulty: 4,
+    description: '根据音乐结构自主组织 30 秒以上即兴 Solo。',
+  },
+  {
+    id: 'skill-heels-combo',
+    name: '高跟爵士组合 Heels Combo',
+    category: '高跟 Jazz',
+    difficulty: 4,
+    description: '完整完成一段高跟爵士组合，兼顾力量与线条。',
+  },
 
   // ---------- 5 星：舞台与创作 ----------
-  { id: 'skill-performance', name: '舞台表现与镜头感 Performance', category: '表现力', difficulty: 5, description: '面向观众或镜头完成完整作品，表情、视线与能量稳定。' },
-  { id: 'skill-choreo-create', name: '高阶编舞创作与重组', category: '编舞与创作', difficulty: 5, description: '能围绕音乐主题自主创作并重组完整舞段。' },
-  { id: 'skill-fusion', name: '多风格融合 Jazz Funk × Contemporary', category: '编舞与创作', difficulty: 5, description: '融合两种以上风格，动作语汇衔接自然不生硬。' },
-  { id: 'skill-full-stage', name: '完整作品舞台呈现', category: '表现力', difficulty: 5, description: '独立完成 2 分钟以上作品，具备完整起承转合。' },
-  { id: 'skill-master-class', name: '大师课动作复刻与个人风格', category: '编舞与创作', difficulty: 5, description: '高难度大师课组合可复刻，并形成稳定的个人表达。' },
+  {
+    id: 'skill-performance',
+    name: '舞台表现与镜头感 Performance',
+    category: '表现力',
+    difficulty: 5,
+    description: '面向观众或镜头完成完整作品，表情、视线与能量稳定。',
+  },
+  {
+    id: 'skill-choreo-create',
+    name: '高阶编舞创作与重组',
+    category: '编舞与创作',
+    difficulty: 5,
+    description: '能围绕音乐主题自主创作并重组完整舞段。',
+  },
+  {
+    id: 'skill-fusion',
+    name: '多风格融合 Jazz Funk × Contemporary',
+    category: '编舞与创作',
+    difficulty: 5,
+    description: '融合两种以上风格，动作语汇衔接自然不生硬。',
+  },
+  {
+    id: 'skill-full-stage',
+    name: '完整作品舞台呈现',
+    category: '表现力',
+    difficulty: 5,
+    description: '独立完成 2 分钟以上作品，具备完整起承转合。',
+  },
+  {
+    id: 'skill-master-class',
+    name: '大师课动作复刻与个人风格',
+    category: '编舞与创作',
+    difficulty: 5,
+    description: '高难度大师课组合可复刻，并形成稳定的个人表达。',
+  },
 ];
 
 // ---------------------------------------------------------------- 存储读写
@@ -184,10 +448,10 @@ export function computeSkillStates(skills: JazzSkill[], checkIns: SkillCheckIn[]
     const status: SkillStateStatus = locked
       ? 'locked'
       : hasMastered
-      ? 'mastered'
-      : records.length > 0
-      ? 'practicing'
-      : 'available';
+        ? 'mastered'
+        : records.length > 0
+          ? 'practicing'
+          : 'available';
     return { skill, status, locked, records };
   });
 }
@@ -321,8 +585,18 @@ function computeHeatWeeks(countsByDate: Map<string, number>, today: Date): HeatC
       const date = new Date(firstMonday.getTime() + (w * 7 + d) * DAY_MS);
       const key = toDayKey(date);
       const future = key > todayKey;
-      const count = future ? 0 : countsByDate.get(key) ?? 0;
-      const level: HeatCell['level'] = future ? 0 : count === 0 ? 0 : count === 1 ? 1 : count === 2 ? 2 : count === 3 ? 3 : 4;
+      const count = future ? 0 : (countsByDate.get(key) ?? 0);
+      const level: HeatCell['level'] = future
+        ? 0
+        : count === 0
+          ? 0
+          : count === 1
+            ? 1
+            : count === 2
+              ? 2
+              : count === 3
+                ? 3
+                : 4;
       week.push({ date: key, count, level });
     }
     weeks.push(week);
@@ -331,11 +605,7 @@ function computeHeatWeeks(countsByDate: Map<string, number>, today: Date): HeatC
 }
 
 /** 近 12 个月成长序列（不足 12 个月时按实际跨度） */
-function computeMonthly(
-  masteredDates: string[],
-  checkIns: SkillCheckIn[],
-  today: Date
-): MonthPoint[] {
+function computeMonthly(masteredDates: string[], checkIns: SkillCheckIn[], today: Date): MonthPoint[] {
   const nowMonth = new Date(today.getFullYear(), today.getMonth(), 1);
 
   const allKeys = [...masteredDates, ...checkIns.map((c) => c.date)].filter(Boolean).sort();
@@ -375,27 +645,112 @@ function buildMilestones(input: {
   categoryProgress: CategoryProgress[];
   hasFiveStar: boolean;
 }): Milestone[] {
-  const { totalCheckIns, longestStreak, masteredCount, practiceAgeDays, levelProgress, categoryProgress, hasFiveStar } = input;
+  const { totalCheckIns, longestStreak, masteredCount, practiceAgeDays, levelProgress, categoryProgress, hasFiveStar } =
+    input;
 
   const entryLevel = levelProgress[0];
   const fullCategory = categoryProgress.find((c) => c.total > 0 && c.mastered === c.total);
   const fullCategoryMastered = fullCategory ? fullCategory.mastered : 0;
 
   const defs: Array<Omit<Milestone, 'unlocked' | 'ratio'> & { current: number; target: number }> = [
-    { id: 'first-checkin', title: '第一支舞', description: '完成第一次技能打卡', emoji: '🌱', current: totalCheckIns, target: 1 },
+    {
+      id: 'first-checkin',
+      title: '第一支舞',
+      description: '完成第一次技能打卡',
+      emoji: '🌱',
+      current: totalCheckIns,
+      target: 1,
+    },
     { id: 'streak-3', title: '三日不辍', description: '连续 3 天练习', emoji: '🔥', current: longestStreak, target: 3 },
     { id: 'streak-7', title: '一周舞者', description: '连续 7 天练习', emoji: '⚡', current: longestStreak, target: 7 },
-    { id: 'streak-30', title: '月度铁人', description: '连续 30 天练习', emoji: '🏅', current: longestStreak, target: 30 },
-    { id: 'mastered-1', title: '第一个动作', description: '掌握 1 个动作', emoji: '✨', current: masteredCount, target: 1 },
-    { id: 'mastered-5', title: '手感来了', description: '掌握 5 个动作', emoji: '💫', current: masteredCount, target: 5 },
-    { id: 'mastered-10', title: '十项全能', description: '掌握 10 个动作', emoji: '🎯', current: masteredCount, target: 10 },
-    { id: 'mastered-20', title: '半程舞者', description: '掌握 20 个动作', emoji: '🌟', current: masteredCount, target: 20 },
-    { id: 'level1-clear', title: '入门通关', description: '掌握全部入门基础动作', emoji: '🧱', current: entryLevel ? entryLevel.mastered : 0, target: entryLevel ? entryLevel.total : 1 },
-    { id: 'category-clear', title: '单项满级', description: '任意分类全部掌握', emoji: '🏆', current: fullCategory ? fullCategoryMastered : 0, target: fullCategory ? fullCategory.total : 1 },
-    { id: 'age-30', title: '满月舞龄', description: '坚持跳舞满 30 天', emoji: '🌙', current: practiceAgeDays, target: 30 },
-    { id: 'age-100', title: '百日筑基', description: '坚持跳舞满 100 天', emoji: '💯', current: practiceAgeDays, target: 100 },
-    { id: 'checkins-50', title: '五十次打卡', description: '累计打卡 50 次', emoji: '📅', current: totalCheckIns, target: 50 },
-    { id: 'five-star', title: '五星挑战者', description: '掌握 1 个 5 星难度动作', emoji: '👑', current: hasFiveStar ? 1 : 0, target: 1 },
+    {
+      id: 'streak-30',
+      title: '月度铁人',
+      description: '连续 30 天练习',
+      emoji: '🏅',
+      current: longestStreak,
+      target: 30,
+    },
+    {
+      id: 'mastered-1',
+      title: '第一个动作',
+      description: '掌握 1 个动作',
+      emoji: '✨',
+      current: masteredCount,
+      target: 1,
+    },
+    {
+      id: 'mastered-5',
+      title: '手感来了',
+      description: '掌握 5 个动作',
+      emoji: '💫',
+      current: masteredCount,
+      target: 5,
+    },
+    {
+      id: 'mastered-10',
+      title: '十项全能',
+      description: '掌握 10 个动作',
+      emoji: '🎯',
+      current: masteredCount,
+      target: 10,
+    },
+    {
+      id: 'mastered-20',
+      title: '半程舞者',
+      description: '掌握 20 个动作',
+      emoji: '🌟',
+      current: masteredCount,
+      target: 20,
+    },
+    {
+      id: 'level1-clear',
+      title: '入门通关',
+      description: '掌握全部入门基础动作',
+      emoji: '🧱',
+      current: entryLevel ? entryLevel.mastered : 0,
+      target: entryLevel ? entryLevel.total : 1,
+    },
+    {
+      id: 'category-clear',
+      title: '单项满级',
+      description: '任意分类全部掌握',
+      emoji: '🏆',
+      current: fullCategory ? fullCategoryMastered : 0,
+      target: fullCategory ? fullCategory.total : 1,
+    },
+    {
+      id: 'age-30',
+      title: '满月舞龄',
+      description: '坚持跳舞满 30 天',
+      emoji: '🌙',
+      current: practiceAgeDays,
+      target: 30,
+    },
+    {
+      id: 'age-100',
+      title: '百日筑基',
+      description: '坚持跳舞满 100 天',
+      emoji: '💯',
+      current: practiceAgeDays,
+      target: 100,
+    },
+    {
+      id: 'checkins-50',
+      title: '五十次打卡',
+      description: '累计打卡 50 次',
+      emoji: '📅',
+      current: totalCheckIns,
+      target: 50,
+    },
+    {
+      id: 'five-star',
+      title: '五星挑战者',
+      description: '掌握 1 个 5 星难度动作',
+      emoji: '👑',
+      current: hasFiveStar ? 1 : 0,
+      target: 1,
+    },
   ];
 
   return defs.map((def) => {
@@ -446,8 +801,8 @@ export function computeGrowthStats(
   const practiceAgeDays = startDate
     ? computePracticeDays(startDate, now)
     : sortedDates.length > 0
-    ? computePracticeDays(sortedDates[0], now)
-    : 0;
+      ? computePracticeDays(sortedDates[0], now)
+      : 0;
 
   const categoryProgress: CategoryProgress[] = SKILL_CATEGORIES.map((category) => {
     const items = states.filter((s) => s.skill.category === category);

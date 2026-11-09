@@ -57,9 +57,7 @@ export const LegalDocs: React.FC<LegalDocsProps> = ({ open, initialDoc = 'privac
               {doc === 'privacy' ? <ShieldCheck className="w-4.5 h-4.5" /> : <FileText className="w-4.5 h-4.5" />}
             </div>
             <div className="min-w-0">
-              <h3 className="font-display font-extrabold text-base text-[#292524] leading-tight">
-                {current.title}
-              </h3>
+              <h3 className="font-display font-extrabold text-base text-[#292524] leading-tight">{current.title}</h3>
               <p className="text-[10.5px] text-[#A8988A] mt-0.5">更新于 {current.updatedAt}</p>
             </div>
           </div>

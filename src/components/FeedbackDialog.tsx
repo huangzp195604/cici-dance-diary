@@ -22,13 +22,7 @@ interface FeedbackDialogProps {
   onLogin: () => void;
 }
 
-export const FeedbackDialog: React.FC<FeedbackDialogProps> = ({
-  open,
-  onClose,
-  isLoggedIn,
-  ownerName,
-  onLogin,
-}) => {
+export const FeedbackDialog: React.FC<FeedbackDialogProps> = ({ open, onClose, isLoggedIn, ownerName, onLogin }) => {
   const [kind, setKind] = useState<Kind>('功能建议');
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
@@ -117,8 +111,7 @@ export const FeedbackDialog: React.FC<FeedbackDialogProps> = ({
         ) : !isLoggedIn ? (
           <div className="mt-5">
             <p className="text-[12px] text-[#574B40] leading-relaxed">
-              提交请求需要先登录，这样我们才知道要处理谁的账号。
-              登录不会把你本机已有的记录传上去，除非你自己选择并入。
+              提交请求需要先登录，这样我们才知道要处理谁的账号。 登录不会把你本机已有的记录传上去，除非你自己选择并入。
             </p>
             <button
               type="button"
@@ -169,7 +162,9 @@ export const FeedbackDialog: React.FC<FeedbackDialogProps> = ({
                 }
                 className="w-full text-xs p-3 rounded-2xl border border-[#E8DACB] bg-[#FFFDF9] focus:outline-none focus:ring-2 focus:ring-[#7C3AED]/40"
               />
-              <p className={`text-[10.5px] mt-1 text-right ${text.length > 500 ? 'text-[#C2410C] font-semibold' : 'text-[#A8988A]'}`}>
+              <p
+                className={`text-[10.5px] mt-1 text-right ${text.length > 500 ? 'text-[#C2410C] font-semibold' : 'text-[#A8988A]'}`}
+              >
                 {text.length} / 500 字
               </p>
             </div>

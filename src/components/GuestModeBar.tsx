@@ -19,12 +19,7 @@ interface GuestModeBarProps {
   onDismiss: () => void;
 }
 
-export const GuestModeBar: React.FC<GuestModeBarProps> = ({
-  localRecordCount,
-  onLogin,
-  onShowAccess,
-  onDismiss,
-}) => {
+export const GuestModeBar: React.FC<GuestModeBarProps> = ({ localRecordCount, onLogin, onShowAccess, onDismiss }) => {
   return (
     <div className="bg-[#FFF8EE] border-b border-[#F3E2CB]">
       <div className="max-w-6xl mx-auto px-3 sm:px-6 py-2 flex flex-wrap items-center gap-x-3 gap-y-1.5">

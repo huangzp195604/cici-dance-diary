@@ -106,32 +106,71 @@ function errText(error: unknown): string {
  */
 const db = cloud.database as any;
 
-/** 拉取整个论坛（帖子+回帖+互动+群入口），一次组装成 UI 需要的结构 */
-export async function fetchForum(currentUser: CloudUser | null): Promise<ForumThread[]> {
+/** 单页帖子数。20 条在 375px 上是三屏左右，手动「加载更多」不会太频繁 */
+export const FORUM_PAGE_SIZE = 20;
+
+export interface ForumPage {
+  threads: ForumThread[];
+  hasMore: boolean;
+}
+
+/**
+ * 拉一页论坛数据。
+ *
+ * 之前是「整表拉」：帖子 100 条、回帖 500 条、互动 1000 条一次性进内存，
+ * 帖子一多移动端就要渲染几千个节点，滚动直接掉帧。
+ * 现在先按页取帖子，再只针对这一页的 thread_id 取回帖与互动 ——
+ * 数据量随页大小走，不再随论坛总量涨。
+ */
+export async function fetchForumPage(
+  currentUser: CloudUser | null,
+  options: { offset?: number; limit?: number } = {}
+): Promise<ForumPage> {
+  const offset = Math.max(0, options.offset ?? 0);
+  const limit = Math.max(1, Math.min(50, options.limit ?? FORUM_PAGE_SIZE));
+
+  const threadsRes = await db
+    .from('forum_threads')
+    .select('*')
+    .order('is_pinned', { ascending: false })
+    .order('created_at', { ascending: false })
+    .range(offset, offset + limit - 1);
+
+  if (threadsRes.error) throw new Error(errText(threadsRes.error));
+  const threads = (threadsRes.data || []) as unknown as ThreadRow[];
+  const threadIds = threads.map((t) => t.id);
+  const hasMore = threads.length === limit;
+
+  if (threadIds.length === 0) return { threads: [], hasMore: false };
+
   // 群入口表只授予登录用户：未登录不查询，避免触发权限错误
   const accessPromise: Promise<{ data: unknown; error: unknown }> = currentUser
-    ? (db.from('forum_meetup_access').select('*').limit(200) as Promise<{ data: unknown; error: unknown }>)
+    ? (db.from('forum_meetup_access').select('*').in('thread_id', threadIds) as Promise<{
+        data: unknown;
+        error: unknown;
+      }>)
     : Promise.resolve({ data: [], error: null });
 
-  const [threadsRes, repliesRes, interactionsRes, accessRes] = await Promise.all([
+  const [repliesRes, interactionsRes, accessRes] = await Promise.all([
     db
-      .from('forum_threads')
+      .from('forum_replies')
       .select('*')
-      .order('is_pinned', { ascending: false })
-      .order('created_at', { ascending: false })
-      .limit(100),
-    db.from('forum_replies').select('*').order('created_at', { ascending: true }).limit(500),
-    db.from('forum_interactions').select('*').limit(1000),
+      .in('thread_id', threadIds)
+      .order('created_at', { ascending: true })
+      .limit(limit * 50),
+    db
+      .from('forum_interactions')
+      .select('*')
+      .in('thread_id', threadIds)
+      .limit(limit * 80),
     accessPromise,
   ]);
 
-  if (threadsRes.error) throw new Error(errText(threadsRes.error));
   if (repliesRes.error) throw new Error(errText(repliesRes.error));
   if (interactionsRes.error) throw new Error(errText(interactionsRes.error));
   // 群入口读取失败不阻塞论坛主流程：降级为不展示群入口
   if (accessRes.error) console.warn('群入口读取失败，已降级隐藏', accessRes.error);
 
-  const threads = (threadsRes.data || []) as unknown as ThreadRow[];
   const replies = (repliesRes.data || []) as unknown as ReplyRow[];
   const interactions = (interactionsRes.data || []) as unknown as InteractionRow[];
   const accessRows = (accessRes.error ? [] : accessRes.data || []) as unknown as AccessRow[];
@@ -179,7 +218,7 @@ export async function fetchForum(currentUser: CloudUser | null): Promise<ForumTh
     statsByOwner.set(t.owner_id, stat);
   });
 
-  return threads.map((t) => {
+  const mapped = threads.map((t) => {
     const author = authorOf(t.owner_id, t.owner_name);
     const authorProfile = profileMap.get(t.owner_id);
     const likes = likesByThread.get(t.id) || [];
@@ -244,6 +283,14 @@ export async function fetchForum(currentUser: CloudUser | null): Promise<ForumTh
       isOrganizer,
     };
   });
+
+  return { threads: mapped, hasMore };
+}
+
+/** 兼容旧调用：只要第一页帖子 */
+export async function fetchForum(currentUser: CloudUser | null): Promise<ForumThread[]> {
+  const page = await fetchForumPage(currentUser, { offset: 0, limit: FORUM_PAGE_SIZE });
+  return page.threads;
 }
 
 /**
@@ -258,19 +305,11 @@ function publicMeetup(meetup?: ForumMeetup) {
 }
 
 /** 同步群入口到私有表：仅帖子作者可写，由 RLS 兜底 */
-async function syncMeetupAccess(
-  threadId: number,
-  groupEntry?: string,
-  groupNote?: string
-): Promise<void> {
+async function syncMeetupAccess(threadId: number, groupEntry?: string, groupNote?: string): Promise<void> {
   const entry = (groupEntry || '').trim();
   const note = (groupNote || '').trim() || null;
 
-  const existing = await db
-    .from('forum_meetup_access')
-    .select('thread_id')
-    .eq('thread_id', threadId)
-    .maybeSingle();
+  const existing = await db.from('forum_meetup_access').select('thread_id').eq('thread_id', threadId).maybeSingle();
   if (existing.error) throw new Error(errText(existing.error));
 
   if (!entry) {
@@ -299,7 +338,9 @@ async function syncMeetupAccess(
 
 /** 发帖（必须登录）。返回云端生成的帖子 id */
 export async function createThread(
-  thread: Omit<ForumThread, 'id' | 'createdAt' | 'likes' | 'views' | 'replies' | 'isLiked'> & { replies?: ForumReply[] },
+  thread: Omit<ForumThread, 'id' | 'createdAt' | 'likes' | 'views' | 'replies' | 'isLiked'> & {
+    replies?: ForumReply[];
+  },
   user: CloudUser
 ): Promise<string> {
   const res = await db
@@ -434,11 +475,7 @@ export async function toggleJoin(threadId: string, user: CloudUser): Promise<voi
     const capacity = Number(meetup?.targetCount ?? 0);
 
     if (capacity > 0) {
-      const cntRes = await db
-        .from('forum_interactions')
-        .select('id')
-        .eq('thread_id', id)
-        .eq('kind', 'join');
+      const cntRes = await db.from('forum_interactions').select('id').eq('thread_id', id).eq('kind', 'join');
       if (cntRes.error) throw new Error(errText(cntRes.error));
       const taken = (cntRes.data || []).length;
       if (taken >= capacity) throw new Error('名额已满，报名已截止');

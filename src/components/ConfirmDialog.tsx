@@ -110,9 +110,7 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
             <label className="flex items-start gap-2.5 cursor-pointer select-none">
               <span
                 className={`mt-0.5 w-4 h-4 rounded-[5px] border flex items-center justify-center shrink-0 transition-colors ${
-                  acknowledged
-                    ? 'bg-[#DC2626] border-[#DC2626]'
-                    : 'bg-white border-[#D9C4B4]'
+                  acknowledged ? 'bg-[#DC2626] border-[#DC2626]' : 'bg-white border-[#D9C4B4]'
                 }`}
               >
                 {acknowledged && <Check className="w-3 h-3 text-white" strokeWidth={3} />}

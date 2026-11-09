@@ -52,6 +52,23 @@ export function normalizePost(p: DancePost): DancePost {
   };
 }
 
+/**
+ * localStorage 写入的安全包装。
+ *
+ * 微信内置浏览器、iOS 隐私模式的配额经常只有几百 KB，写满会抛 QuotaExceededError。
+ * 这类异常若冒泡出去，会变成「保存提示成功、列表却是空的」这种最难排查的状态，
+ * 所以这里只降级为一条警告，让上层继续走完流程。
+ */
+function safeSetItem(key: string, value: string): boolean {
+  try {
+    localStorage.setItem(key, value);
+    return true;
+  } catch (e) {
+    console.warn(`localStorage write skipped for ${key}:`, e);
+    return false;
+  }
+}
+
 class StorageManager {
   private dbPromise: Promise<IDBDatabase> | null = null;
 
@@ -137,25 +154,25 @@ class StorageManager {
       console.warn(`IndexedDB legacy cleanup error for ${storeName}:`, e);
     }
     // 同步兜底 localStorage，防止旧演示数据在回退时重新出现
-    localStorage.setItem(lsKey, JSON.stringify(cleaned));
+    safeSetItem(lsKey, JSON.stringify(cleaned));
     return cleaned;
   }
 
   private readFallback<T extends { id: string }>(lsKey: string, legacyIds: string[]): T[] {
     const raw = localStorage.getItem(lsKey);
     if (!raw) {
-      localStorage.setItem(lsKey, '[]');
+      safeSetItem(lsKey, '[]');
       return [];
     }
     try {
       const parsed = JSON.parse(raw) as T[];
       const cleaned = parsed.filter((item) => !legacyIds.includes(item.id));
       if (cleaned.length !== parsed.length) {
-        localStorage.setItem(lsKey, JSON.stringify(cleaned));
+        safeSetItem(lsKey, JSON.stringify(cleaned));
       }
       return cleaned;
     } catch {
-      localStorage.setItem(lsKey, '[]');
+      safeSetItem(lsKey, '[]');
       return [];
     }
   }
@@ -185,7 +202,7 @@ class StorageManager {
     if (idx >= 0) current[idx] = item;
     else if (prepend) current.unshift(item);
     else current.push(item);
-    localStorage.setItem(lsKey, JSON.stringify(current));
+    safeSetItem(lsKey, JSON.stringify(current));
   }
 
   private async writeMany<T extends { id: string }>(
@@ -207,15 +224,10 @@ class StorageManager {
     } catch (e) {
       console.warn(`IndexedDB bulk write fallback for ${storeName}:`, e);
     }
-    localStorage.setItem(lsKey, JSON.stringify(items.filter((item) => !legacyIds.includes(item.id))));
+    safeSetItem(lsKey, JSON.stringify(items.filter((item) => !legacyIds.includes(item.id))));
   }
 
-  private async deleteItem(
-    storeName: string,
-    lsKey: string,
-    legacyIds: string[],
-    id: string
-  ): Promise<void> {
+  private async deleteItem(storeName: string, lsKey: string, legacyIds: string[], id: string): Promise<void> {
     try {
       const db = await this.getDB();
       await new Promise<void>((resolve, reject) => {
@@ -229,7 +241,7 @@ class StorageManager {
     }
     // 同时清理 localStorage 快照，避免兜底时数据复活
     const current = this.readFallback(lsKey, legacyIds).filter((item) => item.id !== id);
-    localStorage.setItem(lsKey, JSON.stringify(current));
+    safeSetItem(lsKey, JSON.stringify(current));
   }
 
   // --- Posts ---
@@ -295,10 +307,7 @@ class StorageManager {
    * 用云端数据整表覆盖本地集合（登录同步时使用）。
    * 先清空再写入，避免云端已删除的记录在本地残留。
    */
-  async replaceAll(
-    domain: 'posts' | 'buddies' | 'messages' | 'realFriends',
-    items: { id: string }[]
-  ): Promise<void> {
+  async replaceAll(domain: 'posts' | 'buddies' | 'messages' | 'realFriends', items: { id: string }[]): Promise<void> {
     const map = {
       posts: [STORE_POSTS, LS_POSTS, LEGACY_POST_IDS] as const,
       buddies: [STORE_BUDDIES, LS_BUDDIES, LEGACY_BUDDY_IDS] as const,
@@ -317,19 +326,21 @@ class StorageManager {
         tx.oncomplete = () => resolve();
         tx.onerror = () => reject(tx.error);
       });
-      localStorage.setItem(lsKey, JSON.stringify(items));
+      safeSetItem(lsKey, JSON.stringify(items));
       return;
     } catch (e) {
       console.warn(`IndexedDB bulk replace fallback for ${storeName}:`, e);
     }
-    localStorage.setItem(lsKey, JSON.stringify(items));
+    safeSetItem(lsKey, JSON.stringify(items));
   }
 
   async saveRealFriend(friend: RealFriend): Promise<void> {
     await this.writeItem(STORE_REAL_FRIENDS, LS_REAL_FRIENDS, LEGACY_REAL_FRIEND_IDS, friend, true);
   }
 
-  async permanentlyDeleteRealFriend(id: string): Promise<{ deletedFriend: RealFriend | null; cleanedThreads: ForumThread[] }> {
+  async permanentlyDeleteRealFriend(
+    id: string
+  ): Promise<{ deletedFriend: RealFriend | null; cleanedThreads: ForumThread[] }> {
     // 1. 先定位记录，拿到舞友姓名用于级联清理
     const allFriends = await this.getRealFriends();
     const friendToDelete = allFriends.find((f) => f.id === id) || null;

@@ -61,17 +61,8 @@ function bgFor(name: string): string {
   return styles[hash % styles.length];
 }
 
-export function PeerAvatar({
-  name,
-  bg,
-  size = 'md',
-}: {
-  name: string;
-  bg?: string;
-  size?: 'sm' | 'md' | 'lg';
-}) {
-  const cls =
-    size === 'lg' ? 'w-16 h-16 text-xl' : size === 'sm' ? 'w-9 h-9 text-xs' : 'w-11 h-11 text-sm';
+export function PeerAvatar({ name, bg, size = 'md' }: { name: string; bg?: string; size?: 'sm' | 'md' | 'lg' }) {
+  const cls = size === 'lg' ? 'w-16 h-16 text-xl' : size === 'sm' ? 'w-9 h-9 text-xs' : 'w-11 h-11 text-sm';
   return (
     <div
       className={`${cls} rounded-full ${bg || bgFor(name)} font-display font-bold flex items-center justify-center shrink-0 border border-black/5`}
@@ -105,22 +96,14 @@ function LoginHint({ actions, title, text }: { actions: SocialActions; title: st
 function ErrorLine({ text }: { text: string }) {
   if (!text) return null;
   return (
-    <div className="rounded-2xl border border-[#FFD5C8] bg-[#FFF1EC] px-4 py-2.5 text-xs text-[#D94834]">
-      {text}
-    </div>
+    <div className="rounded-2xl border border-[#FFD5C8] bg-[#FFF1EC] px-4 py-2.5 text-xs text-[#D94834]">{text}</div>
   );
 }
 
 /* ------------------------------------------------------------------ */
 /* 线上好友 + 好友申请                                                  */
 /* ------------------------------------------------------------------ */
-export const OnlineFriendsSection: React.FC<SocialViewProps> = ({
-  social,
-  loading,
-  error,
-  isLoggedIn,
-  actions,
-}) => {
+export const OnlineFriendsSection: React.FC<SocialViewProps> = ({ social, loading, error, isLoggedIn, actions }) => {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [localError, setLocalError] = useState('');
 
@@ -177,9 +160,7 @@ export const OnlineFriendsSection: React.FC<SocialViewProps> = ({
               >
                 <PeerAvatar name={f.peer.nickname} size="sm" />
                 <div className="min-w-0 flex-1">
-                  <p className="text-xs font-bold text-[#292524] truncate">
-                    {f.peer.nickname} 想加你为好友
-                  </p>
+                  <p className="text-xs font-bold text-[#292524] truncate">{f.peer.nickname} 想加你为好友</p>
                   {f.note && <p className="text-[11px] text-[#78695C] mt-0.5 break-words">附言：{f.note}</p>}
                   <p className="text-[10px] text-[#B0A090] mt-0.5">{timeAgo(f.createdAt)} · 同意后才能互发私信</p>
                 </div>
@@ -189,7 +170,11 @@ export const OnlineFriendsSection: React.FC<SocialViewProps> = ({
                     onClick={() => run(`yes-${f.id}`, () => actions.onRespond(f.id, true))}
                     className={BTN_PRIMARY}
                   >
-                    {busyId === `yes-${f.id}` ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+                    {busyId === `yes-${f.id}` ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <Check className="w-3.5 h-3.5" />
+                    )}
                     同意
                   </button>
                   <button
@@ -245,9 +230,7 @@ export const OnlineFriendsSection: React.FC<SocialViewProps> = ({
                 <PeerAvatar name={f.peer.nickname} size="sm" />
                 <div className="min-w-0 flex-1">
                   <p className="text-xs font-bold text-[#292524] truncate">{f.peer.nickname}</p>
-                  <p className="text-[10px] text-[#8C7A6B] truncate">
-                    {peerMeta(f.peer) || '论坛舞友'} · 互为好友
-                  </p>
+                  <p className="text-[10px] text-[#8C7A6B] truncate">{peerMeta(f.peer) || '论坛舞友'} · 互为好友</p>
                 </div>
                 <button
                   onClick={() => actions.onOpenChat(f.peer.id)}
@@ -479,7 +462,11 @@ export const MessagesView: React.FC<SocialViewProps> = ({
                     placeholder={canSend ? '输入消息，Enter 发送 / Shift+Enter 换行' : '互为好友后才能发送私信'}
                     className="flex-1 resize-none rounded-xl border border-[#E7DED2] px-3 py-2 text-xs text-[#292524] focus:outline-none focus:ring-2 focus:ring-[#DDD0FA] disabled:bg-[#FAF7F4]"
                   />
-                  <button onClick={() => void send()} disabled={!canSend || sending || !draft.trim()} className={BTN_PRIMARY}>
+                  <button
+                    onClick={() => void send()}
+                    disabled={!canSend || sending || !draft.trim()}
+                    className={BTN_PRIMARY}
+                  >
                     {sending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
                     发送
                   </button>
@@ -556,7 +543,11 @@ export const UserCardModal: React.FC<UserCardModalProps> = ({
       >
         <div className="flex items-start justify-between">
           <span className="text-[11px] font-bold text-[#7C3AED] bg-[#F3EEFF] px-2.5 py-1 rounded-full">舞友资料卡</span>
-          <button onClick={onClose} aria-label="关闭" className="w-8 h-8 rounded-lg hover:bg-[#F5F1EA] flex items-center justify-center cursor-pointer">
+          <button
+            onClick={onClose}
+            aria-label="关闭"
+            className="w-8 h-8 rounded-lg hover:bg-[#F5F1EA] flex items-center justify-center cursor-pointer"
+          >
             <X className="w-4 h-4 text-[#8C7A6B]" />
           </button>
         </div>
@@ -569,9 +560,13 @@ export const UserCardModal: React.FC<UserCardModalProps> = ({
             {isSelf && ' · 这是你自己'}
           </p>
           <div className="flex items-center gap-3 mt-3 text-[11px] text-[#78695C]">
-            <span>发帖 <strong className="text-[#292524]">{ownThreads.length}</strong></span>
+            <span>
+              发帖 <strong className="text-[#292524]">{ownThreads.length}</strong>
+            </span>
             <span className="w-px h-3 bg-[#E7DED2]" />
-            <span>组织约练 <strong className="text-[#292524]">{meetups}</strong></span>
+            <span>
+              组织约练 <strong className="text-[#292524]">{meetups}</strong>
+            </span>
             {meetups >= 3 && (
               <span className="inline-flex items-center gap-0.5 text-[#4338CA] font-bold">
                 <BadgeCheck className="w-3 h-3" /> 资深组织者
@@ -588,7 +583,9 @@ export const UserCardModal: React.FC<UserCardModalProps> = ({
               <LogIn className="w-4 h-4" /> 登录后加好友 / 发私信
             </button>
           ) : isSelf ? (
-            <div className="text-center text-xs text-[#8C7A6B] py-2">想修改自己的昵称，去「关于我」或个人资料里改。</div>
+            <div className="text-center text-xs text-[#8C7A6B] py-2">
+              想修改自己的昵称，去「关于我」或个人资料里改。
+            </div>
           ) : relation?.status === 'accepted' ? (
             <>
               <button
@@ -618,7 +615,11 @@ export const UserCardModal: React.FC<UserCardModalProps> = ({
           ) : relation?.status === 'pending' && relation.direction === 'incoming' ? (
             <>
               <p className="text-center text-xs text-[#78695C]">{displayName} 也想加你为好友</p>
-              <button disabled={busy} onClick={() => void run(() => actions.onRespond(relation.id, true))} className={`${BTN_PRIMARY} w-full`}>
+              <button
+                disabled={busy}
+                onClick={() => void run(() => actions.onRespond(relation.id, true))}
+                className={`${BTN_PRIMARY} w-full`}
+              >
                 <Check className="w-4 h-4" /> 同意并成为好友
               </button>
             </>

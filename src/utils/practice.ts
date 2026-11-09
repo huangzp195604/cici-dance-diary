@@ -45,9 +45,7 @@ export function computePracticeDays(startDate: string | null, now: Date = new Da
 
 /** 自动跟踪练习天数：跨天、跨标签页或起步日变更时都会刷新 */
 export function usePracticeDays(): number {
-  const [practiceDays, setPracticeDays] = useState<number>(() =>
-    computePracticeDays(getPracticeStartDate())
-  );
+  const [practiceDays, setPracticeDays] = useState<number>(() => computePracticeDays(getPracticeStartDate()));
 
   useEffect(() => {
     const refresh = () => setPracticeDays(computePracticeDays(getPracticeStartDate()));

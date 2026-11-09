@@ -45,10 +45,7 @@ export function probeVideo(file: Blob): Promise<VideoProbeResult> {
 
     // 超时不能一律判定「不可播」：只要已经加载出画面，就说明浏览器能解码，
     // 只是抓封面帧失败而已（iOS Safari 上 seek 事件偶尔不触发）。
-    const timer = setTimeout(
-      () => finish({ poster: null, playable: loaded, duration: loadedDuration }),
-      10000
-    );
+    const timer = setTimeout(() => finish({ poster: null, playable: loaded, duration: loadedDuration }), 10000);
 
     video.preload = 'auto';
     video.muted = true;
@@ -62,10 +59,7 @@ export function probeVideo(file: Blob): Promise<VideoProbeResult> {
       const duration = Number.isFinite(video.duration) ? video.duration : null;
       loadedDuration = duration;
       // seek 未回触发时兜底抓当前帧，避免干等 10 秒
-      seekFallback = setTimeout(
-        () => drawFrame(duration),
-        1200
-      );
+      seekFallback = setTimeout(() => drawFrame(duration), 1200);
       // 跳到 0.1 秒（或片中）再抓帧，避开全黑的第一帧
       try {
         video.currentTime = Math.min(0.1, duration ? duration / 2 : 0.1);

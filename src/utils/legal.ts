@@ -31,8 +31,7 @@ export const PRIVACY_DOC: LegalDoc = {
   key: 'privacy',
   title: '隐私政策',
   updatedAt: LEGAL_UPDATED_AT,
-  intro:
-    '这里是一个私密的练舞记录空间。这份说明只讲三件事：你的内容存在哪、谁能看到、怎么删掉。',
+  intro: '这里是一个私密的练舞记录空间。这份说明只讲三件事：你的内容存在哪、谁能看到、怎么删掉。',
   sections: [
     {
       heading: '一、我们存什么',
@@ -91,9 +90,7 @@ export const PRIVACY_DOC: LegalDoc = {
     },
     {
       heading: '八、政策变更',
-      paragraphs: [
-        '如果存储方式或可查看范围发生实质变化，会在站内提示后再生效。继续使用即表示接受更新后的说明。',
-      ],
+      paragraphs: ['如果存储方式或可查看范围发生实质变化，会在站内提示后再生效。继续使用即表示接受更新后的说明。'],
     },
   ],
 };

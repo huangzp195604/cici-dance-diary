@@ -66,8 +66,7 @@ export const GuestForumPreview: React.FC<GuestForumPreviewProps> = ({
               </h3>
               <p className="text-[11.5px] text-[#6D5A7A] mt-0.5 leading-relaxed">
                 你现在能浏览最近 {GUEST_FORUM_PREVIEW_LIMIT} 条话题的公开信息
-                {total > 0 && <>（全站共 {total} 条）</>}。登录后可看全文、回复、发帖约练，
-                并与舞友加好友、私信。
+                {total > 0 && <>（全站共 {total} 条）</>}。登录后可看全文、回复、发帖约练， 并与舞友加好友、私信。
               </p>
             </div>
           </div>
@@ -102,9 +101,7 @@ export const GuestForumPreview: React.FC<GuestForumPreviewProps> = ({
         <div className="rounded-3xl border border-[#F1E5D8] bg-white px-5 py-10 text-center">
           <MessageSquare className="w-8 h-8 mx-auto text-[#C4B5FD] mb-2" />
           <p className="text-sm font-bold text-[#4A3E36]">还没有公开话题</p>
-          <p className="text-xs text-[#8C7A6B] mt-1">
-            登录后可以发起第一场舞室约练，或求教一个卡了很久的动作。
-          </p>
+          <p className="text-xs text-[#8C7A6B] mt-1">登录后可以发起第一场舞室约练，或求教一个卡了很久的动作。</p>
           <button
             onClick={onLogin}
             className="mt-4 px-4 py-1.5 bg-[#7C3AED] text-white rounded-full text-xs font-bold cursor-pointer"

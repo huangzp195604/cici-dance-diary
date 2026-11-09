@@ -2,18 +2,18 @@ import { syncRemoveItem, syncSetItem } from '../utils/sync';
 import { compressAvatarFile } from '../utils/imageCompress';
 import { VIDEO_BADGE_LOCAL, VIDEO_NOTE_LOCAL } from '../utils/videoNotice';
 import { normalizePost } from '../utils/storage';
-import React, { useState, useRef, useMemo, useEffect } from 'react';
-import { 
-  Play, 
-  Film, 
-  Image as ImageIcon, 
-  Heart, 
-  MessageCircle, 
-  Plus, 
-  Users, 
-  ChevronDown, 
-  ChevronUp, 
-  Send, 
+import React, { useState, useRef, useMemo, useEffect, useCallback } from 'react';
+import {
+  Play,
+  Film,
+  Image as ImageIcon,
+  Heart,
+  MessageCircle,
+  Plus,
+  Users,
+  ChevronDown,
+  ChevronUp,
+  Send,
   Sparkles,
   Music,
   Trash2,
@@ -37,16 +37,14 @@ import {
   Edit3,
   Smile,
   Lock,
-  HardDrive
+  HardDrive,
 } from 'lucide-react';
 import { DancePost, DanceCategory, DanceStage, DanceBuddy } from '../types';
-import {
-  getPracticeStartDate,
-  setPracticeStartDate,
-  usePracticeDays,
-} from '../utils/practice';
+import { getPracticeStartDate, setPracticeStartDate, usePracticeDays } from '../utils/practice';
 import { ConfirmDialog } from './ConfirmDialog';
 import { PostTagEditor } from './PostTagEditor';
+import { StartDateModal } from './StartDateModal';
+import { StyleManagerModal } from './StyleManagerModal';
 
 export interface DanceStyleItem {
   id: string;
@@ -59,19 +57,123 @@ export interface DanceStyleItem {
 }
 
 export const DEFAULT_DANCE_STYLES: DanceStyleItem[] = [
-  { id: 'style-jazz', name: 'Jazz', difficulty: '进阶', trainingFocus: '舞台编舞', bpmRange: '中速 (90-115)', themeColor: '#E67E22', isDefault: true },
-  { id: 'style-kpop', name: '韩舞', difficulty: '挑战', trainingFocus: '舞台编舞', bpmRange: '快节奏 (115+)', themeColor: '#D35400', isDefault: true },
-  { id: 'style-choreo', name: '编舞', difficulty: '进阶', trainingFocus: '动作拆解', bpmRange: '中速 (90-115)', themeColor: '#C0392B', isDefault: true },
-  { id: 'style-basics', name: '基础练习', difficulty: '入门', trainingFocus: '基础律动', bpmRange: '慢速 (60-90)', themeColor: '#27AE60', isDefault: true },
-  { id: 'style-other', name: '其他', difficulty: '入门', trainingFocus: '基础律动', bpmRange: '全速域', themeColor: '#8E44AD', isDefault: true },
-  { id: 'style-jazzfunk', name: 'Jazz Funk', difficulty: '进阶', trainingFocus: '舞台编舞', bpmRange: '中速 (90-115)', themeColor: '#E67E22', isDefault: false },
-  { id: 'style-heels', name: '高跟爵士', difficulty: '挑战', trainingFocus: '舞台编舞', bpmRange: '中速 (90-115)', themeColor: '#9B59B6', isDefault: false },
-  { id: 'style-urban', name: 'Urban编舞', difficulty: '进阶', trainingFocus: '动作拆解', bpmRange: '中速 (90-115)', themeColor: '#E67E22', isDefault: false },
-  { id: 'style-core', name: '体能核心', difficulty: '入门', trainingFocus: '体能耐力', bpmRange: '慢速 (60-90)', themeColor: '#16A085', isDefault: false },
-  { id: 'style-isolation', name: 'Isolation隔离', difficulty: '入门', trainingFocus: '基础律动', bpmRange: '慢速 (60-90)', themeColor: '#2980B9', isDefault: false },
-  { id: 'style-beats', name: '卡点节拍', difficulty: '进阶', trainingFocus: '基础律动', bpmRange: '快节奏 (115+)', themeColor: '#D35400', isDefault: false },
-  { id: 'style-stretch', name: '拉伸放松', difficulty: '入门', trainingFocus: '体能耐力', bpmRange: '慢速 (60-90)', themeColor: '#27AE60', isDefault: false },
-  { id: 'style-solo', name: '即兴Solo', difficulty: '挑战', trainingFocus: '舞台编舞', bpmRange: '全速域', themeColor: '#F39C12', isDefault: false },
+  {
+    id: 'style-jazz',
+    name: 'Jazz',
+    difficulty: '进阶',
+    trainingFocus: '舞台编舞',
+    bpmRange: '中速 (90-115)',
+    themeColor: '#E67E22',
+    isDefault: true,
+  },
+  {
+    id: 'style-kpop',
+    name: '韩舞',
+    difficulty: '挑战',
+    trainingFocus: '舞台编舞',
+    bpmRange: '快节奏 (115+)',
+    themeColor: '#D35400',
+    isDefault: true,
+  },
+  {
+    id: 'style-choreo',
+    name: '编舞',
+    difficulty: '进阶',
+    trainingFocus: '动作拆解',
+    bpmRange: '中速 (90-115)',
+    themeColor: '#C0392B',
+    isDefault: true,
+  },
+  {
+    id: 'style-basics',
+    name: '基础练习',
+    difficulty: '入门',
+    trainingFocus: '基础律动',
+    bpmRange: '慢速 (60-90)',
+    themeColor: '#27AE60',
+    isDefault: true,
+  },
+  {
+    id: 'style-other',
+    name: '其他',
+    difficulty: '入门',
+    trainingFocus: '基础律动',
+    bpmRange: '全速域',
+    themeColor: '#8E44AD',
+    isDefault: true,
+  },
+  {
+    id: 'style-jazzfunk',
+    name: 'Jazz Funk',
+    difficulty: '进阶',
+    trainingFocus: '舞台编舞',
+    bpmRange: '中速 (90-115)',
+    themeColor: '#E67E22',
+    isDefault: false,
+  },
+  {
+    id: 'style-heels',
+    name: '高跟爵士',
+    difficulty: '挑战',
+    trainingFocus: '舞台编舞',
+    bpmRange: '中速 (90-115)',
+    themeColor: '#9B59B6',
+    isDefault: false,
+  },
+  {
+    id: 'style-urban',
+    name: 'Urban编舞',
+    difficulty: '进阶',
+    trainingFocus: '动作拆解',
+    bpmRange: '中速 (90-115)',
+    themeColor: '#E67E22',
+    isDefault: false,
+  },
+  {
+    id: 'style-core',
+    name: '体能核心',
+    difficulty: '入门',
+    trainingFocus: '体能耐力',
+    bpmRange: '慢速 (60-90)',
+    themeColor: '#16A085',
+    isDefault: false,
+  },
+  {
+    id: 'style-isolation',
+    name: 'Isolation隔离',
+    difficulty: '入门',
+    trainingFocus: '基础律动',
+    bpmRange: '慢速 (60-90)',
+    themeColor: '#2980B9',
+    isDefault: false,
+  },
+  {
+    id: 'style-beats',
+    name: '卡点节拍',
+    difficulty: '进阶',
+    trainingFocus: '基础律动',
+    bpmRange: '快节奏 (115+)',
+    themeColor: '#D35400',
+    isDefault: false,
+  },
+  {
+    id: 'style-stretch',
+    name: '拉伸放松',
+    difficulty: '入门',
+    trainingFocus: '体能耐力',
+    bpmRange: '慢速 (60-90)',
+    themeColor: '#27AE60',
+    isDefault: false,
+  },
+  {
+    id: 'style-solo',
+    name: '即兴Solo',
+    difficulty: '挑战',
+    trainingFocus: '舞台编舞',
+    bpmRange: '全速域',
+    themeColor: '#F39C12',
+    isDefault: false,
+  },
 ];
 
 export interface PersonalityTag {
@@ -84,9 +186,30 @@ export interface PersonalityTag {
 }
 
 export const DEFAULT_PERSONALITY_TAGS: PersonalityTag[] = [
-  { id: 'tag-1', emoji: '💃', text: '普通 Jazz 爱好者', colorBg: '#FFEFEF', colorText: '#9E3524', colorBorder: '#FFD9D2' },
-  { id: 'tag-2', emoji: '✨', text: '8-Count放飞自我', colorBg: '#FFF7ED', colorText: '#C2410C', colorBorder: '#FFEDD5' },
-  { id: 'tag-3', emoji: '🎵', text: '苦练胸腔隔离中', colorBg: '#F0FDF4', colorText: '#15803D', colorBorder: '#DCFCE7' },
+  {
+    id: 'tag-1',
+    emoji: '💃',
+    text: '普通 Jazz 爱好者',
+    colorBg: '#FFEFEF',
+    colorText: '#9E3524',
+    colorBorder: '#FFD9D2',
+  },
+  {
+    id: 'tag-2',
+    emoji: '✨',
+    text: '8-Count放飞自我',
+    colorBg: '#FFF7ED',
+    colorText: '#C2410C',
+    colorBorder: '#FFEDD5',
+  },
+  {
+    id: 'tag-3',
+    emoji: '🎵',
+    text: '苦练胸腔隔离中',
+    colorBg: '#F0FDF4',
+    colorText: '#15803D',
+    colorBorder: '#DCFCE7',
+  },
   { id: 'tag-4', emoji: '👠', text: '周更练习日常', colorBg: '#FAF5FF', colorText: '#7E22CE', colorBorder: '#F3E8FF' },
 ];
 
@@ -222,7 +345,11 @@ export const Timeline: React.FC<TimelineProps> = ({
     }
   }, [userAvatar]);
 
-  const activeAvatar = avatar || userAvatar || (typeof window !== 'undefined' ? localStorage.getItem('cici_user_avatar') : null) || DEFAULT_AVATAR;
+  const activeAvatar =
+    avatar ||
+    userAvatar ||
+    (typeof window !== 'undefined' ? localStorage.getItem('cici_user_avatar') : null) ||
+    DEFAULT_AVATAR;
 
   const handleAvatarClick = () => {
     fileInputRef.current?.click();
@@ -288,142 +415,10 @@ export const Timeline: React.FC<TimelineProps> = ({
 
   // Calendar Date Selection Modal State
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
-  const [tempSelectedDate, setTempSelectedDate] = useState<string>(startDate ?? '');
-  const [calendarViewYear, setCalendarViewYear] = useState<number>(() => {
-    const p = (getPracticeStartDate() ?? '').split('-').map(Number);
-    return p[0] || new Date().getFullYear();
-  });
-  const [calendarViewMonth, setCalendarViewMonth] = useState<number>(() => {
-    const p = (getPracticeStartDate() ?? '').split('-').map(Number);
-    return typeof p[1] === 'number' ? p[1] - 1 : new Date().getMonth();
-  });
-  const [hoveredCalendarDay, setHoveredCalendarDay] = useState<{ date: string; sessions: DancePost[] } | null>(null);
+  // 设定 / 清除起步日后的浮层提示（弹窗自己关闭，提示留在页面上）
   const [dateChangeToast, setDateChangeToast] = useState<string | null>(null);
-  // 清除起步日（练习天数归零）的二次确认弹窗
-  const [isClearStartConfirmOpen, setIsClearStartConfirmOpen] = useState(false);
-
-  // Sync tempSelectedDate when modal opens or startDate updates
-  useEffect(() => {
-    setTempSelectedDate(startDate ?? '');
-  }, [startDate, isDatePickerOpen]);
-
-  // Marked dance sessions from selected start date forward
-  const sessionsFromStartDate = useMemo(() => {
-    if (!startDate) return [];
-    return posts.filter((p) => p.date >= startDate);
-  }, [posts, startDate]);
-
-  // Map of post sessions by date string (on or after start date)
-  const sessionDateMap = useMemo(() => {
-    const map = new Map<string, DancePost[]>();
-    if (!startDate) return map;
-    posts.forEach((p) => {
-      if (p.date >= startDate) {
-        const list = map.get(p.date) || [];
-        list.push(p);
-        map.set(p.date, list);
-      }
-    });
-    return map;
-  }, [posts, startDate]);
-
-  // Calendar grid days generator for the active view month
-  const calendarGridDays = useMemo(() => {
-    const firstDay = new Date(calendarViewYear, calendarViewMonth, 1).getDay(); // 0 is Sun
-    const firstDayMon = (firstDay + 6) % 7; // Monday = 0
-    const daysInMonth = new Date(calendarViewYear, calendarViewMonth + 1, 0).getDate();
-    const daysInPrevMonth = new Date(calendarViewYear, calendarViewMonth, 0).getDate();
-
-    const now = new Date();
-    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-
-    const days: {
-      dateStr: string;
-      dayNum: number;
-      isCurrentMonth: boolean;
-      isToday: boolean;
-      isStartDate: boolean;
-      isTempSelected: boolean;
-      isAfterStart: boolean;
-      sessions: DancePost[];
-    }[] = [];
-
-    // Prev month days
-    for (let i = firstDayMon - 1; i >= 0; i--) {
-      const dNum = daysInPrevMonth - i;
-      const prevM = calendarViewMonth === 0 ? 11 : calendarViewMonth - 1;
-      const prevY = calendarViewMonth === 0 ? calendarViewYear - 1 : calendarViewYear;
-      const dStr = `${prevY}-${String(prevM + 1).padStart(2, '0')}-${String(dNum).padStart(2, '0')}`;
-      days.push({
-        dateStr: dStr,
-        dayNum: dNum,
-        isCurrentMonth: false,
-        isToday: dStr === todayStr,
-        isStartDate: dStr === startDate,
-        isTempSelected: dStr === tempSelectedDate,
-        isAfterStart: !!startDate && dStr >= startDate,
-        sessions: sessionDateMap.get(dStr) || [],
-      });
-    }
-
-    // Current month days
-    for (let dNum = 1; dNum <= daysInMonth; dNum++) {
-      const dStr = `${calendarViewYear}-${String(calendarViewMonth + 1).padStart(2, '0')}-${String(dNum).padStart(2, '0')}`;
-      days.push({
-        dateStr: dStr,
-        dayNum: dNum,
-        isCurrentMonth: true,
-        isToday: dStr === todayStr,
-        isStartDate: dStr === startDate,
-        isTempSelected: dStr === tempSelectedDate,
-        isAfterStart: !!startDate && dStr >= startDate,
-        sessions: sessionDateMap.get(dStr) || [],
-      });
-    }
-
-    // Next month filler
-    const remaining = (7 - (days.length % 7)) % 7;
-    for (let i = 1; i <= remaining; i++) {
-      const nextM = calendarViewMonth === 11 ? 0 : calendarViewMonth + 1;
-      const nextY = calendarViewMonth === 11 ? calendarViewYear + 1 : calendarViewYear;
-      const dStr = `${nextY}-${String(nextM + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
-      days.push({
-        dateStr: dStr,
-        dayNum: i,
-        isCurrentMonth: false,
-        isToday: dStr === todayStr,
-        isStartDate: dStr === startDate,
-        isTempSelected: dStr === tempSelectedDate,
-        isAfterStart: !!startDate && dStr >= startDate,
-        sessions: sessionDateMap.get(dStr) || [],
-      });
-    }
-
-    return days;
-  }, [calendarViewYear, calendarViewMonth, startDate, tempSelectedDate, sessionDateMap]);
-
-  const handlePrevMonth = () => {
-    if (calendarViewMonth === 0) {
-      setCalendarViewMonth(11);
-      setCalendarViewYear((y) => y - 1);
-    } else {
-      setCalendarViewMonth((m) => m - 1);
-    }
-  };
-
-  const handleNextMonth = () => {
-    if (calendarViewMonth === 11) {
-      setCalendarViewMonth(0);
-      setCalendarViewYear((y) => y + 1);
-    } else {
-      setCalendarViewMonth((m) => m + 1);
-    }
-  };
-
-  // Apply chosen start date (null clears it and resets practice days to 0)
   const handleApplyStartDate = (chosenDate: string | null) => {
     setStartDate(chosenDate);
-    setTempSelectedDate(chosenDate ?? '');
     setPracticeStartDate(chosenDate);
     setDateChangeToast(
       chosenDate
@@ -436,7 +431,7 @@ export const Timeline: React.FC<TimelineProps> = ({
 
   // Count metrics dynamically from posts in real time
   const totalPosts = posts.length;
-  const uniqueStyles = Array.from(new Set(posts.flatMap((p) => p.categories))).length;
+  const uniqueStyles = new Set(posts.flatMap((p) => p.categories)).size;
 
   // Reset filters when a new work is uploaded so the new item is visible immediately
   const prevPostCountRef = useRef(posts.length);
@@ -467,7 +462,11 @@ export const Timeline: React.FC<TimelineProps> = ({
   /** 标签编辑器的推荐项：内置舞种 + 自定义舞种库 + 现有作品里出现过的标签 */
   const suggestedTags = useMemo(() => {
     const all = [
-      'Jazz', '韩舞', '编舞', '基础练习', '其他',
+      'Jazz',
+      '韩舞',
+      '编舞',
+      '基础练习',
+      '其他',
       ...danceStyles.map((s) => s.name),
       ...posts.flatMap((p) => p.categories),
     ];
@@ -476,55 +475,24 @@ export const Timeline: React.FC<TimelineProps> = ({
 
   // Dance Style Manager Modal State
   const [isStyleManagerOpen, setIsStyleManagerOpen] = useState(false);
+  /** 打开舞种弹窗时先落在哪个 tab，由入口按钮决定 */
   const [styleManagerTab, setStyleManagerTab] = useState<'manage' | 'add'>('add');
-  const [styleFilterDifficulty, setStyleFilterDifficulty] = useState<string>('全部');
-  const [styleFilterFocus, setStyleFilterFocus] = useState<string>('全部');
-  const [newStyleName, setNewStyleName] = useState('');
-  const [newStyleDifficulty, setNewStyleDifficulty] = useState<'入门' | '进阶' | '挑战'>('入门');
-  const [newStyleFocus, setNewStyleFocus] = useState<'基础律动' | '舞台编舞' | '动作拆解' | '体能耐力'>('基础律动');
-  const [newStyleBpm, setNewStyleBpm] = useState<'慢速 (60-90)' | '中速 (90-115)' | '快节奏 (115+)' | '全速域'>('中速 (90-115)');
-  const [newStyleColor, setNewStyleColor] = useState('#E67E22');
-  const [styleActionToast, setStyleActionToast] = useState<string | null>(null);
-  const [styleToDelete, setStyleToDelete] = useState<DanceStyleItem | null>(null);
-
-  // Add new dance style (takes effect immediately without page refresh)
-  const handleAddDanceStyle = (e: React.FormEvent) => {
-    e.preventDefault();
-    const trimmed = newStyleName.trim();
-    if (!trimmed) return;
-    if (danceStyles.some((s) => s.name.toLowerCase() === trimmed.toLowerCase())) {
-      setStyleActionToast(`舞种「${trimmed}」已存在，请勿重复添加！`);
-      setTimeout(() => setStyleActionToast(null), 3000);
-      return;
-    }
-    const newStyle: DanceStyleItem = {
-      id: `style-${Date.now()}`,
-      name: trimmed,
-      difficulty: newStyleDifficulty,
-      trainingFocus: newStyleFocus,
-      bpmRange: newStyleBpm,
-      themeColor: newStyleColor,
-      isDefault: false,
-    };
-    const updated = [...danceStyles, newStyle];
+  // 舞种列表仍由时间线持有（筛选栏、计数、卡片都依赖它），
+  // 增删的具体交互搬到了 StyleManagerModal 里，这里只负责落库与联动筛选。
+  const handleAddDanceStyle = (style: DanceStyleItem) => {
+    const updated = [...danceStyles, style];
     setDanceStyles(updated);
     syncSetItem('cici_dance_styles_v2', JSON.stringify(updated));
-    setNewStyleName('');
-    setStyleActionToast(`新舞种「${trimmed}」(${newStyleDifficulty}) 已即时添加成功！`);
-    setTimeout(() => setStyleActionToast(null), 3500);
   };
 
-  // Delete existing dance style (takes effect immediately without page refresh)
-  const handleConfirmDeleteDanceStyle = (style: DanceStyleItem) => {
+  const handleDeleteDanceStyle = (style: DanceStyleItem) => {
     const updated = danceStyles.filter((s) => s.id !== style.id);
     setDanceStyles(updated);
     syncSetItem('cici_dance_styles_v2', JSON.stringify(updated));
+    // 正在按被删舞种筛选时退回「全部」，否则列表会空白且看起来像数据没了
     if (selectedCategory === style.name) {
       setSelectedCategory('全部');
     }
-    setStyleToDelete(null);
-    setStyleActionToast(`舞种「${style.name}」已成功删除，筛选栏与实时计数已即刻刷新！`);
-    setTimeout(() => setStyleActionToast(null), 3500);
   };
 
   // Personality Tags and Signature Bio (persisted in localStorage)
@@ -693,26 +661,34 @@ export const Timeline: React.FC<TimelineProps> = ({
   const stages = ['全部', '入门', '进阶', '挑战'];
 
   // Helper for counting posts associated with any category/tag in real time
-  const getCategoryCount = (name: string): number => {
-    if (name === '全部') return posts.length;
-    const tag = name.toLowerCase();
-    return posts.filter((post) => {
-      const matchesCat = post.categories.some((c) => c.toLowerCase() === tag || c.toLowerCase().includes(tag));
-      const matchesTitle = post.title.toLowerCase().includes(tag);
-      const matchesNotes = post.notes.toLowerCase().includes(tag);
-      const matchesMusic = !!post.musicName && post.musicName.toLowerCase().includes(tag);
-      const matchesSub =
-        (name === '高跟爵士' && (post.title.includes('高跟') || post.notes.includes('高跟') || post.categories.includes('其他'))) ||
-        (name === 'Jazz Funk' && (post.musicName?.includes('Jazz') || post.categories.includes('Jazz') || post.title.includes('Jazz'))) ||
-        (name === 'Urban编舞' && post.categories.includes('编舞')) ||
-        (name === '体能核心' && (post.notes.includes('力量') || post.notes.includes('核心') || post.title.includes('力量'))) ||
-        (name === 'Isolation隔离' && (post.title.includes('隔离') || post.notes.includes('隔离') || post.notes.includes('Roll'))) ||
-        (name === '卡点节拍' && (post.title.includes('卡点') || post.notes.includes('卡点') || (post.bpm && post.bpm > 0))) ||
-        (name === '拉伸放松' && post.categories.includes('基础练习')) ||
-        (name === '即兴Solo' && (post.title.includes('Solo') || post.categories.includes('Jazz')));
-      return matchesCat || matchesTitle || matchesNotes || matchesMusic || matchesSub;
-    }).length;
-  };
+  const getCategoryCount = useCallback(
+    (name: string): number => {
+      if (name === '全部') return posts.length;
+      const tag = name.toLowerCase();
+      return posts.filter((post) => {
+        const matchesCat = post.categories.some((c) => c.toLowerCase() === tag || c.toLowerCase().includes(tag));
+        const matchesTitle = post.title.toLowerCase().includes(tag);
+        const matchesNotes = post.notes.toLowerCase().includes(tag);
+        const matchesMusic = !!post.musicName && post.musicName.toLowerCase().includes(tag);
+        const matchesSub =
+          (name === '高跟爵士' &&
+            (post.title.includes('高跟') || post.notes.includes('高跟') || post.categories.includes('其他'))) ||
+          (name === 'Jazz Funk' &&
+            (post.musicName?.includes('Jazz') || post.categories.includes('Jazz') || post.title.includes('Jazz'))) ||
+          (name === 'Urban编舞' && post.categories.includes('编舞')) ||
+          (name === '体能核心' &&
+            (post.notes.includes('力量') || post.notes.includes('核心') || post.title.includes('力量'))) ||
+          (name === 'Isolation隔离' &&
+            (post.title.includes('隔离') || post.notes.includes('隔离') || post.notes.includes('Roll'))) ||
+          (name === '卡点节拍' &&
+            (post.title.includes('卡点') || post.notes.includes('卡点') || (post.bpm && post.bpm > 0))) ||
+          (name === '拉伸放松' && post.categories.includes('基础练习')) ||
+          (name === '即兴Solo' && (post.title.includes('Solo') || post.categories.includes('Jazz')));
+        return matchesCat || matchesTitle || matchesNotes || matchesMusic || matchesSub;
+      }).length;
+    },
+    [posts]
+  );
 
   // Real-time dynamic counts per category for all active dance styles
   const categoryCounts = useMemo(() => {
@@ -723,7 +699,7 @@ export const Timeline: React.FC<TimelineProps> = ({
       counts[s.name] = getCategoryCount(s.name);
     });
     return counts;
-  }, [posts, danceStyles]);
+  }, [posts, danceStyles, getCategoryCount]);
 
   // Filter posts
   const filteredPosts = useMemo(() => {
@@ -741,12 +717,17 @@ export const Timeline: React.FC<TimelineProps> = ({
           const matchesNotes = post.notes.toLowerCase().includes(tag);
           const matchesMusic = !!post.musicName && post.musicName.toLowerCase().includes(tag);
           const matchesSub =
-            (selectedCategory === '高跟爵士' && (post.title.includes('高跟') || post.notes.includes('高跟') || post.categories.includes('其他'))) ||
-            (selectedCategory === 'Jazz Funk' && (post.musicName?.includes('Jazz') || post.categories.includes('Jazz') || post.title.includes('Jazz'))) ||
+            (selectedCategory === '高跟爵士' &&
+              (post.title.includes('高跟') || post.notes.includes('高跟') || post.categories.includes('其他'))) ||
+            (selectedCategory === 'Jazz Funk' &&
+              (post.musicName?.includes('Jazz') || post.categories.includes('Jazz') || post.title.includes('Jazz'))) ||
             (selectedCategory === 'Urban编舞' && post.categories.includes('编舞')) ||
-            (selectedCategory === '体能核心' && (post.notes.includes('力量') || post.notes.includes('核心') || post.title.includes('力量'))) ||
-            (selectedCategory === 'Isolation隔离' && (post.title.includes('隔离') || post.notes.includes('隔离') || post.notes.includes('Roll'))) ||
-            (selectedCategory === '卡点节拍' && (post.title.includes('卡点') || post.notes.includes('卡点') || (post.bpm && post.bpm > 0))) ||
+            (selectedCategory === '体能核心' &&
+              (post.notes.includes('力量') || post.notes.includes('核心') || post.title.includes('力量'))) ||
+            (selectedCategory === 'Isolation隔离' &&
+              (post.title.includes('隔离') || post.notes.includes('隔离') || post.notes.includes('Roll'))) ||
+            (selectedCategory === '卡点节拍' &&
+              (post.title.includes('卡点') || post.notes.includes('卡点') || (post.bpm && post.bpm > 0))) ||
             (selectedCategory === '拉伸放松' && post.categories.includes('基础练习')) ||
             (selectedCategory === '即兴Solo' && (post.title.includes('Solo') || post.categories.includes('Jazz')));
           if (!matchesCat && !matchesTitle && !matchesNotes && !matchesMusic && !matchesSub) {
@@ -842,7 +823,6 @@ export const Timeline: React.FC<TimelineProps> = ({
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 space-y-6">
-      
       {/* Feedback banner if avatar upload succeeds or encounters error */}
       {avatarFeedback && (
         <div
@@ -964,16 +944,24 @@ export const Timeline: React.FC<TimelineProps> = ({
                 </strong>{' '}
                 天
               </span>
-              <span aria-hidden="true" className="text-[#C4AFA5]">·</span>
-              <span>作品 <strong className="text-[#D94834] font-semibold">{totalPosts}</strong> 个</span>
-              <span aria-hidden="true" className="text-[#C4AFA5]">·</span>
-              <span>舞种 <strong className="text-[#D94834] font-semibold">{uniqueStyles}</strong> 种</span>
+              <span aria-hidden="true" className="text-[#C4AFA5]">
+                ·
+              </span>
+              <span>
+                作品 <strong className="text-[#D94834] font-semibold">{totalPosts}</strong> 个
+              </span>
+              <span aria-hidden="true" className="text-[#C4AFA5]">
+                ·
+              </span>
+              <span>
+                舞种 <strong className="text-[#D94834] font-semibold">{uniqueStyles}</strong> 种
+              </span>
             </div>
           </div>
         </div>
 
         {/* Personality Tags & Bio Signature Card */}
-        <div 
+        <div
           onClick={() => setIsTagModalOpen(true)}
           role="button"
           tabIndex={0}
@@ -1025,273 +1013,276 @@ export const Timeline: React.FC<TimelineProps> = ({
 
       {/* 2. 筛选 Chips Bar - as sketched in wireframe image_70723755.png */}
       {posts.length > 0 && (
-      <section className="bg-[#FEF6E8] border border-[#FCE6BE] rounded-2xl p-3 sm:p-4 shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-3">
-        <div className="flex items-center gap-2 overflow-x-auto pb-1 md:pb-0 scrollbar-none min-w-0 max-w-full">
-          <span className="text-xs font-bold text-[#8C6B46] shrink-0 mr-1">舞种筛选:</span>
-          {mainCategoryNames.map((cat) => {
-            const count = getCategoryCount(cat);
-            const isSelected = selectedCategory === cat;
-            return (
-              <button
-                key={cat}
-                onClick={() => setSelectedCategory(cat)}
-                className={`px-3 py-1.5 text-xs font-semibold rounded-full transition-all whitespace-nowrap cursor-pointer flex items-center gap-1.5 shrink-0 ${
-                  isSelected
-                    ? 'bg-[#E67E22] text-white shadow-sm ring-2 ring-[#E67E22]/20 font-bold'
-                    : 'bg-white/85 text-[#7D5B36] hover:bg-white hover:text-[#4A321A] border border-[#F2DAC2]'
-                }`}
-              >
-                <span>{cat}</span>
-                <span
-                  className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold tabular-nums transition-colors ${
-                    isSelected
-                      ? 'bg-white/25 text-white'
-                      : 'bg-[#F9EDE0] text-[#B05B1E]'
-                  }`}
-                >
-                  {count}
-                </span>
-              </button>
-            );
-          })}
-
-          {/* Horizontally scrollable area behind button 5: allows users to browse hidden & obscured categories with smooth scrolling, clipping, desktop arrows, drag, wheel, and mobile touch */}
-          <div className="relative flex items-center min-w-0 shrink group/hscroll pl-0.5">
-            {/* Subtle separator */}
-            <div className="h-4 w-px bg-[#E8D4BE] shrink-0 mr-1.5" />
-
-            {/* Left fade gradient & scroll trigger */}
-            <div
-              className={`absolute left-2 top-0 bottom-0 w-7 bg-gradient-to-r from-[#FEF6E8] via-[#FEF6E8]/90 to-transparent pointer-events-none z-10 transition-opacity duration-200 flex items-center justify-start ${
-                canScrollLeft ? 'opacity-100' : 'opacity-0'
-              }`}
-            >
-              {canScrollLeft && (
-                <button
-                  type="button"
-                  onClick={() => handleScrollBy(-130)}
-                  className="w-5 h-5 rounded-full bg-white text-[#7D5B36] hover:text-[#E67E22] hover:bg-[#FFF7F0] shadow-xs border border-[#F2DAC2] pointer-events-auto flex items-center justify-center transition-all cursor-pointer -ml-0.5 active:scale-95"
-                  title="向左平滑滑动"
-                  aria-label="向左平滑滑动浏览"
-                >
-                  <ChevronLeft className="w-3 h-3" />
-                </button>
-              )}
-            </div>
-
-            {/* The scroll container that properly clips content */}
-            <div
-              ref={extendedScrollRef}
-              onMouseDown={handleMouseDown}
-              onMouseMove={handleMouseMove}
-              onMouseUp={handleMouseUpOrLeave}
-              onMouseLeave={handleMouseUpOrLeave}
-              onWheel={handleWheel}
-              className="flex items-center gap-1.5 overflow-x-auto overflow-y-hidden py-1 px-1.5 scroll-smooth scrollbar-none rounded-2xl bg-white/45 border border-[#F5DFCA]/80 cursor-grab active:cursor-grabbing select-none max-w-[240px] sm:max-w-[320px] md:max-w-[380px] lg:max-w-[460px]"
-              style={{ WebkitOverflowScrolling: 'touch' }}
-              role="region"
-              aria-label="拓展舞蹈标签横向滚动区"
-            >
-              <span className="text-[10px] text-[#A6835B] font-bold shrink-0 pl-1 pr-0.5 whitespace-nowrap">
-                更多:
-              </span>
-
-              {extendedCategories.map((item) => {
-                const isSelected = selectedCategory === item.name;
-                const count = getCategoryCount(item.name);
-                return (
-                  <button
-                    key={item.id}
-                    type="button"
-                    onClick={() => {
-                      if (!hasMovedRef.current) {
-                        setSelectedCategory(item.name);
-                      }
-                    }}
-                    className={`px-2.5 py-1 text-xs font-semibold rounded-full transition-all whitespace-nowrap cursor-pointer flex items-center gap-1 shrink-0 ${
-                      isSelected
-                        ? 'bg-[#E67E22] text-white shadow-xs ring-2 ring-[#E67E22]/20 font-bold'
-                        : 'bg-white text-[#7D5B36] hover:bg-[#FFF9F3] hover:text-[#4A321A] border border-[#F2DAC2]'
-                    }`}
-                    title={`筛选 ${item.name} (${item.difficulty}难度 · ${count}篇作品)`}
-                  >
-                    <span>{item.name}</span>
-                    <span
-                      className={`text-[9px] px-1.5 py-0.2 rounded-full font-bold tabular-nums ${
-                        isSelected ? 'bg-white/25 text-white' : 'bg-[#F9EDE0] text-[#B05B1E]'
-                      }`}
-                    >
-                      {count}
-                    </span>
-                  </button>
-                );
-              })}
-
-              {/* Inline quick add button */}
-              <button
-                type="button"
-                onClick={() => {
-                  setIsStyleManagerOpen(true);
-                  setStyleManagerTab('add');
-                }}
-                className="px-2 py-1 text-[11px] font-bold rounded-full bg-[#FFF5EC] hover:bg-[#FFEBDC] text-[#C05621] border border-dashed border-[#F4BA8C] transition-all whitespace-nowrap cursor-pointer flex items-center gap-1 shrink-0"
-                title="添加新舞种"
-              >
-                <Plus className="w-3 h-3" />
-                <span>加舞种</span>
-              </button>
-            </div>
-
-            {/* Right fade gradient & scroll trigger */}
-            <div
-              className={`absolute right-0 top-0 bottom-0 w-7 bg-gradient-to-l from-[#FEF6E8] via-[#FEF6E8]/90 to-transparent pointer-events-none z-10 transition-opacity duration-200 flex items-center justify-end ${
-                canScrollRight ? 'opacity-100' : 'opacity-0'
-              }`}
-            >
-              {canScrollRight && (
-                <button
-                  type="button"
-                  onClick={() => handleScrollBy(130)}
-                  className="w-5 h-5 rounded-full bg-white text-[#7D5B36] hover:text-[#E67E22] hover:bg-[#FFF7F0] shadow-xs border border-[#F2DAC2] pointer-events-auto flex items-center justify-center transition-all cursor-pointer -mr-0.5 active:scale-95"
-                  title="向右平滑滑动浏览"
-                  aria-label="向右平滑滑动浏览"
-                >
-                  <ChevronRight className="w-3 h-3" />
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Secondary Stage & Media toggles + Custom Dance Style Manager Button */}
-        <div className="flex items-center gap-2 text-xs self-end md:self-auto flex-wrap sm:flex-nowrap">
-          {/* Difficulty Filter with Real-time Count Consolidated under "全部" (All = Beginner + Intermediate + Challenge) */}
-          <div className="flex items-center gap-1 bg-white/70 p-1 rounded-xl border border-[#F5DCB0]">
-            <span className="text-[10px] text-[#A6835B] font-bold px-1 hidden sm:inline">难度:</span>
-            {stages.map((stg) => {
-              const count = stageCounts[stg] || 0;
+        <section className="bg-[#FEF6E8] border border-[#FCE6BE] rounded-2xl p-3 sm:p-4 shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-3">
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 md:pb-0 scrollbar-none min-w-0 max-w-full">
+            <span className="text-xs font-bold text-[#8C6B46] shrink-0 mr-1">舞种筛选:</span>
+            {mainCategoryNames.map((cat) => {
+              const count = getCategoryCount(cat);
+              const isSelected = selectedCategory === cat;
               return (
                 <button
-                  key={stg}
-                  onClick={() => setSelectedStage(stg)}
-                  className={`px-2 py-0.5 rounded-lg text-[11px] font-medium transition-all flex items-center gap-1 ${
-                    selectedStage === stg
-                      ? 'bg-[#FFF7F0] text-[#D35400] font-bold shadow-2xs'
-                      : 'text-[#8C6B46] hover:text-[#3E2A16]'
+                  key={cat}
+                  onClick={() => setSelectedCategory(cat)}
+                  className={`px-3 py-1.5 text-xs font-semibold rounded-full transition-all whitespace-nowrap cursor-pointer flex items-center gap-1.5 shrink-0 ${
+                    isSelected
+                      ? 'bg-[#E67E22] text-white shadow-sm ring-2 ring-[#E67E22]/20 font-bold'
+                      : 'bg-white/85 text-[#7D5B36] hover:bg-white hover:text-[#4A321A] border border-[#F2DAC2]'
                   }`}
-                  title={stg === '全部' ? `全部难度（入门 ${stageCounts.入门} + 进阶 ${stageCounts.进阶} + 挑战 ${stageCounts.挑战} = ${count} 篇汇总）` : `${stg}难度 (${count} 篇)`}
                 >
-                  <span>{stg}</span>
-                  <span className="text-[9px] opacity-75 tabular-nums">({count})</span>
+                  <span>{cat}</span>
+                  <span
+                    className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold tabular-nums transition-colors ${
+                      isSelected ? 'bg-white/25 text-white' : 'bg-[#F9EDE0] text-[#B05B1E]'
+                    }`}
+                  >
+                    {count}
+                  </span>
                 </button>
               );
             })}
+
+            {/* Horizontally scrollable area behind button 5: allows users to browse hidden & obscured categories with smooth scrolling, clipping, desktop arrows, drag, wheel, and mobile touch */}
+            <div className="relative flex items-center min-w-0 shrink group/hscroll pl-0.5">
+              {/* Subtle separator */}
+              <div className="h-4 w-px bg-[#E8D4BE] shrink-0 mr-1.5" />
+
+              {/* Left fade gradient & scroll trigger */}
+              <div
+                className={`absolute left-2 top-0 bottom-0 w-7 bg-gradient-to-r from-[#FEF6E8] via-[#FEF6E8]/90 to-transparent pointer-events-none z-10 transition-opacity duration-200 flex items-center justify-start ${
+                  canScrollLeft ? 'opacity-100' : 'opacity-0'
+                }`}
+              >
+                {canScrollLeft && (
+                  <button
+                    type="button"
+                    onClick={() => handleScrollBy(-130)}
+                    className="w-5 h-5 rounded-full bg-white text-[#7D5B36] hover:text-[#E67E22] hover:bg-[#FFF7F0] shadow-xs border border-[#F2DAC2] pointer-events-auto flex items-center justify-center transition-all cursor-pointer -ml-0.5 active:scale-95"
+                    title="向左平滑滑动"
+                    aria-label="向左平滑滑动浏览"
+                  >
+                    <ChevronLeft className="w-3 h-3" />
+                  </button>
+                )}
+              </div>
+
+              {/* The scroll container that properly clips content */}
+              <div
+                ref={extendedScrollRef}
+                onMouseDown={handleMouseDown}
+                onMouseMove={handleMouseMove}
+                onMouseUp={handleMouseUpOrLeave}
+                onMouseLeave={handleMouseUpOrLeave}
+                onWheel={handleWheel}
+                className="flex items-center gap-1.5 overflow-x-auto overflow-y-hidden py-1 px-1.5 scroll-smooth scrollbar-none rounded-2xl bg-white/45 border border-[#F5DFCA]/80 cursor-grab active:cursor-grabbing select-none max-w-[240px] sm:max-w-[320px] md:max-w-[380px] lg:max-w-[460px]"
+                style={{ WebkitOverflowScrolling: 'touch' }}
+                role="region"
+                aria-label="拓展舞蹈标签横向滚动区"
+              >
+                <span className="text-[10px] text-[#A6835B] font-bold shrink-0 pl-1 pr-0.5 whitespace-nowrap">
+                  更多:
+                </span>
+
+                {extendedCategories.map((item) => {
+                  const isSelected = selectedCategory === item.name;
+                  const count = getCategoryCount(item.name);
+                  return (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => {
+                        if (!hasMovedRef.current) {
+                          setSelectedCategory(item.name);
+                        }
+                      }}
+                      className={`px-2.5 py-1 text-xs font-semibold rounded-full transition-all whitespace-nowrap cursor-pointer flex items-center gap-1 shrink-0 ${
+                        isSelected
+                          ? 'bg-[#E67E22] text-white shadow-xs ring-2 ring-[#E67E22]/20 font-bold'
+                          : 'bg-white text-[#7D5B36] hover:bg-[#FFF9F3] hover:text-[#4A321A] border border-[#F2DAC2]'
+                      }`}
+                      title={`筛选 ${item.name} (${item.difficulty}难度 · ${count}篇作品)`}
+                    >
+                      <span>{item.name}</span>
+                      <span
+                        className={`text-[9px] px-1.5 py-0.2 rounded-full font-bold tabular-nums ${
+                          isSelected ? 'bg-white/25 text-white' : 'bg-[#F9EDE0] text-[#B05B1E]'
+                        }`}
+                      >
+                        {count}
+                      </span>
+                    </button>
+                  );
+                })}
+
+                {/* Inline quick add button */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsStyleManagerOpen(true);
+                    setStyleManagerTab('add');
+                  }}
+                  className="px-2 py-1 text-[11px] font-bold rounded-full bg-[#FFF5EC] hover:bg-[#FFEBDC] text-[#C05621] border border-dashed border-[#F4BA8C] transition-all whitespace-nowrap cursor-pointer flex items-center gap-1 shrink-0"
+                  title="添加新舞种"
+                >
+                  <Plus className="w-3 h-3" />
+                  <span>加舞种</span>
+                </button>
+              </div>
+
+              {/* Right fade gradient & scroll trigger */}
+              <div
+                className={`absolute right-0 top-0 bottom-0 w-7 bg-gradient-to-l from-[#FEF6E8] via-[#FEF6E8]/90 to-transparent pointer-events-none z-10 transition-opacity duration-200 flex items-center justify-end ${
+                  canScrollRight ? 'opacity-100' : 'opacity-0'
+                }`}
+              >
+                {canScrollRight && (
+                  <button
+                    type="button"
+                    onClick={() => handleScrollBy(130)}
+                    className="w-5 h-5 rounded-full bg-white text-[#7D5B36] hover:text-[#E67E22] hover:bg-[#FFF7F0] shadow-xs border border-[#F2DAC2] pointer-events-auto flex items-center justify-center transition-all cursor-pointer -mr-0.5 active:scale-95"
+                    title="向右平滑滑动浏览"
+                    aria-label="向右平滑滑动浏览"
+                  >
+                    <ChevronRight className="w-3 h-3" />
+                  </button>
+                )}
+              </div>
+            </div>
           </div>
 
-          {/* Media Filter with Real-time Count Consolidated under "全部" (All = Video + Photo) */}
-          <div className="flex items-center gap-1 bg-white/70 p-1 rounded-xl border border-[#F5DCB0]">
+          {/* Secondary Stage & Media toggles + Custom Dance Style Manager Button */}
+          <div className="flex items-center gap-2 text-xs self-end md:self-auto flex-wrap sm:flex-nowrap">
+            {/* Difficulty Filter with Real-time Count Consolidated under "全部" (All = Beginner + Intermediate + Challenge) */}
+            <div className="flex items-center gap-1 bg-white/70 p-1 rounded-xl border border-[#F5DCB0]">
+              <span className="text-[10px] text-[#A6835B] font-bold px-1 hidden sm:inline">难度:</span>
+              {stages.map((stg) => {
+                const count = stageCounts[stg] || 0;
+                return (
+                  <button
+                    key={stg}
+                    onClick={() => setSelectedStage(stg)}
+                    className={`px-2 py-0.5 rounded-lg text-[11px] font-medium transition-all flex items-center gap-1 ${
+                      selectedStage === stg
+                        ? 'bg-[#FFF7F0] text-[#D35400] font-bold shadow-2xs'
+                        : 'text-[#8C6B46] hover:text-[#3E2A16]'
+                    }`}
+                    title={
+                      stg === '全部'
+                        ? `全部难度（入门 ${stageCounts.入门} + 进阶 ${stageCounts.进阶} + 挑战 ${stageCounts.挑战} = ${count} 篇汇总）`
+                        : `${stg}难度 (${count} 篇)`
+                    }
+                  >
+                    <span>{stg}</span>
+                    <span className="text-[9px] opacity-75 tabular-nums">({count})</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Media Filter with Real-time Count Consolidated under "全部" (All = Video + Photo) */}
+            <div className="flex items-center gap-1 bg-white/70 p-1 rounded-xl border border-[#F5DCB0]">
+              <button
+                onClick={() => setSelectedMediaType('all')}
+                className={`px-2 py-0.5 rounded-lg text-[11px] font-medium flex items-center gap-1 ${
+                  selectedMediaType === 'all' ? 'bg-[#FFF7F0] text-[#D35400] font-bold' : 'text-[#8C6B46]'
+                }`}
+                title={`全部媒体类型汇总（视频 ${mediaCounts.video} + 照片 ${mediaCounts.image} = ${mediaCounts.all}）`}
+              >
+                <span>全部</span>
+                <span className="text-[9px] opacity-75 tabular-nums">({mediaCounts.all})</span>
+              </button>
+              <button
+                onClick={() => setSelectedMediaType('video')}
+                className={`px-2 py-0.5 rounded-lg text-[11px] font-medium flex items-center gap-1 ${
+                  selectedMediaType === 'video' ? 'bg-[#FFF7F0] text-[#D35400] font-bold' : 'text-[#8C6B46]'
+                }`}
+                title="仅看视频"
+              >
+                <Film className="w-3 h-3" />
+                <span>视频</span>
+                <span className="text-[9px] opacity-75 tabular-nums">({mediaCounts.video})</span>
+              </button>
+              <button
+                onClick={() => setSelectedMediaType('image')}
+                className={`px-2 py-0.5 rounded-lg text-[11px] font-medium flex items-center gap-1 ${
+                  selectedMediaType === 'image' ? 'bg-[#FFF7F0] text-[#D35400] font-bold' : 'text-[#8C6B46]'
+                }`}
+                title="仅看照片"
+              >
+                <ImageIcon className="w-3 h-3" />
+                <span>照片</span>
+                <span className="text-[9px] opacity-75 tabular-nums">({mediaCounts.image})</span>
+              </button>
+            </div>
+
+            {/* Custom Dance Styles Button (Add / Delete Dance Styles) */}
             <button
-              onClick={() => setSelectedMediaType('all')}
-              className={`px-2 py-0.5 rounded-lg text-[11px] font-medium flex items-center gap-1 ${
-                selectedMediaType === 'all' ? 'bg-[#FFF7F0] text-[#D35400] font-bold' : 'text-[#8C6B46]'
-              }`}
-              title={`全部媒体类型汇总（视频 ${mediaCounts.video} + 照片 ${mediaCounts.image} = ${mediaCounts.all}）`}
+              type="button"
+              onClick={() => {
+                setIsStyleManagerOpen(true);
+                setStyleManagerTab('manage');
+              }}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-[#FFF2E2] hover:bg-[#FFE6CD] text-[#C05621] hover:text-[#9C4215] text-xs font-bold rounded-xl border border-[#F5CDA2] shadow-2xs hover:shadow-xs transition-all cursor-pointer shrink-0"
+              title="自定义舞种：添加新舞种或删除已有舞种，含三级难度分级与多维属性"
             >
-              <span>全部</span>
-              <span className="text-[9px] opacity-75 tabular-nums">({mediaCounts.all})</span>
-            </button>
-            <button
-              onClick={() => setSelectedMediaType('video')}
-              className={`px-2 py-0.5 rounded-lg text-[11px] font-medium flex items-center gap-1 ${
-                selectedMediaType === 'video' ? 'bg-[#FFF7F0] text-[#D35400] font-bold' : 'text-[#8C6B46]'
-              }`}
-              title="仅看视频"
-            >
-              <Film className="w-3 h-3" />
-              <span>视频</span>
-              <span className="text-[9px] opacity-75 tabular-nums">({mediaCounts.video})</span>
-            </button>
-            <button
-              onClick={() => setSelectedMediaType('image')}
-              className={`px-2 py-0.5 rounded-lg text-[11px] font-medium flex items-center gap-1 ${
-                selectedMediaType === 'image' ? 'bg-[#FFF7F0] text-[#D35400] font-bold' : 'text-[#8C6B46]'
-              }`}
-              title="仅看照片"
-            >
-              <ImageIcon className="w-3 h-3" />
-              <span>照片</span>
-              <span className="text-[9px] opacity-75 tabular-nums">({mediaCounts.image})</span>
+              <SlidersHorizontal className="w-3.5 h-3.5 text-[#D35400]" />
+              <span>自定义舞种</span>
+              <span className="text-[10px] bg-[#E67E22] text-white px-1.5 py-0.2 rounded-full font-bold tabular-nums">
+                {danceStyles.length}
+              </span>
             </button>
           </div>
-
-          {/* Custom Dance Styles Button (Add / Delete Dance Styles) */}
-          <button
-            type="button"
-            onClick={() => {
-              setIsStyleManagerOpen(true);
-              setStyleManagerTab('manage');
-            }}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-[#FFF2E2] hover:bg-[#FFE6CD] text-[#C05621] hover:text-[#9C4215] text-xs font-bold rounded-xl border border-[#F5CDA2] shadow-2xs hover:shadow-xs transition-all cursor-pointer shrink-0"
-            title="自定义舞种：添加新舞种或删除已有舞种，含三级难度分级与多维属性"
-          >
-            <SlidersHorizontal className="w-3.5 h-3.5 text-[#D35400]" />
-            <span>自定义舞种</span>
-            <span className="text-[10px] bg-[#E67E22] text-white px-1.5 py-0.2 rounded-full font-bold tabular-nums">
-              {danceStyles.length}
-            </span>
-          </button>
-        </div>
-      </section>
+        </section>
       )}
 
       {/* 3. 时间线作品流 (Cards Stream) */}
       <section className="space-y-4">
         {/* Dynamic Project Showcase Section Header with Live Category Counts */}
         {posts.length > 0 && (
-        <div className="bg-white border border-[#EFE3D5] rounded-2xl p-3.5 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-[#FFF0EB] text-[#E65B47] flex items-center justify-center shrink-0 border border-[#FFDCD3]">
-              <Layers className="w-4 h-4" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h3 className="text-sm font-bold text-[#292524]">
-                  舞蹈作品展示区
-                </h3>
-                <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-[#FFEFE8] text-[#D94834] border border-[#FFDCD3]">
-                  {selectedCategory === '全部' ? '全部舞种作品' : `${selectedCategory}分类`} · 实时统计: {filteredPosts.length} 篇
-                </span>
+          <div className="bg-white border border-[#EFE3D5] rounded-2xl p-3.5 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-[#FFF0EB] text-[#E65B47] flex items-center justify-center shrink-0 border border-[#FFDCD3]">
+                <Layers className="w-4 h-4" />
               </div>
-              <p className="text-[11px] text-[#8C7A6B]">
-                实时追踪各分类作品数，新增或删除作品时界面数据毫秒级自动联动更新
-              </p>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-sm font-bold text-[#292524]">舞蹈作品展示区</h3>
+                  <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-[#FFEFE8] text-[#D94834] border border-[#FFDCD3]">
+                    {selectedCategory === '全部' ? '全部舞种作品' : `${selectedCategory}分类`} · 实时统计:{' '}
+                    {filteredPosts.length} 篇
+                  </span>
+                </div>
+                <p className="text-[11px] text-[#8C7A6B]">
+                  实时追踪各分类作品数，新增或删除作品时界面数据毫秒级自动联动更新
+                </p>
+              </div>
+            </div>
+
+            {/* Quick interactive category pill counters */}
+            <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none py-0.5">
+              {(['Jazz', '韩舞', '编舞', '基础练习', '其他'] as DanceCategory[]).map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  onClick={() => setSelectedCategory(c)}
+                  className={`inline-flex items-center gap-1.5 text-[11px] px-2.5 py-1 rounded-xl border transition-all cursor-pointer ${
+                    selectedCategory === c
+                      ? 'bg-[#E67E22] text-white border-[#D35400] font-bold shadow-2xs'
+                      : 'bg-[#FAF3EB] text-[#7A6454] border-[#EFE2D5] hover:bg-[#F3E7D9]'
+                  }`}
+                  title={`查看 ${c} 分类作品 (${categoryCounts[c] || 0} 篇)`}
+                >
+                  <span>{c}</span>
+                  <strong
+                    className={`font-mono text-[10px] tabular-nums font-bold px-1 rounded ${
+                      selectedCategory === c ? 'bg-white/20 text-white' : 'bg-white text-[#D94834]'
+                    }`}
+                  >
+                    {categoryCounts[c] || 0}
+                  </strong>
+                </button>
+              ))}
             </div>
           </div>
-
-          {/* Quick interactive category pill counters */}
-          <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none py-0.5">
-            {(['Jazz', '韩舞', '编舞', '基础练习', '其他'] as DanceCategory[]).map((c) => (
-              <button
-                key={c}
-                type="button"
-                onClick={() => setSelectedCategory(c)}
-                className={`inline-flex items-center gap-1.5 text-[11px] px-2.5 py-1 rounded-xl border transition-all cursor-pointer ${
-                  selectedCategory === c
-                    ? 'bg-[#E67E22] text-white border-[#D35400] font-bold shadow-2xs'
-                    : 'bg-[#FAF3EB] text-[#7A6454] border-[#EFE2D5] hover:bg-[#F3E7D9]'
-                }`}
-                title={`查看 ${c} 分类作品 (${categoryCounts[c] || 0} 篇)`}
-              >
-                <span>{c}</span>
-                <strong className={`font-mono text-[10px] tabular-nums font-bold px-1 rounded ${
-                  selectedCategory === c ? 'bg-white/20 text-white' : 'bg-white text-[#D94834]'
-                }`}>
-                  {categoryCounts[c] || 0}
-                </strong>
-              </button>
-            ))}
-          </div>
-        </div>
         )}
         {filteredPosts.length === 0 ? (
           <div className="bg-white border border-[#EFE4D8] rounded-3xl p-6 sm:p-10 text-center">
@@ -1343,9 +1334,7 @@ export const Timeline: React.FC<TimelineProps> = ({
                   </button>
                 </div>
 
-                <p className="text-[11px] text-[#B3A296] mt-2.5">
-                  第一条就是成长曲线的起点，视频之后可补传。
-                </p>
+                <p className="text-[11px] text-[#B3A296] mt-2.5">第一条就是成长曲线的起点，视频之后可补传。</p>
               </>
             ) : (
               <>
@@ -1380,81 +1369,80 @@ export const Timeline: React.FC<TimelineProps> = ({
                 className="bg-white border border-[#EFE3D5] rounded-3xl p-4 sm:p-5 shadow-xs hover:shadow-md transition-all duration-200 group"
               >
                 <div className="flex flex-col sm:flex-row gap-4 sm:gap-5">
-                  
                   {/* Media Thumbnail / Preview Area（纯文字记录不占媒体位） */}
                   {!isText && (
-                  <div
-                    onClick={() => onSelectMedia(post)}
-                    className={`relative w-full sm:w-56 md:w-64 h-44 sm:h-38 rounded-2xl overflow-hidden cursor-pointer shrink-0 transition-transform group-hover:scale-[1.01] ${
-                      isVideo ? 'bg-[#FFE2D6]' : 'bg-[#EDE7FA]'
-                    } flex items-center justify-center border border-[#F0E4D7]`}
-                  >
-                    {/* Media Display */}
-                    {isVideo ? (
-                      <div className="relative w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-[#FFE3D6] to-[#FED2C1]">
-                        {/* Realistic video poster fallback */}
-                        {post.thumbnailUrl ? (
-                          <img
-                            src={post.thumbnailUrl}
-                            alt={post.title}
-                            referrerPolicy="no-referrer"
-                            onError={(e) => {
-                              // 旧数据可能存了失效的 blob: 地址，隐藏即可露出渐变兜底
-                              e.currentTarget.style.display = 'none';
-                            }}
-                            className="w-full h-full object-cover opacity-85"
-                          />
-                        ) : null}
+                    <div
+                      onClick={() => onSelectMedia(post)}
+                      className={`relative w-full sm:w-56 md:w-64 h-44 sm:h-38 rounded-2xl overflow-hidden cursor-pointer shrink-0 transition-transform group-hover:scale-[1.01] ${
+                        isVideo ? 'bg-[#FFE2D6]' : 'bg-[#EDE7FA]'
+                      } flex items-center justify-center border border-[#F0E4D7]`}
+                    >
+                      {/* Media Display */}
+                      {isVideo ? (
+                        <div className="relative w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-[#FFE3D6] to-[#FED2C1]">
+                          {/* Realistic video poster fallback */}
+                          {post.thumbnailUrl ? (
+                            <img
+                              src={post.thumbnailUrl}
+                              alt={post.title}
+                              referrerPolicy="no-referrer"
+                              onError={(e) => {
+                                // 旧数据可能存了失效的 blob: 地址，隐藏即可露出渐变兜底
+                                e.currentTarget.style.display = 'none';
+                              }}
+                              className="w-full h-full object-cover opacity-85"
+                            />
+                          ) : null}
 
-                        {/* Floating Play Button */}
-                        <div className="absolute inset-0 bg-black/25 flex flex-col items-center justify-center gap-1.5 group-hover:bg-black/35 transition-all">
-                          <div className="w-11 h-11 rounded-full bg-white/95 text-[#FF6B6B] flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
-                            <Play className="w-5 h-5 fill-current ml-0.5" />
+                          {/* Floating Play Button */}
+                          <div className="absolute inset-0 bg-black/25 flex flex-col items-center justify-center gap-1.5 group-hover:bg-black/35 transition-all">
+                            <div className="w-11 h-11 rounded-full bg-white/95 text-[#FF6B6B] flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+                              <Play className="w-5 h-5 fill-current ml-0.5" />
+                            </div>
+                            <span className="text-[11px] font-semibold text-white bg-black/50 px-2 py-0.5 rounded-full backdrop-blur-xs">
+                              点击播放 · 支持慢速扒舞
+                            </span>
                           </div>
-                          <span className="text-[11px] font-semibold text-white bg-black/50 px-2 py-0.5 rounded-full backdrop-blur-xs">
-                            点击播放 · 支持慢速扒舞
-                          </span>
-                        </div>
 
-                        {/* Video Badge */}
-                        <div className="absolute top-2.5 left-2.5 bg-black/60 backdrop-blur-xs text-white text-[10px] font-medium px-2 py-0.5 rounded-md flex items-center gap-1">
-                          <Film className="w-3 h-3" />
-                          <span>视频</span>
-                          {post.duration && <span>{post.duration}</span>}
-                        </div>
+                          {/* Video Badge */}
+                          <div className="absolute top-2.5 left-2.5 bg-black/60 backdrop-blur-xs text-white text-[10px] font-medium px-2 py-0.5 rounded-md flex items-center gap-1">
+                            <Film className="w-3 h-3" />
+                            <span>视频</span>
+                            {post.duration && <span>{post.duration}</span>}
+                          </div>
 
-                        {/* 仅存本机：卡片上先给一个轻标记，点开播放器还有一行完整说明。
+                          {/* 仅存本机：卡片上先给一个轻标记，点开播放器还有一行完整说明。
                             hover 显示全文，避免在列表里堆字 */}
-                        <div
-                          className="absolute top-2.5 right-2.5 bg-black/55 backdrop-blur-xs text-white/90 text-[10px] font-medium px-1.5 py-0.5 rounded-md flex items-center gap-1 cursor-help"
-                          title={VIDEO_NOTE_LOCAL}
-                        >
-                          <HardDrive className="w-2.5 h-2.5" />
-                          <span>{VIDEO_BADGE_LOCAL}</span>
+                          <div
+                            className="absolute top-2.5 right-2.5 bg-black/55 backdrop-blur-xs text-white/90 text-[10px] font-medium px-1.5 py-0.5 rounded-md flex items-center gap-1 cursor-help"
+                            title={VIDEO_NOTE_LOCAL}
+                          >
+                            <HardDrive className="w-2.5 h-2.5" />
+                            <span>{VIDEO_BADGE_LOCAL}</span>
+                          </div>
                         </div>
-                      </div>
-                    ) : (
-                      <div className="relative w-full h-full flex items-center justify-center bg-gradient-to-br from-[#EDE7FA] to-[#E3D9F8]">
-                        {post.mediaUrl ? (
-                          <img
-                            src={post.mediaUrl}
-                            alt={post.title}
-                            referrerPolicy="no-referrer"
-                            className="w-full h-full object-cover"
-                          />
-                        ) : null}
-                        <div className="absolute inset-0 bg-black/15 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                          <span className="text-xs font-semibold text-white bg-black/60 px-3 py-1 rounded-full backdrop-blur-xs">
-                            点击放大查看
-                          </span>
+                      ) : (
+                        <div className="relative w-full h-full flex items-center justify-center bg-gradient-to-br from-[#EDE7FA] to-[#E3D9F8]">
+                          {post.mediaUrl ? (
+                            <img
+                              src={post.mediaUrl}
+                              alt={post.title}
+                              referrerPolicy="no-referrer"
+                              className="w-full h-full object-cover"
+                            />
+                          ) : null}
+                          <div className="absolute inset-0 bg-black/15 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                            <span className="text-xs font-semibold text-white bg-black/60 px-3 py-1 rounded-full backdrop-blur-xs">
+                              点击放大查看
+                            </span>
+                          </div>
+                          <div className="absolute top-2.5 left-2.5 bg-black/60 backdrop-blur-xs text-white text-[10px] font-medium px-2 py-0.5 rounded-md flex items-center gap-1">
+                            <ImageIcon className="w-3 h-3" />
+                            <span>图片</span>
+                          </div>
                         </div>
-                        <div className="absolute top-2.5 left-2.5 bg-black/60 backdrop-blur-xs text-white text-[10px] font-medium px-2 py-0.5 rounded-md flex items-center gap-1">
-                          <ImageIcon className="w-3 h-3" />
-                          <span>图片</span>
-                        </div>
-                      </div>
-                    )}
-                  </div>
+                      )}
+                    </div>
                   )}
 
                   {/* Content & Metadata Area */}
@@ -1463,17 +1451,29 @@ export const Timeline: React.FC<TimelineProps> = ({
                       {/* Top Unboxed Metadata - Strict Zero-Pill format */}
                       <div className="flex flex-wrap items-center gap-2 text-xs text-[#8C7A6B] mb-1.5">
                         <span className="font-mono text-[#574B40] font-medium">{post.date}</span>
-                        <span aria-hidden="true" className="text-[#CDBEB3]">·</span>
-                        <span className={`font-semibold ${
-                          post.stage === '入门' ? 'text-[#10B981]' : post.stage === '进阶' ? 'text-[#3B82F6]' : 'text-[#EF4444]'
-                        }`}>
+                        <span aria-hidden="true" className="text-[#CDBEB3]">
+                          ·
+                        </span>
+                        <span
+                          className={`font-semibold ${
+                            post.stage === '入门'
+                              ? 'text-[#10B981]'
+                              : post.stage === '进阶'
+                                ? 'text-[#3B82F6]'
+                                : 'text-[#EF4444]'
+                          }`}
+                        >
                           {post.stage}
                         </span>
-                        <span aria-hidden="true" className="text-[#CDBEB3]">·</span>
+                        <span aria-hidden="true" className="text-[#CDBEB3]">
+                          ·
+                        </span>
                         <span className="text-[#78695C]">{post.categories.join(' / ')}</span>
                         {isText && (
                           <>
-                            <span aria-hidden="true" className="text-[#CDBEB3]">·</span>
+                            <span aria-hidden="true" className="text-[#CDBEB3]">
+                              ·
+                            </span>
                             <span className="font-semibold text-[#FF7E67]">文字记录</span>
                           </>
                         )}
@@ -1494,25 +1494,31 @@ export const Timeline: React.FC<TimelineProps> = ({
                         <div className="flex items-center gap-1.5 text-xs text-[#8C7A6B] mt-1.5">
                           <Music className="w-3 h-3 text-[#FF7E67]" />
                           <span className="truncate max-w-xs">{post.musicName}</span>
-                          {post.bpm && <span className="font-mono text-[11px] text-[#A6978B] font-medium">({post.bpm} BPM)</span>}
+                          {post.bpm && (
+                            <span className="font-mono text-[11px] text-[#A6978B] font-medium">({post.bpm} BPM)</span>
+                          )}
                         </div>
                       )}
 
                       {/* Practice Notes snippet */}
                       {post.notes && (
                         <div className="mt-2 text-xs text-[#6B5A4D] bg-[#FFFBF7] border border-[#F5E8DC] p-2.5 rounded-xl">
-                          <p className={`leading-relaxed ${isNoteOpen ? '' : 'line-clamp-2'}`}>
-                            {post.notes}
-                          </p>
+                          <p className={`leading-relaxed ${isNoteOpen ? '' : 'line-clamp-2'}`}>{post.notes}</p>
                           {post.notes.length > 70 && (
                             <button
                               onClick={() => toggleNote(post.id)}
                               className="text-[11px] text-[#E65B47] font-semibold mt-1 flex items-center gap-0.5 hover:underline"
                             >
                               {isNoteOpen ? (
-                                <><span>收起小记</span><ChevronUp className="w-3 h-3" /></>
+                                <>
+                                  <span>收起小记</span>
+                                  <ChevronUp className="w-3 h-3" />
+                                </>
                               ) : (
-                                <><span>展开更多心得</span><ChevronDown className="w-3 h-3" /></>
+                                <>
+                                  <span>展开更多心得</span>
+                                  <ChevronDown className="w-3 h-3" />
+                                </>
                               )}
                             </button>
                           )}
@@ -1575,9 +1581,7 @@ export const Timeline: React.FC<TimelineProps> = ({
                         </button>
                       </div>
                     </div>
-
                   </div>
-
                 </div>
 
                 {/* Inline Comment Thread (if opened) */}
@@ -1591,7 +1595,8 @@ export const Timeline: React.FC<TimelineProps> = ({
                           <div key={c.id} className="text-xs bg-white p-2 rounded-xl border border-[#F0E4D8]">
                             <div className="flex items-center justify-between mb-0.5">
                               <span className="font-semibold text-[#3D3126]">
-                                {c.author} {c.isOwner && <span className="text-[10px] text-[#FF6B6B] font-normal">(作者)</span>}
+                                {c.author}{' '}
+                                {c.isOwner && <span className="text-[10px] text-[#FF6B6B] font-normal">(作者)</span>}
                               </span>
                               <span className="text-[10px] text-[#A8988A]">{c.createdAt}</span>
                             </div>
@@ -1620,7 +1625,6 @@ export const Timeline: React.FC<TimelineProps> = ({
                     </form>
                   </div>
                 )}
-
               </article>
             );
           })
@@ -1651,9 +1655,7 @@ export const Timeline: React.FC<TimelineProps> = ({
             <h4 className="text-sm font-bold text-[#4C1D95]">
               找舞搭子 · 你关注的 {followedCount} 位伙伴本周都在练 Jazz
             </h4>
-            <p className="text-xs text-[#6D28D9] mt-0.5">
-              点击进入轻社区：看看同好们在练什么、留言墙约舞室打气
-            </p>
+            <p className="text-xs text-[#6D28D9] mt-0.5">点击进入轻社区：看看同好们在练什么、留言墙约舞室打气</p>
           </div>
         </div>
 
@@ -1662,345 +1664,14 @@ export const Timeline: React.FC<TimelineProps> = ({
         </span>
       </section>
 
-      {/* ======================================================== */}
-      {/* DANCE START DATE & CALENDAR INTERFACE (MODAL)           */}
-      {/* ======================================================== */}
-      {isDatePickerOpen && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 animate-fadeIn">
-          <div className="bg-white rounded-3xl max-w-xl w-full p-5 sm:p-6 shadow-2xl border border-[#F2DFD4] flex flex-col gap-4 animate-scaleUp max-h-[92vh] overflow-y-auto">
-            
-            {/* Modal Header */}
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-[#FF7E67] to-[#FFA07A] text-white flex items-center justify-center shadow-inner shrink-0">
-                  <Calendar className="w-5 h-5" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-base sm:text-lg font-bold text-[#292524]">
-                      学舞起步日与练舞打卡日历
-                    </h3>
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#FFEAE3] text-[#E0523D] border border-[#FFD0C5]">
-                      自由设定起步日
-                    </span>
-                  </div>
-                  <p className="text-xs text-[#8C7A6B] mt-0.5">
-                    从选定起步日开始标记每一场练舞打卡，坚持天数随着自然日自动累计更新
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => setIsDatePickerOpen(false)}
-                className="text-[#A8988A] hover:text-[#292524] p-1.5 rounded-xl hover:bg-[#FAF2EB] transition-colors cursor-pointer"
-                title="关闭"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            {/* Current Active Start Date Highlight Card */}
-            <div className="bg-gradient-to-r from-[#FFF5F0] via-[#FFF9F5] to-[#FFF0ED] border border-[#F8DED5] rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
-              <div>
-                <span className="text-[11px] font-semibold text-[#8C7A6B] block">
-                  当前生效的学舞起步日:
-                </span>
-                <div className="flex items-center gap-2 mt-0.5">
-                  <span className="font-mono font-extrabold text-base sm:text-lg text-[#D94834]">
-                    {startDate || '未设置'}
-                  </span>
-                  <span className="text-[10px] bg-white px-2 py-0.5 rounded-md text-[#78695C] border border-[#F2DACF] font-medium">
-                    {startDate ? (
-                      <>已累计坚持 <strong className="text-[#D94834]">{practiceDays}</strong> 天</>
-                    ) : (
-                      <>练习天数 <strong className="text-[#D94834]">0</strong> 天</>
-                    )}
-                  </span>
-                </div>
-              </div>
-              <div className="flex items-center gap-3 text-xs text-[#6B5749] border-t sm:border-t-0 sm:border-l border-[#F0DFD7] pt-2 sm:pt-0 sm:pl-4">
-                <div>
-                  <span className="block text-[11px] text-[#A69588]">从起步日已标记</span>
-                  <span className="font-bold text-[#292524] text-sm">
-                    {sessionsFromStartDate.length} <span className="text-xs font-normal text-[#8C7A6B]">场练舞</span>
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* Quick Presets & Precision Date Picker */}
-            <div className="space-y-2">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                <span className="text-xs font-bold text-[#57463B] flex items-center gap-1.5">
-                  <CalendarDays className="w-3.5 h-3.5 text-[#FF7E67]" />
-                  <span>选择或更改起步日:</span>
-                </span>
-
-                {/* Direct native date picker input */}
-                <div className="flex items-center gap-2 text-xs">
-                  <span className="text-[#8C7A6B] text-[11px]">快捷指定日期:</span>
-                  <input
-                    type="date"
-                    value={tempSelectedDate}
-                    max={new Date().toISOString().slice(0, 10)}
-                    onChange={(e) => {
-                      if (e.target.value) {
-                        setTempSelectedDate(e.target.value);
-                        const parts = e.target.value.split('-').map(Number);
-                        if (parts[0] && parts[1]) {
-                          setCalendarViewYear(parts[0]);
-                          setCalendarViewMonth(parts[1] - 1);
-                        }
-                      }
-                    }}
-                    className="text-xs px-2.5 py-1 rounded-xl border border-[#E5D7CB] bg-white text-[#292524] focus:ring-2 focus:ring-[#FF7E67]/30 outline-none font-mono font-medium cursor-pointer"
-                  />
-                </div>
-              </div>
-
-              {/* Quick Preset Chips */}
-              <div className="flex flex-wrap items-center gap-1.5">
-                {[
-                  { 
-                    label: '30 天前', 
-                    date: (() => {
-                      const d = new Date();
-                      d.setDate(d.getDate() - 30);
-                      return d.toISOString().slice(0, 10);
-                    })() 
-                  },
-                  { 
-                    label: '60 天前', 
-                    date: (() => {
-                      const d = new Date();
-                      d.setDate(d.getDate() - 60);
-                      return d.toISOString().slice(0, 10);
-                    })() 
-                  },
-                  { 
-                    label: '今天起步', 
-                    date: new Date().toISOString().slice(0, 10) 
-                  },
-                ].map((preset) => (
-                  <button
-                    key={preset.label}
-                    type="button"
-                    onClick={() => {
-                      setTempSelectedDate(preset.date);
-                      const parts = preset.date.split('-').map(Number);
-                      if (parts[0] && parts[1]) {
-                        setCalendarViewYear(parts[0]);
-                        setCalendarViewMonth(parts[1] - 1);
-                      }
-                    }}
-                    className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all cursor-pointer ${
-                      tempSelectedDate === preset.date
-                        ? 'bg-[#FF7E67] text-white shadow-2xs font-bold'
-                        : 'bg-[#F9EFE6] text-[#786457] hover:bg-[#F2E2D4]'
-                    }`}
-                  >
-                    {preset.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Interactive Month Calendar Grid */}
-            <div className="border border-[#F0E2D5] rounded-2xl p-3.5 bg-[#FFFDFB]">
-              {/* Month Navigation */}
-              <div className="flex items-center justify-between mb-3 px-1">
-                <button
-                  type="button"
-                  onClick={handlePrevMonth}
-                  className="p-1.5 rounded-lg text-[#7A695C] hover:text-[#292524] hover:bg-[#F5EAE0] transition-colors cursor-pointer"
-                  title="上一月"
-                >
-                  <ChevronLeft className="w-4 h-4" />
-                </button>
-                <div className="flex items-center gap-2">
-                  <span className="font-display font-bold text-sm text-[#292524]">
-                    {calendarViewYear} 年 {calendarViewMonth + 1} 月
-                  </span>
-                  <span className="text-[11px] text-[#A8988A]">
-                    (点击日期即可设定为起步日)
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  onClick={handleNextMonth}
-                  className="p-1.5 rounded-lg text-[#7A695C] hover:text-[#292524] hover:bg-[#F5EAE0] transition-colors cursor-pointer"
-                  title="下一月"
-                >
-                  <ChevronRight className="w-4 h-4" />
-                </button>
-              </div>
-
-              {/* Day of Week Headers (Mon - Sun) */}
-              <div className="grid grid-cols-7 gap-1 text-center mb-1.5">
-                {['一', '二', '三', '四', '五', '六', '日'].map((dayName, idx) => (
-                  <span
-                    key={dayName}
-                    className={`text-[11px] font-bold py-1 ${
-                      idx >= 5 ? 'text-[#D94834]' : 'text-[#8C7A6B]'
-                    }`}
-                  >
-                    {dayName}
-                  </span>
-                ))}
-              </div>
-
-              {/* Day Cells Grid */}
-              <div className="grid grid-cols-7 gap-1">
-                {calendarGridDays.map((day) => {
-                  const hasSessions = day.sessions.length > 0;
-                  const isSelected = day.dateStr === tempSelectedDate;
-
-                  return (
-                    <div
-                      key={day.dateStr}
-                      onClick={() => setTempSelectedDate(day.dateStr)}
-                      onMouseEnter={() => {
-                        if (hasSessions) {
-                          setHoveredCalendarDay({ date: day.dateStr, sessions: day.sessions });
-                        }
-                      }}
-                      onMouseLeave={() => setHoveredCalendarDay(null)}
-                      className={`relative min-h-[46px] p-1 rounded-xl flex flex-col items-center justify-between border transition-all cursor-pointer select-none group ${
-                        isSelected
-                          ? 'bg-[#FF7E67] text-white border-[#FF654B] shadow-sm font-bold scale-[1.02] z-10'
-                          : day.isStartDate
-                          ? 'bg-[#FFF0EB] border-[#FFC7B8] text-[#D94834] font-bold'
-                          : day.isAfterStart && hasSessions
-                          ? 'bg-[#FFF8F5] border-[#FFD5C8] text-[#292524] hover:bg-[#FFEAE2]'
-                          : day.isCurrentMonth
-                          ? 'bg-white border-transparent text-[#443831] hover:bg-[#F9EFE6]'
-                          : 'bg-transparent border-transparent text-[#C2B5A8] opacity-60'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between w-full px-0.5">
-                        <span className="text-xs leading-none font-semibold">
-                          {day.dayNum}
-                        </span>
-                        {day.isToday && (
-                          <span
-                            className={`w-1.5 h-1.5 rounded-full ${
-                              isSelected ? 'bg-white' : 'bg-[#FF7E67]'
-                            }`}
-                            title="今天"
-                          />
-                        )}
-                      </div>
-
-                      {/* Marking badge for dance sessions or start date */}
-                      <div className="w-full flex items-center justify-center mt-0.5">
-                        {isSelected ? (
-                          <span className="text-[9px] px-1 rounded bg-white/25 text-white font-bold leading-tight">
-                            起步
-                          </span>
-                        ) : day.isStartDate ? (
-                          <span className="text-[9px] px-1 rounded bg-[#FFD7CE] text-[#C8402D] font-bold leading-tight">
-                            🌱起步
-                          </span>
-                        ) : day.isAfterStart && hasSessions ? (
-                          <span className="inline-flex items-center gap-0.5 text-[9px] font-bold text-[#E65B47] bg-[#FFEAE3] px-1 py-0.2 rounded-full border border-[#FFD3C7]">
-                            <span>💃</span>
-                            <span>{day.sessions.length > 1 ? day.sessions.length : ''}</span>
-                          </span>
-                        ) : null}
-                      </div>
-
-                    </div>
-                  );
-                })}
-              </div>
-
-              {/* Tooltip detail for hovered session day */}
-              {hoveredCalendarDay && (
-                <div className="mt-2.5 p-2 bg-[#FFF4ED] border border-[#FED0BE] rounded-xl text-xs text-[#574438] flex items-center justify-between gap-2 animate-fadeIn">
-                  <div className="flex items-center gap-1.5">
-                    <span className="font-bold text-[#D94834]">{hoveredCalendarDay.date} 练舞记录:</span>
-                    <span className="truncate max-w-[280px]">
-                      {hoveredCalendarDay.sessions.map((s) => s.title).join(' / ')}
-                    </span>
-                  </div>
-                  <span className="text-[10px] bg-white px-2 py-0.5 rounded-md font-semibold text-[#D94834] shrink-0 border border-[#FFD0C0]">
-                    已记录打卡
-                  </span>
-                </div>
-              )}
-            </div>
-
-            {/* Calendar Legend */}
-            <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-[#7A695C] px-1">
-              <div className="flex items-center gap-3">
-                <span className="flex items-center gap-1">
-                  <span className="w-3 h-3 rounded bg-[#FF7E67] border border-[#FF654B] inline-block" />
-                  <span>新选定起步日</span>
-                </span>
-                <span className="flex items-center gap-1">
-                  <span className="w-3 h-3 rounded bg-[#FFEAE3] border border-[#FFD3C7] text-[8px] flex items-center justify-center">💃</span>
-                  <span>从起步日标记的练舞场次</span>
-                </span>
-                <span className="flex items-center gap-1">
-                  <span className="w-2 h-2 rounded-full bg-[#FF7E67] inline-block" />
-                  <span>今天</span>
-                </span>
-              </div>
-              <span className="text-[#A8988A]">
-                修改后系统会自动从新日期重新标记
-              </span>
-            </div>
-
-            {/* Modal Actions */}
-            <div className="flex items-center justify-between pt-2 border-t border-[#F1E5D8]">
-              <button
-                type="button"
-                onClick={() => setIsClearStartConfirmOpen(true)}
-                className="text-xs font-semibold text-[#8C7A6B] hover:text-[#292524] flex items-center gap-1 px-2.5 py-1.5 rounded-xl hover:bg-[#FAF2EB] transition-colors cursor-pointer"
-              >
-                <RotateCcw className="w-3 h-3" />
-                <span>清除起步日（练习天数归零）</span>
-              </button>
-
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setIsDatePickerOpen(false)}
-                  className="px-4 py-2 text-xs font-semibold text-[#78695C] hover:text-[#292524] hover:bg-[#FAF2EB] rounded-xl transition-colors cursor-pointer"
-                >
-                  取消
-                </button>
-                <button
-                  type="button"
-                  onClick={() => tempSelectedDate && handleApplyStartDate(tempSelectedDate)}
-                  disabled={!tempSelectedDate}
-                  className="px-5 py-2 bg-[#FF7E67] hover:bg-[#E65B47] disabled:bg-[#E8D5CC] disabled:cursor-not-allowed text-white text-xs font-bold rounded-xl shadow-2xs hover:shadow-sm transition-all cursor-pointer flex items-center gap-1.5"
-                >
-                  <Check className="w-3.5 h-3.5" />
-                  <span>确认设定起步日{tempSelectedDate ? ` (${tempSelectedDate})` : ''}</span>
-                </button>
-              </div>
-            </div>
-
-          </div>
-        </div>
-      )}
-
-      {/* 清除起步日 · 二次确认弹窗 */}
-      <ConfirmDialog
-        open={isClearStartConfirmOpen}
-        title="确认清除学舞起步日？"
-        description="清除后练习天数会立即归零，且需要重新设置起步日才能继续累计。作品记录不会受影响。"
-        details={[
-          startDate ? `当前起步日：${startDate}` : '当前尚未设置起步日',
-          '练习天数将重置为 0 天',
-          '已上传的舞蹈作品不会被删除',
-        ]}
-        confirmLabel="确认清除起步日"
-        onCancel={() => setIsClearStartConfirmOpen(false)}
-        onConfirm={() => {
-          setIsClearStartConfirmOpen(false);
-          handleApplyStartDate(null);
-        }}
+      {/* 学舞起步日：日历、预设、清除确认都在 StartDateModal 内 */}
+      <StartDateModal
+        open={isDatePickerOpen}
+        startDate={startDate}
+        posts={posts}
+        practiceDays={practiceDays}
+        onClose={() => setIsDatePickerOpen(false)}
+        onApply={handleApplyStartDate}
       />
 
       {/* Floating Toast Notification for Date Updates */}
@@ -2013,7 +1684,7 @@ export const Timeline: React.FC<TimelineProps> = ({
 
       {/* Permanent Dance Work Delete Confirmation Modal */}
       {postToDelete && (
-        <div 
+        <div
           className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 animate-fadeIn"
           role="dialog"
           aria-modal="true"
@@ -2028,8 +1699,12 @@ export const Timeline: React.FC<TimelineProps> = ({
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
-                    <h3 id="delete-post-modal-title" className="text-base sm:text-lg font-bold text-stone-900">永久删除作品记录</h3>
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-100 text-rose-700 border border-rose-200">物理抹除</span>
+                    <h3 id="delete-post-modal-title" className="text-base sm:text-lg font-bold text-stone-900">
+                      永久删除作品记录
+                    </h3>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-100 text-rose-700 border border-rose-200">
+                      物理抹除
+                    </span>
                   </div>
                   <p className="text-xs text-stone-500 mt-0.5">从本地 IndexedDB 与永久存储中彻底删除</p>
                 </div>
@@ -2072,7 +1747,10 @@ export const Timeline: React.FC<TimelineProps> = ({
                 </p>
                 <div className="flex flex-wrap gap-1 mt-1">
                   {postToDelete.categories.map((c) => (
-                    <span key={c} className="text-[10px] px-1.5 py-0.2 rounded-md bg-[#FAF4EF] text-[#8C7A6B] border border-[#F0E4D8]">
+                    <span
+                      key={c}
+                      className="text-[10px] px-1.5 py-0.2 rounded-md bg-[#FAF4EF] text-[#8C7A6B] border border-[#F0E4D8]"
+                    >
                       {c}
                     </span>
                   ))}
@@ -2090,7 +1768,8 @@ export const Timeline: React.FC<TimelineProps> = ({
                 <span>确认永久物理删除该篇作品吗？</span>
               </div>
               <p className="text-[11px] text-rose-800/90 leading-relaxed">
-                执行后，该作品的视频/封面数据、文字心得及所有互动评论将从本地数据存储中永久销毁，<strong>不可撤销且无法恢复</strong>。删除后，主页作品流与各分类统计数值将立即自动刷新。
+                执行后，该作品的视频/封面数据、文字心得及所有互动评论将从本地数据存储中永久销毁，
+                <strong>不可撤销且无法恢复</strong>。删除后，主页作品流与各分类统计数值将立即自动刷新。
               </p>
             </div>
 
@@ -2162,454 +1841,19 @@ export const Timeline: React.FC<TimelineProps> = ({
         onSave={handleSavePostTags}
       />
 
-      {/* Dance Style Management Modal (Add & Delete Styles with Difficulty Levels & Consolidated Counts) */}
-      {isStyleManagerOpen && (
-        <div
-          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-5 animate-fadeIn"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="style-manager-title"
-        >
-          <div className="bg-white rounded-3xl max-w-2xl w-full max-h-[90vh] flex flex-col shadow-2xl border border-[#F2DAC2] animate-scaleUp overflow-hidden">
-            
-            {/* Modal Header */}
-            <div className="p-4 sm:p-5 bg-gradient-to-r from-[#FFF5EC] to-[#FFFBF8] border-b border-[#F2DAC2] flex items-center justify-between shrink-0">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-[#FFEBDC] text-[#D35400] flex items-center justify-center shrink-0 border border-[#F5CDA2]">
-                  <SlidersHorizontal className="w-5 h-5" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h3 id="style-manager-title" className="text-base sm:text-lg font-bold text-[#3D2C1E]">
-                      舞种与难度管理
-                    </h3>
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#FFEBDC] text-[#D35400] border border-[#F5CDA2]">
-                      即时生效 · 无需刷新
-                    </span>
-                  </div>
-                  <p className="text-xs text-[#8C7A6B] mt-0.5">
-                    自由添加新舞种或删除已有舞种，配套三级难度分级与多维属性
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsStyleManagerOpen(false)}
-                className="text-[#998675] hover:text-[#3D2C1E] p-1.5 rounded-xl hover:bg-white/80 transition-colors cursor-pointer"
-                title="关闭"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* Real-time Aggregation Banner (Consolidated Under "All") */}
-            <div className="p-3 sm:p-4 bg-[#FEF9F3] border-b border-[#F5E2CE] grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs">
-              {/* Difficulty Consolidation */}
-              <div className="p-2.5 rounded-2xl bg-white border border-[#F2DEC9] shadow-2xs">
-                <div className="flex items-center justify-between mb-1.5">
-                  <span className="font-bold text-[#8C6B46] flex items-center gap-1.5">
-                    <Flame className="w-3.5 h-3.5 text-[#D35400]" />
-                    <span>难度分级汇总 (全部 = 汇总总数)</span>
-                  </span>
-                  <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-[#FFF2E2] text-[#D35400] border border-[#F5CDA2]">
-                    全部 {stageCounts.全部} 篇
-                  </span>
-                </div>
-                <div className="grid grid-cols-3 gap-1 text-[11px] text-center">
-                  <div className="p-1 rounded-lg bg-[#FAF4ED] border border-[#F0E2D5]">
-                    <span className="text-[#8C7A6B] block text-[10px]">入门 Beginner</span>
-                    <strong className="text-[#3D2C1E] font-bold">{stageCounts.入门}</strong>
-                  </div>
-                  <div className="p-1 rounded-lg bg-[#FAF4ED] border border-[#F0E2D5]">
-                    <span className="text-[#8C7A6B] block text-[10px]">进阶 Inter</span>
-                    <strong className="text-[#3D2C1E] font-bold">{stageCounts.进阶}</strong>
-                  </div>
-                  <div className="p-1 rounded-lg bg-[#FAF4ED] border border-[#F0E2D5]">
-                    <span className="text-[#8C7A6B] block text-[10px]">挑战 Challenge</span>
-                    <strong className="text-[#3D2C1E] font-bold">{stageCounts.挑战}</strong>
-                  </div>
-                </div>
-                <p className="text-[10px] text-[#A68F80] mt-1 text-center">
-                  入门 ({stageCounts.入门}) + 进阶 ({stageCounts.进阶}) + 挑战 ({stageCounts.挑战}) = 全部 ({stageCounts.全部})
-                </p>
-              </div>
-
-              {/* Media Consolidation */}
-              <div className="p-2.5 rounded-2xl bg-white border border-[#F2DEC9] shadow-2xs">
-                <div className="flex items-center justify-between mb-1.5">
-                  <span className="font-bold text-[#8C6B46] flex items-center gap-1.5">
-                    <Film className="w-3.5 h-3.5 text-[#E67E22]" />
-                    <span>媒体格式汇总 (全部 = 汇总总数)</span>
-                  </span>
-                  <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-[#FFF2E2] text-[#D35400] border border-[#F5CDA2]">
-                    全部 {mediaCounts.all} 篇
-                  </span>
-                </div>
-                <div className="grid grid-cols-2 gap-1.5 text-[11px] text-center">
-                  <div className="p-1 rounded-lg bg-[#FAF4ED] border border-[#F0E2D5] flex items-center justify-center gap-1.5">
-                    <Film className="w-3 h-3 text-[#D35400]" />
-                    <span className="text-[#8C7A6B]">视频 Videos:</span>
-                    <strong className="text-[#3D2C1E] font-bold">{mediaCounts.video}</strong>
-                  </div>
-                  <div className="p-1 rounded-lg bg-[#FAF4ED] border border-[#F0E2D5] flex items-center justify-center gap-1.5">
-                    <ImageIcon className="w-3 h-3 text-[#D35400]" />
-                    <span className="text-[#8C7A6B]">照片 Photos:</span>
-                    <strong className="text-[#3D2C1E] font-bold">{mediaCounts.image}</strong>
-                  </div>
-                </div>
-                <p className="text-[10px] text-[#A68F80] mt-1 text-center">
-                  视频 ({mediaCounts.video}) + 照片 ({mediaCounts.image}) = 全部 ({mediaCounts.all})
-                </p>
-              </div>
-            </div>
-
-            {/* Tab Navigation */}
-            <div className="flex items-center border-b border-[#F2DAC2] px-4 pt-2 bg-white shrink-0">
-              <button
-                type="button"
-                onClick={() => setStyleManagerTab('add')}
-                className={`flex items-center gap-1.5 py-2.5 px-4 text-xs font-bold border-b-2 transition-all cursor-pointer ${
-                  styleManagerTab === 'add'
-                    ? 'border-[#E67E22] text-[#D35400]'
-                    : 'border-transparent text-[#8C7A6B] hover:text-[#3D2C1E]'
-                }`}
-              >
-                <Plus className="w-3.5 h-3.5" />
-                <span>添加新舞种</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setStyleManagerTab('manage')}
-                className={`flex items-center gap-1.5 py-2.5 px-4 text-xs font-bold border-b-2 transition-all cursor-pointer ${
-                  styleManagerTab === 'manage'
-                    ? 'border-[#E67E22] text-[#D35400]'
-                    : 'border-transparent text-[#8C7A6B] hover:text-[#3D2C1E]'
-                }`}
-              >
-                <Tag className="w-3.5 h-3.5" />
-                <span>舞种库管理与删除</span>
-                <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-[#FAF0E6] text-[#A66230] font-bold">
-                  {danceStyles.length}
-                </span>
-              </button>
-            </div>
-
-            {/* Modal Body Content */}
-            <div className="p-4 sm:p-5 overflow-y-auto flex-1 space-y-4">
-              {styleManagerTab === 'add' ? (
-                /* Tab 1: Add New Dance Style Form */
-                <form onSubmit={handleAddDanceStyle} className="space-y-4">
-                  {/* Style Name */}
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-[#3D2C1E] flex items-center justify-between">
-                      <span>舞种名称 <strong className="text-rose-500">*</strong></span>
-                      <span className="text-[10px] text-[#A68F80]">支持中英文与自定义简称</span>
-                    </label>
-                    <input
-                      type="text"
-                      value={newStyleName}
-                      onChange={(e) => setNewStyleName(e.target.value)}
-                      placeholder="例如：Waacking, Urban编舞, Girls Hip-Hop, House..."
-                      className="w-full px-3.5 py-2.5 text-xs bg-[#FAF5F0] border border-[#E8D4C2] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#E67E22]/30 focus:bg-white text-[#3D2C1E]"
-                      required
-                    />
-                    {/* Quick suggestion tags */}
-                    <div className="flex flex-wrap items-center gap-1.5 pt-1">
-                      <span className="text-[10px] text-[#A68F80]">快速选择:</span>
-                      {['Waacking', 'Girls Hip-Hop', 'House', 'Urban编舞', 'Locking', '当代抒情爵士', 'K-Pop Cover', 'Popping', 'Swag'].map((suggest) => (
-                        <button
-                          key={suggest}
-                          type="button"
-                          onClick={() => setNewStyleName(suggest)}
-                          className="text-[10px] px-2 py-0.5 rounded-lg bg-[#FAF0E6] hover:bg-[#FFE3C7] text-[#9C5821] border border-[#F2DAC2] transition-colors cursor-pointer"
-                        >
-                          +{suggest}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Difficulty Filter with Three Levels (Beginner, Intermediate, Challenge) */}
-                  <div className="space-y-1.5 pt-1">
-                    <label className="text-xs font-bold text-[#3D2C1E] flex items-center justify-between">
-                      <span>难度等级设置 (Difficulty Filter) <strong className="text-rose-500">*</strong></span>
-                      <span className="text-[10px] text-[#A68F80]">三级难度分级，联动主页难度筛选</span>
-                    </label>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                      {[
-                        { level: '入门' as const, en: 'Beginner', desc: '零基础友好 · 基础律动与协调', badge: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
-                        { level: '进阶' as const, en: 'Intermediate', desc: '卡点控制 · 力量爆发与组合编舞', badge: 'bg-amber-50 text-amber-700 border-amber-200' },
-                        { level: '挑战' as const, en: 'Challenge', desc: '高难度动作 · 高跟/即兴Solo', badge: 'bg-rose-50 text-rose-700 border-rose-200' },
-                      ].map((item) => (
-                        <button
-                          key={item.level}
-                          type="button"
-                          onClick={() => setNewStyleDifficulty(item.level)}
-                          className={`p-2.5 rounded-2xl border text-left transition-all cursor-pointer ${
-                            newStyleDifficulty === item.level
-                              ? 'bg-[#FFF7F0] border-[#E67E22] ring-2 ring-[#E67E22]/20 shadow-xs'
-                              : 'bg-white border-[#EFE2D5] hover:border-[#E0CCBA]'
-                          }`}
-                        >
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="text-xs font-bold text-[#3D2C1E]">{item.level}</span>
-                            <span className={`text-[9px] font-bold px-1.5 py-0.2 rounded-full border ${item.badge}`}>
-                              {item.en}
-                            </span>
-                          </div>
-                          <p className="text-[10px] text-[#8C7A6B] leading-snug">{item.desc}</p>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Supplementary Filtering Dimensions Beyond the Three Levels */}
-                  <div className="p-3 bg-[#FAF5F0] border border-[#EFE2D5] rounded-2xl space-y-3">
-                    <div className="flex items-center gap-1.5 text-xs font-bold text-[#8C6B46]">
-                      <Filter className="w-3.5 h-3.5 text-[#D35400]" />
-                      <span>补充过滤维度与属性 (Supplementary Dimensions)</span>
-                    </div>
-
-                    {/* Dimension 1: BPM & Speed Range */}
-                    <div className="space-y-1">
-                      <label className="text-[11px] font-semibold text-[#5A4535]">
-                        1. 音乐节奏与速度区间 (BPM Range):
-                      </label>
-                      <div className="flex flex-wrap gap-1.5">
-                        {['慢速 (60-90)', '中速 (90-115)', '快节奏 (115+)', '全速域'].map((bpm) => (
-                          <button
-                            key={bpm}
-                            type="button"
-                            onClick={() => setNewStyleBpm(bpm as any)}
-                            className={`text-xs px-2.5 py-1 rounded-xl border transition-all cursor-pointer ${
-                              newStyleBpm === bpm
-                                ? 'bg-[#E67E22] text-white border-[#D35400] font-bold shadow-2xs'
-                                : 'bg-white text-[#7A6454] border-[#EFE2D5] hover:bg-[#F3E7D9]'
-                            }`}
-                          >
-                            {bpm}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Dimension 2: Training Focus */}
-                    <div className="space-y-1">
-                      <label className="text-[11px] font-semibold text-[#5A4535]">
-                        2. 训练侧重点 (Training Focus):
-                      </label>
-                      <div className="flex flex-wrap gap-1.5">
-                        {['基础律动', '舞台编舞', '动作拆解', '体能耐力'].map((focus) => (
-                          <button
-                            key={focus}
-                            type="button"
-                            onClick={() => setNewStyleFocus(focus as any)}
-                            className={`text-xs px-2.5 py-1 rounded-xl border transition-all cursor-pointer ${
-                              newStyleFocus === focus
-                                ? 'bg-[#E67E22] text-white border-[#D35400] font-bold shadow-2xs'
-                                : 'bg-white text-[#7A6454] border-[#EFE2D5] hover:bg-[#F3E7D9]'
-                            }`}
-                          >
-                            {focus}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Dimension 3: Theme Color */}
-                    <div className="space-y-1">
-                      <label className="text-[11px] font-semibold text-[#5A4535]">
-                        3. 分类标识主题色 (Badge Color):
-                      </label>
-                      <div className="flex items-center gap-2">
-                        {[
-                          { color: '#E67E22', label: '暖橙' },
-                          { color: '#E056FD', label: '魅粉' },
-                          { color: '#F39C12', label: '金黄' },
-                          { color: '#27AE60', label: '翠绿' },
-                          { color: '#8E44AD', label: '暮紫' },
-                          { color: '#2980B9', label: '海蓝' },
-                        ].map((c) => (
-                          <button
-                            key={c.color}
-                            type="button"
-                            onClick={() => setNewStyleColor(c.color)}
-                            className={`w-6 h-6 rounded-full flex items-center justify-center transition-all cursor-pointer ${
-                              newStyleColor === c.color ? 'ring-2 ring-offset-2 ring-[#E67E22] scale-110' : 'opacity-80 hover:opacity-100'
-                            }`}
-                            style={{ backgroundColor: c.color }}
-                            title={c.label}
-                          >
-                            {newStyleColor === c.color && <Check className="w-3.5 h-3.5 text-white" />}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Submit Button */}
-                  <div className="pt-2">
-                    <button
-                      type="submit"
-                      disabled={!newStyleName.trim()}
-                      className="w-full py-2.5 px-4 bg-[#E67E22] hover:bg-[#D35400] disabled:bg-stone-300 text-white text-xs font-bold rounded-2xl shadow-sm hover:shadow transition-all cursor-pointer flex items-center justify-center gap-2"
-                    >
-                      <Plus className="w-4 h-4" />
-                      <span>确认添加该舞种 (即时生效无需刷新)</span>
-                    </button>
-                  </div>
-                </form>
-              ) : (
-                /* Tab 2: Manage & Delete Existing Styles */
-                <div className="space-y-3">
-                  {/* Filter inside tab by difficulty */}
-                  <div className="flex items-center justify-between pb-1">
-                    <div className="flex items-center gap-1.5 text-xs">
-                      <span className="text-[#8C7A6B] font-bold text-[11px]">按难度过滤:</span>
-                      {['全部', '入门', '进阶', '挑战'].map((diff) => (
-                        <button
-                          key={diff}
-                          type="button"
-                          onClick={() => setStyleFilterDifficulty(diff)}
-                          className={`px-2.5 py-0.5 rounded-lg text-xs font-medium transition-all ${
-                            styleFilterDifficulty === diff
-                              ? 'bg-[#E67E22] text-white font-bold shadow-2xs'
-                              : 'bg-[#FAF5F0] text-[#7A6454] hover:bg-[#F2E5D5]'
-                          }`}
-                        >
-                          {diff}
-                        </button>
-                      ))}
-                    </div>
-                    <span className="text-[11px] text-[#A68F80]">
-                      共 {danceStyles.length} 种可用舞种
-                    </span>
-                  </div>
-
-                  {/* Styles Grid */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                    {danceStyles
-                      .filter((s) => styleFilterDifficulty === '全部' || s.difficulty === styleFilterDifficulty)
-                      .map((style) => {
-                        const count = getCategoryCount(style.name);
-                        return (
-                          <div
-                            key={style.id}
-                            className="p-3 rounded-2xl bg-white border border-[#EFE2D5] hover:border-[#E8CCA6] shadow-2xs flex items-start justify-between gap-2.5 transition-all"
-                          >
-                            <div className="flex items-start gap-2.5 min-w-0">
-                              <span
-                                className="w-3 h-3 rounded-full mt-1 shrink-0"
-                                style={{ backgroundColor: style.themeColor || '#E67E22' }}
-                              />
-                              <div className="min-w-0">
-                                <div className="flex items-center gap-1.5 flex-wrap">
-                                  <h4 className="text-xs font-bold text-[#3D2C1E] truncate">{style.name}</h4>
-                                  <span
-                                    className={`text-[9px] px-1.5 py-0.2 rounded-md font-bold ${
-                                      style.difficulty === '入门'
-                                        ? 'bg-emerald-100 text-emerald-800'
-                                        : style.difficulty === '进阶'
-                                        ? 'bg-amber-100 text-amber-800'
-                                        : 'bg-rose-100 text-rose-800'
-                                    }`}
-                                  >
-                                    {style.difficulty}
-                                  </span>
-                                </div>
-                                <div className="flex items-center gap-1.5 text-[10px] text-[#8C7A6B] mt-1">
-                                  <span>{style.trainingFocus || '基础律动'}</span>
-                                  <span>·</span>
-                                  <span>{style.bpmRange || '中速'}</span>
-                                  <span>·</span>
-                                  <strong className="text-[#D35400] font-bold">{count} 篇作品</strong>
-                                </div>
-                              </div>
-                            </div>
-
-                            {/* Delete button */}
-                            <button
-                              type="button"
-                              onClick={() => setStyleToDelete(style)}
-                              className="w-7 h-7 flex items-center justify-center rounded-xl text-stone-400 hover:text-rose-600 hover:bg-rose-50 border border-transparent hover:border-rose-200 transition-colors cursor-pointer shrink-0"
-                              title={`删除舞种「${style.name}」`}
-                              aria-label={`删除舞种 ${style.name}`}
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        );
-                      })}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Modal Footer */}
-            <div className="p-3 sm:p-4 bg-[#FAF5F0] border-t border-[#F2DAC2] flex items-center justify-between text-xs text-[#8C7A6B]">
-              <span>更改立即可见，实时同步作品流与所有筛选统计</span>
-              <button
-                type="button"
-                onClick={() => setIsStyleManagerOpen(false)}
-                className="px-4 py-1.5 bg-white hover:bg-[#F5EADB] text-[#3D2C1E] font-bold rounded-xl border border-[#E0CEBF] transition-colors cursor-pointer"
-              >
-                完成退出
-              </button>
-            </div>
-
-          </div>
-        </div>
-      )}
-
-      {/* Style Delete Confirmation Dialog */}
-      {styleToDelete && (
-        <div className="fixed inset-0 z-60 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-fadeIn">
-          <div className="bg-white rounded-3xl max-w-md w-full p-5 sm:p-6 shadow-2xl border border-rose-200 flex flex-col gap-3.5 animate-scaleUp">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-rose-100 text-rose-600 flex items-center justify-center shrink-0 border border-rose-200">
-                <Trash2 className="w-5 h-5" />
-              </div>
-              <div>
-                <h3 className="text-base font-bold text-stone-900">确认删除舞种「{styleToDelete.name}」？</h3>
-                <p className="text-xs text-stone-500 mt-0.5">该舞种将从筛选栏与舞种库中永久移除</p>
-              </div>
-            </div>
-
-            <div className="p-3 bg-amber-50 border border-amber-200 rounded-2xl text-xs text-amber-900 leading-relaxed">
-              <p className="font-bold mb-0.5">💡 安全平滑提示：</p>
-              <p>
-                当前系统中有 <strong>{getCategoryCount(styleToDelete.name)}</strong> 篇作品关联了该舞种。删除后，相关作品将自动重归类到「其他」类别，不会丢失任何视频、图片或打卡心得！
-              </p>
-            </div>
-
-            <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-stone-100">
-              <button
-                type="button"
-                onClick={() => setStyleToDelete(null)}
-                className="px-4 py-2 text-xs font-semibold text-stone-600 hover:text-stone-900 hover:bg-stone-100 rounded-xl transition-colors cursor-pointer"
-              >
-                取消保留
-              </button>
-              <button
-                type="button"
-                onClick={() => handleConfirmDeleteDanceStyle(styleToDelete)}
-                className="px-5 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-xl shadow-xs hover:shadow-sm flex items-center gap-1.5 transition-all cursor-pointer"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-                <span>确认删除并即时生效</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Floating Success Toast for Dance Style Actions */}
-      {styleActionToast && (
-        <div className="fixed bottom-6 right-6 z-50 max-w-md bg-stone-900/95 text-white text-xs px-4 py-3 rounded-2xl shadow-xl flex items-center gap-2.5 border border-stone-700 animate-slideUp backdrop-blur-md">
-          <Check className="w-4 h-4 text-emerald-400 shrink-0" />
-          <span className="font-medium">{styleActionToast}</span>
-        </div>
-      )}
+      {/* 舞种管理：新增、筛选、删除都在 StyleManagerModal 内 */}
+      <StyleManagerModal
+        open={isStyleManagerOpen}
+        danceStyles={danceStyles}
+        countFor={getCategoryCount}
+        suggestedTags={suggestedTags}
+        stageCounts={stageCounts}
+        mediaCounts={mediaCounts}
+        initialTab={styleManagerTab}
+        onClose={() => setIsStyleManagerOpen(false)}
+        onAddStyle={handleAddDanceStyle}
+        onDeleteStyle={handleDeleteDanceStyle}
+      />
 
       {/* Personality Tags & Bio Customization Modal */}
       {isTagModalOpen && (
@@ -2620,7 +1864,6 @@ export const Timeline: React.FC<TimelineProps> = ({
           aria-labelledby="personality-tags-title"
         >
           <div className="bg-white rounded-3xl max-w-xl w-full max-h-[90vh] flex flex-col shadow-2xl border border-[#F8D2CC] animate-scaleUp overflow-hidden">
-            
             {/* Modal Header */}
             <div className="p-4 sm:p-5 bg-gradient-to-r from-[#FFF0EC] to-[#FFF8F6] border-b border-[#F8D2CC] flex items-center justify-between shrink-0">
               <div className="flex items-center gap-3">
@@ -2636,9 +1879,7 @@ export const Timeline: React.FC<TimelineProps> = ({
                       实时保存
                     </span>
                   </div>
-                  <p className="text-xs text-[#8C7A6B] mt-0.5">
-                    个性化展示你的舞者态度、练习习惯与阶段心境
-                  </p>
+                  <p className="text-xs text-[#8C7A6B] mt-0.5">个性化展示你的舞者态度、练习习惯与阶段心境</p>
                 </div>
               </div>
               <button
@@ -2653,7 +1894,6 @@ export const Timeline: React.FC<TimelineProps> = ({
 
             {/* Modal Body */}
             <div className="p-4 sm:p-5 overflow-y-auto flex-1 space-y-5">
-              
               {/* Section 1: Personality Bio Signature */}
               <div className="p-3.5 bg-[#FAF5F0] border border-[#F2DAC2] rounded-2xl space-y-2.5">
                 <div className="flex items-center justify-between">
@@ -2759,7 +1999,10 @@ export const Timeline: React.FC<TimelineProps> = ({
               </div>
 
               {/* Section 3: Add New Custom Tag Form */}
-              <form onSubmit={handleAddPersonalityTag} className="p-3.5 bg-[#FAF5F0] border border-[#F2DAC2] rounded-2xl space-y-3">
+              <form
+                onSubmit={handleAddPersonalityTag}
+                className="p-3.5 bg-[#FAF5F0] border border-[#F2DAC2] rounded-2xl space-y-3"
+              >
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold text-[#3D2C1E] flex items-center gap-1.5">
                     <Plus className="w-3.5 h-3.5 text-[#E67E22]" />
@@ -2794,9 +2037,7 @@ export const Timeline: React.FC<TimelineProps> = ({
                   <span className="text-[11px] font-semibold text-[#5A4535]">标签文字内容:</span>
                   <div className="flex items-center gap-2">
                     <div className="relative flex-1">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm">
-                        {newTagEmoji}
-                      </span>
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm">{newTagEmoji}</span>
                       <input
                         type="text"
                         value={newTagText}
@@ -2819,7 +2060,9 @@ export const Timeline: React.FC<TimelineProps> = ({
                         type="button"
                         onClick={() => setNewTagColorIndex(idx)}
                         className={`px-2.5 py-1 rounded-xl text-[11px] font-bold border transition-all cursor-pointer flex items-center gap-1 ${
-                          newTagColorIndex === idx ? 'ring-2 ring-[#E67E22] scale-105 shadow-2xs' : 'opacity-85 hover:opacity-100'
+                          newTagColorIndex === idx
+                            ? 'ring-2 ring-[#E67E22] scale-105 shadow-2xs'
+                            : 'opacity-85 hover:opacity-100'
                         }`}
                         style={{
                           backgroundColor: theme.bg,
@@ -2878,7 +2121,6 @@ export const Timeline: React.FC<TimelineProps> = ({
                   })}
                 </div>
               </div>
-
             </div>
 
             {/* Modal Footer */}
@@ -2892,7 +2134,6 @@ export const Timeline: React.FC<TimelineProps> = ({
                 完成
               </button>
             </div>
-
           </div>
         </div>
       )}
@@ -2904,7 +2145,6 @@ export const Timeline: React.FC<TimelineProps> = ({
           <span className="font-medium">{tagToast}</span>
         </div>
       )}
-
     </div>
   );
 };

@@ -1,13 +1,13 @@
 import { syncRemoveItem, syncSetItem } from '../utils/sync';
 import { compressAvatarFile } from '../utils/imageCompress';
 import React, { useState, useMemo, useEffect } from 'react';
-import { 
-  Heart, 
-  Sparkles, 
-  Calendar, 
-  Award, 
-  Layers, 
-  RotateCcw, 
+import {
+  Heart,
+  Sparkles,
+  Calendar,
+  Award,
+  Layers,
+  RotateCcw,
   Clock,
   TrendingUp,
   Activity,
@@ -19,29 +19,16 @@ import {
   Plus,
   X,
   Smile,
-  Tag
+  Tag,
 } from 'lucide-react';
-import {
-  ResponsiveContainer,
-  AreaChart,
-  Area,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-} from 'recharts';
+import { ResponsiveContainer, AreaChart, Area, Line, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
 import { DancePost } from '../types';
 import { PracticeTrajectoryChart } from './PracticeTrajectoryChart';
 import { JazzSkillTree } from './JazzSkillTree';
 import { BeginnerTips } from './BeginnerTips';
 import { usePracticeDays } from '../utils/practice';
 import { FALLBACK_NICKNAME } from '../utils/brand';
-import {
-  buildCalendarDays,
-  buildCalendarWeeks,
-  buildMonthStartTicks,
-} from '../utils/calendarPeriods';
+import { buildCalendarDays, buildCalendarWeeks, buildMonthStartTicks } from '../utils/calendarPeriods';
 
 export interface AboutProfileData {
   nickname: string;
@@ -53,13 +40,9 @@ export interface AboutProfileData {
 export const DEFAULT_ABOUT_PROFILE: AboutProfileData = {
   nickname: FALLBACK_NICKNAME,
   roleStage: '舞蹈爱好者 · 学习阶段',
-  bioText: '你好呀，欢迎来到我的舞蹈成长日记。白天是普通上班族，晚上和周末是我最期待的舞室时间。从肢体僵硬、分不清左右的第 1 天，到如今能跟着喜欢的音乐把一段动作顺畅跳完。这里不为展示什么专业大作，只想真诚记录一个普通人学跳舞的快乐、瓶颈与进步。',
-  habitTags: [
-    '💃 正在练自己的主项',
-    '🎵 偏爱中速律动',
-    '📍 周末常驻舞室',
-    '👯 热衷寻找约练舞伴',
-  ],
+  bioText:
+    '你好呀，欢迎来到我的舞蹈成长日记。白天是普通上班族，晚上和周末是我最期待的舞室时间。从肢体僵硬、分不清左右的第 1 天，到如今能跟着喜欢的音乐把一段动作顺畅跳完。这里不为展示什么专业大作，只想真诚记录一个普通人学跳舞的快乐、瓶颈与进步。',
+  habitTags: ['💃 正在练自己的主项', '🎵 偏爱中速律动', '📍 周末常驻舞室', '👯 热衷寻找约练舞伴'],
 };
 
 const PRESET_ROLE_STAGES = [
@@ -118,15 +101,18 @@ const STAGE_DEFS = [
 const PRESET_BIO_TEMPLATES = [
   {
     title: '工作与爱好平衡',
-    content: '你好呀，欢迎来到我的舞蹈成长日记。白天是普通上班族，晚上和周末是我最期待的舞室时间。从肢体僵硬、分不清左右的第 1 天，到如今能跟着喜欢的音乐把一段动作顺畅跳完。这里不为展示什么专业大作，只想真诚记录一个普通人学跳舞的快乐、瓶颈与进步。',
+    content:
+      '你好呀，欢迎来到我的舞蹈成长日记。白天是普通上班族，晚上和周末是我最期待的舞室时间。从肢体僵硬、分不清左右的第 1 天，到如今能跟着喜欢的音乐把一段动作顺畅跳完。这里不为展示什么专业大作，只想真诚记录一个普通人学跳舞的快乐、瓶颈与进步。',
   },
   {
     title: '专注身体律动与治愈',
-    content: '学舞第 1 年，慢慢学会倾听身体的声音。在这个小天地里，没有工作报表的压力，只有每一个纯粹的 8-Count 与大汗淋漓的畅快。跳舞不是为了比谁更完美，而是让身体自由呼吸 ✨',
+    content:
+      '学舞第 1 年，慢慢学会倾听身体的声音。在这个小天地里，没有工作报表的压力，只有每一个纯粹的 8-Count 与大汗淋漓的畅快。跳舞不是为了比谁更完美，而是让身体自由呼吸 ✨',
   },
   {
     title: '热爱坚持与突破自我',
-    content: '从零基础硬骨头到可以在舞室第一排自信做动作，跳舞带给我的远不止肢体线条的变化，更是面对未知挑战时的勇气。Keep dancing & stay wild!',
+    content:
+      '从零基础硬骨头到可以在舞室第一排自信做动作，跳舞带给我的远不止肢体线条的变化，更是面对未知挑战时的勇气。Keep dancing & stay wild!',
   },
 ];
 
@@ -250,7 +236,8 @@ export const AboutMe: React.FC<AboutMeProps> = ({
     }
   };
 
-  const activeAvatar = userAvatar || (typeof window !== 'undefined' ? localStorage.getItem('cici_user_avatar') : null) || DEFAULT_AVATAR;
+  const activeAvatar =
+    userAvatar || (typeof window !== 'undefined' ? localStorage.getItem('cici_user_avatar') : null) || DEFAULT_AVATAR;
 
   const handleAvatarClick = () => {
     fileInputRef.current?.click();
@@ -355,8 +342,9 @@ export const AboutMe: React.FC<AboutMeProps> = ({
   // 校验：三阶段篇数之和必须等于作品总数，用于界面自检统计是否遗漏
   const classifiedTotal = stageDistribution.reduce((sum, stage) => sum + stage.count, 0);
   const isStageCountSynced = classifiedTotal === posts.length;
-  const expandedStageData =
-    expandedStage ? stageDistribution.find((stage) => stage.key === expandedStage) ?? null : null;
+  const expandedStageData = expandedStage
+    ? (stageDistribution.find((stage) => stage.key === expandedStage) ?? null)
+    : null;
 
   // 月历活跃度走势：区间从「上月 1 号」到「今天」，每月 1 号重新起算周次
   const [today, setToday] = useState<Date>(() => new Date());
@@ -432,7 +420,6 @@ export const AboutMe: React.FC<AboutMeProps> = ({
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 space-y-6 animate-fadeIn">
-      
       {/* Avatar feedback toast */}
       {avatarFeedback && (
         <div
@@ -520,9 +507,7 @@ export const AboutMe: React.FC<AboutMeProps> = ({
           <div className="flex-1 text-center md:text-left relative group/profile">
             {/* Top row: Name & Stage & Edit button */}
             <div className="flex flex-wrap items-center justify-center md:justify-start gap-2">
-              <h2 className="text-2xl font-display font-black text-[#292524] tracking-tight">
-                {shownNickname}
-              </h2>
+              <h2 className="text-2xl font-display font-black text-[#292524] tracking-tight">{shownNickname}</h2>
               {profile.roleStage ? (
                 <span className="text-xs bg-[#FFEFE8] text-[#C4432E] px-3 py-1 rounded-full font-bold border border-[#FFD8CB]">
                   {profile.roleStage}
@@ -539,7 +524,7 @@ export const AboutMe: React.FC<AboutMeProps> = ({
               </button>
             </div>
 
-            <p 
+            <p
               onClick={handleOpenEditModal}
               title="点击直接自定义修改自我介绍"
               className="text-xs sm:text-sm text-[#574B40] mt-3 leading-relaxed max-w-2xl cursor-pointer hover:bg-stone-50/80 p-2 -m-2 rounded-xl transition-all border border-transparent hover:border-[#FFDACF]"
@@ -549,7 +534,10 @@ export const AboutMe: React.FC<AboutMeProps> = ({
 
             <div className="flex flex-wrap items-center justify-center md:justify-start gap-2 mt-4">
               {profile.habitTags.map((tag) => (
-                <span key={tag} className="text-xs bg-[#FAF2EB] text-[#78695C] px-3 py-1 rounded-lg border border-[#F2E5D8] flex items-center gap-1 shadow-2xs">
+                <span
+                  key={tag}
+                  className="text-xs bg-[#FAF2EB] text-[#78695C] px-3 py-1 rounded-lg border border-[#F2E5D8] flex items-center gap-1 shadow-2xs"
+                >
                   {tag}
                 </span>
               ))}
@@ -606,7 +594,6 @@ export const AboutMe: React.FC<AboutMeProps> = ({
 
       {/* 2.5 Recharts Practice Frequency Line Chart (Past 4 Weeks) */}
       <section className="bg-white border border-[#EFE3D5] rounded-3xl p-6 sm:p-7 shadow-xs space-y-6">
-        
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
@@ -662,10 +649,7 @@ export const AboutMe: React.FC<AboutMeProps> = ({
         <div className="w-full h-64 sm:h-72 bg-[#FFFDFB] border border-[#F0E4D8] rounded-2xl p-3 sm:p-4">
           {calendarTotalSessions > 0 ? (
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart
-                data={calendarDayData}
-                margin={{ top: 15, right: 20, left: -15, bottom: 5 }}
-              >
+              <AreaChart data={calendarDayData} margin={{ top: 15, right: 20, left: -15, bottom: 5 }}>
                 <defs>
                   <linearGradient id="rechartsJazzGrad" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="#FF7E67" stopOpacity={0.3} />
@@ -713,9 +697,7 @@ export const AboutMe: React.FC<AboutMeProps> = ({
                                 <span className="font-semibold">{data.titles.join('、')}</span>
                               </div>
                             ) : (
-                              <div className="mt-1 text-[11px] text-[#A8988A] leading-snug">
-                                当日暂无打卡记录
-                              </div>
+                              <div className="mt-1 text-[11px] text-[#A8988A] leading-snug">当日暂无打卡记录</div>
                             )}
                           </div>
                         </div>
@@ -772,9 +754,7 @@ export const AboutMe: React.FC<AboutMeProps> = ({
                   {week.practiceCount} 次 / {week.practiceDayCount} 天
                 </span>
               </div>
-              <p className="text-[11px] text-[#78695C] mt-1 leading-snug">
-                {week.milestone}
-              </p>
+              <p className="text-[11px] text-[#78695C] mt-1 leading-snug">{week.milestone}</p>
               {week.recordedWorks > 0 && (
                 <div className="mt-2 text-[10px] text-emerald-700 font-medium bg-emerald-50 px-2 py-0.5 rounded">
                   📹 已上传 {week.recordedWorks} 篇打卡
@@ -783,7 +763,6 @@ export const AboutMe: React.FC<AboutMeProps> = ({
             </div>
           ))}
         </div>
-
       </section>
 
       {/* 2.6 Full Practice Trajectory & Heatmap */}
@@ -833,9 +812,7 @@ export const AboutMe: React.FC<AboutMeProps> = ({
                 {index > 0 && <span className="text-[#C4AFA5] shrink-0">→</span>}
                 <button
                   type="button"
-                  onClick={() =>
-                    setExpandedStage((prev) => (prev === stage.key ? null : stage.key))
-                  }
+                  onClick={() => setExpandedStage((prev) => (prev === stage.key ? null : stage.key))}
                   aria-expanded={expandedStage === stage.key}
                   title={`${stage.key}阶段共 ${stage.count} 篇作品，点击${
                     expandedStage === stage.key ? '收起' : '查看'
@@ -880,13 +857,8 @@ export const AboutMe: React.FC<AboutMeProps> = ({
               ) : (
                 <ul className="max-h-44 overflow-y-auto divide-y divide-[#F2E5D8]">
                   {expandedStageData.posts.map((post) => (
-                    <li
-                      key={post.id}
-                      className="py-1.5 flex items-center justify-between gap-2 text-[11px]"
-                    >
-                      <span className="truncate font-semibold text-[#3D3126]">
-                        《{post.title}》
-                      </span>
+                    <li key={post.id} className="py-1.5 flex items-center justify-between gap-2 text-[11px]">
+                      <span className="truncate font-semibold text-[#3D3126]">《{post.title}》</span>
                       <span className="shrink-0 text-[#A89888] font-mono">
                         {post.date.slice(0, 10)}
                         {post.categories.length > 0 ? ` · ${post.categories.join(' / ')}` : ''}
@@ -899,9 +871,8 @@ export const AboutMe: React.FC<AboutMeProps> = ({
           )}
 
           <p className="text-[10px] text-[#A89888] font-mono mt-2">
-            统计校验：入门 {stageDistribution[0]?.count ?? 0} + 进阶{' '}
-            {stageDistribution[1]?.count ?? 0} + 挑战 {stageDistribution[2]?.count ?? 0} ={' '}
-            {classifiedTotal} 篇，作品总数 {posts.length} 篇
+            统计校验：入门 {stageDistribution[0]?.count ?? 0} + 进阶 {stageDistribution[1]?.count ?? 0} + 挑战{' '}
+            {stageDistribution[2]?.count ?? 0} = {classifiedTotal} 篇，作品总数 {posts.length} 篇
             <span className={isStageCountSynced ? 'text-emerald-600' : 'text-[#D95338]'}>
               {isStageCountSynced ? ' · 已核对一致' : ' · 存在未归类作品'}
             </span>
@@ -924,7 +895,6 @@ export const AboutMe: React.FC<AboutMeProps> = ({
           aria-labelledby="about-profile-edit-title"
         >
           <div className="bg-white rounded-3xl max-w-2xl w-full max-h-[92vh] flex flex-col shadow-2xl border border-[#F8D2CC] animate-scaleUp overflow-hidden">
-            
             {/* Modal Header */}
             <div className="p-4 sm:p-5 bg-gradient-to-r from-[#FFF0EC] to-[#FFF8F6] border-b border-[#F8D2CC] flex items-center justify-between shrink-0">
               <div className="flex items-center gap-3">
@@ -940,9 +910,7 @@ export const AboutMe: React.FC<AboutMeProps> = ({
                       自由输入 · 实时生效
                     </span>
                   </div>
-                  <p className="text-xs text-[#8C7A6B] mt-0.5">
-                    你可以自由修改个人昵称、阶段称号、练舞故事与习惯标签
-                  </p>
+                  <p className="text-xs text-[#8C7A6B] mt-0.5">你可以自由修改个人昵称、阶段称号、练舞故事与习惯标签</p>
                 </div>
               </div>
               <button
@@ -957,7 +925,6 @@ export const AboutMe: React.FC<AboutMeProps> = ({
 
             {/* Modal Body Form */}
             <form onSubmit={handleSaveProfile} className="p-4 sm:p-5 overflow-y-auto flex-1 space-y-5">
-              
               {/* Field 1: 昵称 */}
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-[#3D2C1E] flex items-center gap-1.5">
@@ -1019,9 +986,7 @@ export const AboutMe: React.FC<AboutMeProps> = ({
                     <Sparkles className="w-3.5 h-3.5 text-[#FF7E67]" />
                     <span>自我介绍 / 学舞心声与故事</span>
                   </label>
-                  <span className="text-[10px] text-[#A68F80]">
-                    {editBioText.length} 字
-                  </span>
+                  <span className="text-[10px] text-[#A68F80]">{editBioText.length} 字</span>
                 </div>
                 <textarea
                   value={editBioText}
@@ -1103,9 +1068,7 @@ export const AboutMe: React.FC<AboutMeProps> = ({
                   </div>
                   <div className="flex items-center gap-2">
                     <div className="relative flex-1">
-                      <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs">
-                        {newTagEmoji}
-                      </span>
+                      <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs">{newTagEmoji}</span>
                       <input
                         type="text"
                         value={newTagInput}
@@ -1182,13 +1145,10 @@ export const AboutMe: React.FC<AboutMeProps> = ({
                   </button>
                 </div>
               </div>
-
             </form>
-
           </div>
         </div>
       )}
-
     </div>
   );
 };

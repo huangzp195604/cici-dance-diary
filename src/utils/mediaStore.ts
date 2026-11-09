@@ -17,6 +17,25 @@ const MEDIA_DB_NAME = 'cici_media_db';
 const MEDIA_DB_VERSION = 1;
 const MEDIA_STORE = 'media';
 
+/** 本地媒体写入失败的类型化错误：调用方据此给不同的、人能看懂的提示 */
+export class MediaStorageError extends Error {
+  kind: 'quota' | 'unsupported' | 'other';
+
+  constructor(kind: 'quota' | 'unsupported' | 'other', message: string) {
+    super(message);
+    this.name = 'MediaStorageError';
+    this.kind = kind;
+  }
+}
+
+function isQuotaError(e: unknown): boolean {
+  const err = e as { name?: string; code?: number; message?: string } | null;
+  if (!err) return false;
+  if (err.name === 'QuotaExceededError' || err.name === 'NS_ERROR_DOM_QUOTA_REACHED') return true;
+  if (err.code === 22) return true;
+  return /quota|exceeded|storage is full/i.test(err.message ?? '');
+}
+
 export const LOCAL_MEDIA_PREFIX = 'local-media:';
 
 /** 已解析出的 objectURL 缓存：同一视频重复打开不重复创建，避免内存泄漏 */
@@ -33,7 +52,7 @@ export function makeLocalMediaId(): string {
 function getDB(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
     if (!window.indexedDB) {
-      reject(new Error('当前浏览器不支持本地媒体存储'));
+      reject(new MediaStorageError('unsupported', '当前浏览器不支持本地媒体存储'));
       return;
     }
     const req = window.indexedDB.open(MEDIA_DB_NAME, MEDIA_DB_VERSION);
@@ -44,14 +63,12 @@ function getDB(): Promise<IDBDatabase> {
       }
     };
     req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error || new Error('本地媒体库打开失败'));
+    req.onerror = () =>
+      reject(new MediaStorageError('unsupported', req.error?.message || '本地媒体库打开失败（可能是隐私模式）'));
   });
 }
 
-async function tx<T>(
-  mode: IDBTransactionMode,
-  run: (store: IDBObjectStore) => IDBRequest<T>
-): Promise<T> {
+async function tx<T>(mode: IDBTransactionMode, run: (store: IDBObjectStore) => IDBRequest<T>): Promise<T> {
   const db = await getDB();
   return new Promise((resolve, reject) => {
     const transaction = db.transaction(MEDIA_STORE, mode);
@@ -63,7 +80,29 @@ async function tx<T>(
 }
 
 export async function saveMediaBlob(id: string, blob: Blob): Promise<void> {
-  await tx('readwrite', (store) => store.put(blob, id));
+  try {
+    await tx('readwrite', (store) => store.put(blob, id));
+  } catch (e) {
+    // 微信内置浏览器和 iOS 隐私模式的配额明显更紧，这里把底层错误翻译成可执行提示，
+    // 否则上传失败只会弹一句「保存失败」，用户不知道该删点什么。
+    if (isQuotaError(e)) {
+      throw new MediaStorageError('quota', '本机存储空间不足，视频没能存下来');
+    }
+    if (e instanceof MediaStorageError) throw e;
+    throw new MediaStorageError('other', (e as Error)?.message || '视频写入本机失败');
+  }
+}
+
+/** 当前本机存储还能不能再塞下一支视频（粗判：剩余不足 3% 就当作危险） */
+export async function hasRoomForMedia(): Promise<boolean> {
+  try {
+    if (!navigator.storage?.estimate) return true;
+    const { usage, quota } = await navigator.storage.estimate();
+    if (typeof usage !== 'number' || typeof quota !== 'number' || quota <= 0) return true;
+    return quota - usage > quota * 0.03;
+  } catch {
+    return true;
+  }
 }
 
 export async function getMediaBlob(id: string): Promise<Blob | null> {

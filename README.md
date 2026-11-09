@@ -8,21 +8,27 @@
 ## 🚀 本地运行指南 (Quick Start)
 
 ### 1. 安装项目依赖
+
 在终端中进入解压后的项目目录，执行：
+
 ```bash
 npm install
 ```
 
 ### 2. 启动本地开发服务器
+
 ```bash
 npm run dev
 ```
+
 启动后在浏览器中打开提示的本地地址（通常为 `http://localhost:3000`）。
 
 ### 3. 项目打包构建
+
 ```bash
 npm run build
 ```
+
 打包生成的文件将位于 `dist/` 目录下。
 
 ---

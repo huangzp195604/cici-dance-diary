@@ -247,10 +247,7 @@ export function isFirstBindOnDevice(): boolean {
  * - 本地独有的（游客期间新写的）排在前面，登录后第一眼就能看到
  * 返回 addedCount 用于「已并入 N 条记录」的提示。
  */
-export function mergeCollections<T extends { id: string }>(
-  local: T[],
-  cloud: T[]
-): { items: T[]; addedCount: number } {
+export function mergeCollections<T extends { id: string }>(local: T[], cloud: T[]): { items: T[]; addedCount: number } {
   const cloudIds = new Set(cloud.map((item) => item.id));
   const onlyLocal = local.filter((item) => !cloudIds.has(item.id));
   if (onlyLocal.length === 0) return { items: cloud, addedCount: 0 };
@@ -295,8 +292,7 @@ export async function syncAllDomains(): Promise<{
         const cloudDeleted = hasCloudRow && (cloudPayload === null || cloudPayload === undefined);
         const cloudTime = meta[domain];
         // 只有云端确实带回时间、且本地有更晚的修改记录时，才认为本地更新
-        const preferLocal =
-          typeof cloudTime === 'number' && !!stamps[domain] && stamps[domain].at > cloudTime;
+        const preferLocal = typeof cloudTime === 'number' && !!stamps[domain] && stamps[domain].at > cloudTime;
 
         if (preferLocal) {
           const value = stamps[domain].deleted || raw === null ? null : parsePayload(raw);

@@ -229,4 +229,3 @@ export interface SocialData {
   conversations: Conversation[];
   profiles: Map<string, SocialPeer>;
 }
-

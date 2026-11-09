@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Tag, Plus, X, AlertCircle, Check } from 'lucide-react';
 import type { DancePost } from '../types';
 
@@ -36,14 +36,18 @@ export const PostTagEditor: React.FC<PostTagEditorProps> = ({ post, suggestions,
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
-  // 每次打开（或切到另一篇作品）都从该作品的最新标签重新初始化
+  // 每次打开（或切到另一篇作品）都从该作品的最新标签重新初始化。
+  // 依赖整份 post 而不是 post?.id：父组件换了一篇作品时对象必然变化，
+  // 而同一篇作品内父级重复渲染不该冲掉用户正在编辑的标签，所以用 id 兜一层。
+  const initializedPostId = useRef<string | null>(null);
   useEffect(() => {
-    if (!post) return;
+    if (!post || initializedPostId.current === post.id) return;
+    initializedPostId.current = post.id;
     setTags([...post.categories]);
     setDraft('');
     setError(null);
     setSaving(false);
-  }, [post?.id]);
+  }, [post]);
 
   if (!post) return null;
 
@@ -93,7 +97,9 @@ export const PostTagEditor: React.FC<PostTagEditorProps> = ({ post, suggestions,
       role="dialog"
       aria-modal="true"
       aria-labelledby="tag-editor-title"
-      onClick={() => { if (!saving) onClose(); }}
+      onClick={() => {
+        if (!saving) onClose();
+      }}
     >
       <div
         className="bg-white rounded-3xl max-w-lg w-full max-h-[90vh] flex flex-col shadow-2xl border border-[#F2DAC2] animate-scaleUp overflow-hidden"
@@ -106,7 +112,9 @@ export const PostTagEditor: React.FC<PostTagEditorProps> = ({ post, suggestions,
               <Tag className="w-5 h-5" />
             </div>
             <div className="min-w-0">
-              <h3 id="tag-editor-title" className="text-base sm:text-lg font-bold text-[#292524]">编辑作品标签</h3>
+              <h3 id="tag-editor-title" className="text-base sm:text-lg font-bold text-[#292524]">
+                编辑作品标签
+              </h3>
               <p className="text-xs text-[#8C7A6B] mt-0.5 truncate">
                 《{post.title}》· 当前 {post.categories.length} 个标签
               </p>
@@ -174,7 +182,10 @@ export const PostTagEditor: React.FC<PostTagEditorProps> = ({ post, suggestions,
             <div className="flex items-center gap-2">
               <input
                 value={draft}
-                onChange={(e) => { setDraft(e.target.value); setError(null); }}
+                onChange={(e) => {
+                  setDraft(e.target.value);
+                  setError(null);
+                }}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
                     e.preventDefault();
@@ -214,7 +225,10 @@ export const PostTagEditor: React.FC<PostTagEditorProps> = ({ post, suggestions,
           </section>
 
           {error && (
-            <div role="alert" className="p-3 bg-rose-100 border border-rose-300 rounded-xl text-xs text-rose-900 flex items-center gap-2">
+            <div
+              role="alert"
+              className="p-3 bg-rose-100 border border-rose-300 rounded-xl text-xs text-rose-900 flex items-center gap-2"
+            >
               <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
               <span className="flex-1">{error}</span>
             </div>

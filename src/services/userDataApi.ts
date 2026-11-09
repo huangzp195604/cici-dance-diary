@@ -116,13 +116,11 @@ export async function pullUserDataWithMeta(): Promise<{
 
   const data: Record<string, unknown> = {};
   const meta: Record<string, number> = {};
-  ((res.data || []) as unknown as { domain: string; payload: unknown; updated_at?: string }[]).forEach(
-    (row) => {
-      data[row.domain] = row.payload;
-      const ts = row.updated_at ? Date.parse(row.updated_at) : NaN;
-      if (Number.isFinite(ts)) meta[row.domain] = ts;
-    }
-  );
+  ((res.data || []) as unknown as { domain: string; payload: unknown; updated_at?: string }[]).forEach((row) => {
+    data[row.domain] = row.payload;
+    const ts = row.updated_at ? Date.parse(row.updated_at) : NaN;
+    if (Number.isFinite(ts)) meta[row.domain] = ts;
+  });
   return { data, meta };
 }
 
@@ -137,7 +135,10 @@ export async function pushUserData(domain: string, payload: unknown): Promise<vo
     const upd = await db.from('user_data').update(row).eq('domain', domain).select();
     if (upd.error) throw new Error(errText(upd.error));
   } else {
-    const ins = await db.from('user_data').insert({ domain, ...row }).select();
+    const ins = await db
+      .from('user_data')
+      .insert({ domain, ...row })
+      .select();
     if (ins.error) throw new Error(errText(ins.error));
   }
 }

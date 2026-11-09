@@ -1,5 +1,20 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Calendar, UploadCloud, Users, Sparkles, Volume2, VolumeX, Download, LogIn, LogOut, UserCircle2, LineChart, ChevronRight, Sprout, Lock } from 'lucide-react';
+import {
+  Calendar,
+  UploadCloud,
+  Users,
+  Sparkles,
+  Volume2,
+  VolumeX,
+  Download,
+  LogIn,
+  LogOut,
+  UserCircle2,
+  LineChart,
+  ChevronRight,
+  Sprout,
+  Lock,
+} from 'lucide-react';
 import { brandTitle, brandInitial } from '../utils/brand';
 
 interface NavbarProps {
@@ -101,9 +116,11 @@ export const Navbar: React.FC<NavbarProps> = ({
         撑宽，避免 iOS Safari 自动缩小整页（表现为"字很小、要缩放才看得全"）。
       */}
       <div className="max-w-6xl mx-auto px-3 sm:px-6 py-2 lg:py-0 lg:h-16 flex flex-wrap lg:flex-nowrap items-center justify-between gap-x-2 gap-y-2 md:gap-4 lg:gap-8">
-
         {/* Zone 1: wordmark */}
-        <div className="flex items-center gap-2 shrink-0 order-1 cursor-pointer" onClick={() => setActiveTab('timeline')}>
+        <div
+          className="flex items-center gap-2 shrink-0 order-1 cursor-pointer"
+          onClick={() => setActiveTab('timeline')}
+        >
           <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-[#FFE8E0] text-[#FF6B6B] flex items-center justify-center font-bold text-lg shadow-sm border border-[#FFD5C8] overflow-hidden">
             {userAvatar ? (
               <img
@@ -115,7 +132,9 @@ export const Navbar: React.FC<NavbarProps> = ({
                 }}
               />
             ) : (
-              <span aria-hidden="true" className="select-none">{brandInitial(brandText)}</span>
+              <span aria-hidden="true" className="select-none">
+                {brandInitial(brandText)}
+              </span>
             )}
           </div>
           <div className="flex flex-col min-w-0 max-w-[150px] sm:max-w-[280px]">
@@ -163,10 +182,16 @@ export const Navbar: React.FC<NavbarProps> = ({
                     />
                   )}
                   {key === 'buddies' && !isGuest && (
-                    <span aria-hidden="true" className="md:hidden absolute -top-0.5 -right-1 w-1.5 h-1.5 rounded-full bg-[#7C3AED]" />
+                    <span
+                      aria-hidden="true"
+                      className="md:hidden absolute -top-0.5 -right-1 w-1.5 h-1.5 rounded-full bg-[#7C3AED]"
+                    />
                   )}
                   {key === 'growth' && (
-                    <span aria-hidden="true" className="md:hidden absolute -top-0.5 -right-1 w-1.5 h-1.5 rounded-full bg-[#D97706]" />
+                    <span
+                      aria-hidden="true"
+                      className="md:hidden absolute -top-0.5 -right-1 w-1.5 h-1.5 rounded-full bg-[#D97706]"
+                    />
                   )}
                 </span>
                 <span className={key === 'buddies' ? 'font-bold tracking-tight text-[#5B21B6]' : ''}>{label}</span>
@@ -188,9 +213,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             <button
               type="button"
               aria-label="查看更多标签"
-              onClick={() =>
-                navRef.current?.scrollBy({ left: navRef.current.clientWidth * 0.7, behavior: 'smooth' })
-              }
+              onClick={() => navRef.current?.scrollBy({ left: navRef.current.clientWidth * 0.7, behavior: 'smooth' })}
               className="md:hidden absolute right-1 top-1/2 -translate-y-1/2 w-7 h-7 flex items-center justify-center rounded-full bg-white border border-[#ECE0D3] text-[#78695C] shadow-sm cursor-pointer"
             >
               <ChevronRight className="w-4 h-4" />
@@ -286,7 +309,6 @@ export const Navbar: React.FC<NavbarProps> = ({
             )}
           </button>
         </div>
-
       </div>
     </header>
   );
